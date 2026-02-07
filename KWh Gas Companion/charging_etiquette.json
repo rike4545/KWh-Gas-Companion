@@ -1,0 +1,670 @@
+[
+  {
+    "id": "before_park_centered",
+    "category": "Before you plug in",
+    "title": "Park centered and close enough for the cable",
+    "bullets": [
+      "Align with the stall and center in the space",
+      "Avoid stretching the cable across another stall",
+      "Leave space for neighboring doors to open safely"
+    ],
+    "why": "Keeps stalls usable and reduces cable wear.",
+    "tags": ["cable", "stall", "parking", "safety"],
+    "priority": 100
+  },
+  {
+    "id": "before_choose_port_side",
+    "category": "Before you plug in",
+    "title": "Choose a stall that fits your charge port location",
+    "bullets": [
+      "Pick the stall that allows a clean cable path to your port",
+      "Avoid occupying a second stall just to make the cable reach"
+    ],
+    "why": "Prevents blocking and cable strain.",
+    "tags": ["cable", "stall", "courtesy"],
+    "priority": 92
+  },
+  {
+    "id": "before_no_double_parking",
+    "category": "Before you plug in",
+    "title": "Never take two stalls (even briefly)",
+    "bullets": [
+      "If alignment is hard, reposition instead of straddling lines",
+      "If the site is tight, ask a nearby driver for space rather than blocking"
+    ],
+    "why": "A single car can halve station capacity.",
+    "tags": ["busy", "queue", "courtesy"],
+    "priority": 95
+  },
+  {
+    "id": "before_pull_aside_troubleshoot",
+    "category": "Before you plug in",
+    "title": "If you’re troubleshooting, pull aside quickly",
+    "bullets": [
+      "Try once, then move to another stall if it fails",
+      "If you need app/account steps, pull into regular parking first"
+    ],
+    "why": "Keeps stalls available for charging cars.",
+    "tags": ["busy", "queue", "stall", "courtesy"],
+    "priority": 90
+  },
+  {
+    "id": "before_check_queue_norms",
+    "category": "Before you plug in",
+    "title": "Respect the local queue flow",
+    "bullets": [
+      "If there’s an obvious line, join it instead of jumping to an open stall",
+      "If unsure, ask politely: “Is there a queue?”"
+    ],
+    "why": "Avoids conflict and keeps things fair.",
+    "tags": ["busy", "queue", "courtesy"],
+    "priority": 94
+  },
+  {
+    "id": "before_watch_pedestrians",
+    "category": "Before you plug in",
+    "title": "Watch for pedestrians and tight turning angles",
+    "bullets": [
+      "People walk between cars and cables",
+      "Back in/out slowly and use signals"
+    ],
+    "why": "Charging areas can be crowded and chaotic.",
+    "tags": ["safety", "parking"],
+    "priority": 86
+  },
+  {
+    "id": "before_dont_block_drive_lane",
+    "category": "Before you plug in",
+    "title": "Don’t block the drive lane while waiting",
+    "bullets": [
+      "If stalls are full, stage in a normal spot (if safe)",
+      "Leave room for cars to enter/exit stalls"
+    ],
+    "why": "Prevents gridlock and keeps access clear.",
+    "tags": ["busy", "queue", "safety"],
+    "priority": 84
+  },
+  {
+    "id": "before_leave_aisles_clear",
+    "category": "Before you plug in",
+    "title": "Keep trunk/door access from spilling into neighboring stalls",
+    "bullets": [
+      "Load/unload quickly if others are waiting",
+      "Avoid leaving doors wide open next to a charging neighbor"
+    ],
+    "why": "Reduces accidental door dings and bottlenecks.",
+    "tags": ["busy", "courtesy", "safety"],
+    "priority": 72
+  },
+  {
+    "id": "before_bring_your_cart_back",
+    "category": "Before you plug in",
+    "title": "Don’t leave carts by stalls",
+    "bullets": [
+      "Return carts to corrals",
+      "Keep the stall area clear of obstacles"
+    ],
+    "why": "Prevents blocked access and damage.",
+    "tags": ["courtesy", "safety"],
+    "priority": 48
+  },
+
+  {
+    "id": "while_stay_reachable_busy",
+    "category": "While charging",
+    "title": "Stay reachable if it’s crowded",
+    "bullets": [
+      "Keep notifications on",
+      "Be ready to move when you’re near your target"
+    ],
+    "why": "Turnover matters most at busy stations.",
+    "tags": ["busy", "queue", "courtesy"],
+    "priority": 98
+  },
+  {
+    "id": "while_dont_unplug_others",
+    "category": "While charging",
+    "title": "Don’t unplug someone else’s car",
+    "bullets": [
+      "Even if it looks finished, don’t touch their connector",
+      "If there’s an issue, notify site staff or the driver"
+    ],
+    "why": "Consent and safety — and avoids confrontation.",
+    "tags": ["safety", "courtesy"],
+    "priority": 97
+  },
+  {
+    "id": "while_keep_volume_down",
+    "category": "While charging",
+    "title": "Keep volume reasonable (especially at night)",
+    "bullets": [
+      "Headphones if you’re watching videos",
+      "Avoid loud phone calls near others’ open windows"
+    ],
+    "why": "Shared spaces get stressful fast.",
+    "tags": ["courtesy"],
+    "priority": 55
+  },
+  {
+    "id": "while_keep_area_tidy",
+    "category": "While charging",
+    "title": "Keep the area tidy",
+    "bullets": [
+      "Don’t leave trash around stalls",
+      "If you see a small mess, consider tossing it"
+    ],
+    "why": "Better sites stay open and maintained.",
+    "tags": ["courtesy"],
+    "priority": 74
+  },
+  {
+    "id": "while_cable_handling_gentle",
+    "category": "While charging",
+    "title": "Handle connectors gently",
+    "bullets": [
+      "Don’t drop connectors onto pavement",
+      "Avoid yanking or twisting the cable"
+    ],
+    "why": "Less wear means fewer broken stalls.",
+    "tags": ["cable", "safety"],
+    "priority": 78
+  },
+  {
+    "id": "while_keep_connector_off_ground",
+    "category": "While charging",
+    "title": "Keep the connector off the ground when possible",
+    "bullets": [
+      "Don’t drag the connector across dirt/gravel",
+      "If it falls, check for debris before re-seating"
+    ],
+    "why": "Debris can cause poor connections and errors.",
+    "tags": ["cable", "stall"],
+    "priority": 66
+  },
+  {
+    "id": "while_avoid_stall_hogging_high_soc",
+    "category": "While charging",
+    "title": "Avoid charging to very high % when others are waiting",
+    "bullets": [
+      "Charge enough to comfortably reach your next stop + buffer",
+      "High SoC charging is slower and ties up a stall longer"
+    ],
+    "why": "This is the biggest throughput killer at busy sites.",
+    "tags": ["busy", "queue", "courtesy"],
+    "priority": 96
+  },
+  {
+    "id": "while_if_you_leave_note",
+    "category": "While charging",
+    "title": "If you step away, leave yourself a clear return reminder",
+    "bullets": [
+      "Set a timer for 5–10 minutes before your target",
+      "Avoid ‘I’ll check later’ when a queue is forming"
+    ],
+    "why": "Prevents accidental overstays.",
+    "tags": ["busy", "queue"],
+    "priority": 82
+  },
+  {
+    "id": "while_dont_block_adjacent_stall_with_cable",
+    "category": "While charging",
+    "title": "Don’t route the cable through another stall’s space",
+    "bullets": [
+      "Keep the cable within your stall footprint",
+      "If the layout forces awkward routing, choose another stall"
+    ],
+    "why": "Neighbors need safe access too.",
+    "tags": ["cable", "stall", "safety"],
+    "priority": 70
+  },
+  {
+    "id": "while_be_kind_to_new_drivers",
+    "category": "While charging",
+    "title": "Be patient with new EV drivers",
+    "bullets": [
+      "Offer quick help if asked",
+      "Keep it short and friendly (they may be stressed)"
+    ],
+    "why": "Good stations are built on good behavior.",
+    "tags": ["courtesy"],
+    "priority": 60
+  },
+
+  {
+    "id": "busy_move_promptly_when_done",
+    "category": "When it’s busy",
+    "title": "Move promptly when you’re finished",
+    "bullets": [
+      "If you hit your target, go — don’t linger",
+      "Don’t treat a full stall as parking while you shop"
+    ],
+    "why": "One slow mover can create a line.",
+    "tags": ["busy", "queue", "courtesy"],
+    "priority": 100
+  },
+  {
+    "id": "busy_charge_only_what_you_need",
+    "category": "When it’s busy",
+    "title": "Charge only what you need",
+    "bullets": [
+      "Prioritize getting to the next stop efficiently",
+      "Let others get in if they’re waiting"
+    ],
+    "why": "Faster turnover helps everyone.",
+    "tags": ["busy", "queue"],
+    "priority": 91
+  },
+  {
+    "id": "busy_dont_ice_ev_stalls",
+    "category": "When it’s busy",
+    "title": "Don’t park in a charging stall unless you’re charging",
+    "bullets": [
+      "If you’re not plugging in, use regular parking",
+      "If you’re waiting, stage elsewhere safely"
+    ],
+    "why": "Blocking stalls is the fastest way to escalate tension.",
+    "tags": ["busy", "queue", "courtesy"],
+    "priority": 93
+  },
+  {
+    "id": "busy_watch_for_queue_signals",
+    "category": "When it’s busy",
+    "title": "Communicate clearly if there’s a queue",
+    "bullets": [
+      "Make eye contact and use a friendly wave",
+      "If you’re next, pull forward promptly but safely"
+    ],
+    "why": "Reduces confusion and disputes.",
+    "tags": ["busy", "queue", "courtesy", "safety"],
+    "priority": 79
+  },
+  {
+    "id": "busy_dont_cut_in_line",
+    "category": "When it’s busy",
+    "title": "Don’t cut the line — even if a stall opens",
+    "bullets": [
+      "If people are waiting in order, respect that order",
+      "If the system is unclear, ask rather than assume"
+    ],
+    "why": "Fairness prevents drama.",
+    "tags": ["busy", "queue", "courtesy"],
+    "priority": 89
+  },
+  {
+    "id": "busy_share_information_about_dead_stalls",
+    "category": "When it’s busy",
+    "title": "If a stall is dead/slow, tell the next driver politely",
+    "bullets": [
+      "A quick: “That one failed for me” is enough",
+      "Don’t lecture — just inform"
+    ],
+    "why": "Saves time and keeps the line moving.",
+    "tags": ["busy", "queue", "stall", "courtesy"],
+    "priority": 77
+  },
+  {
+    "id": "busy_keep_food_runs_brief",
+    "category": "When it’s busy",
+    "title": "Keep food/restroom runs brief if people are waiting",
+    "bullets": [
+      "If you need a longer stop, consider leaving and returning later",
+      "Avoid disappearing near your finish time"
+    ],
+    "why": "Queues form quickly when people vanish.",
+    "tags": ["busy", "queue"],
+    "priority": 68
+  },
+  {
+    "id": "busy_dont_block_stalls_for_photos",
+    "category": "When it’s busy",
+    "title": "Don’t block stalls for photos or content",
+    "bullets": [
+      "If you want pictures, pull to a normal spot",
+      "Keep charging lanes clear"
+    ],
+    "why": "Stations aren’t photo sets when lines exist.",
+    "tags": ["busy", "courtesy"],
+    "priority": 50
+  },
+  {
+    "id": "busy_avoid_unnecessary_replugging",
+    "category": "When it’s busy",
+    "title": "Avoid unnecessary re-plugging or stall-hopping",
+    "bullets": [
+      "If you’re charging normally, don’t switch stalls for minor gains",
+      "Switch only if there’s an actual problem"
+    ],
+    "why": "Unnecessary churn confuses queues and wastes time.",
+    "tags": ["busy", "queue"],
+    "priority": 63
+  },
+
+  {
+    "id": "done_reset_connector",
+    "category": "When you’re done",
+    "title": "Return the connector properly",
+    "bullets": [
+      "Seat the connector back in its holster",
+      "Don’t drop it or leave it dangling"
+    ],
+    "why": "Helps keep equipment reliable.",
+    "tags": ["cable", "stall"],
+    "priority": 88
+  },
+  {
+    "id": "done_check_for_trash",
+    "category": "When you’re done",
+    "title": "Do a quick trash check before you leave",
+    "bullets": [
+      "Take cups/wrappers with you",
+      "Don’t leave wipes or paper towels near stalls"
+    ],
+    "why": "Clean sites get fewer restrictions and closures.",
+    "tags": ["courtesy"],
+    "priority": 62
+  },
+  {
+    "id": "done_dont_block_exit_while_unplugging",
+    "category": "When you’re done",
+    "title": "Unplug and depart without blocking others",
+    "bullets": [
+      "Unplug, stow, and go",
+      "If you need to set navigation, pull into regular parking"
+    ],
+    "why": "Keeps exits clear for the next driver.",
+    "tags": ["busy", "courtesy"],
+    "priority": 85
+  },
+  {
+    "id": "done_leave_stall_ready",
+    "category": "When you’re done",
+    "title": "Leave the stall ready for the next person",
+    "bullets": [
+      "Avoid leaving the cable stretched or twisted",
+      "If the connector is visibly dirty, gently knock off debris (no liquids)"
+    ],
+    "why": "The next driver shouldn’t inherit a problem.",
+    "tags": ["cable", "courtesy"],
+    "priority": 57
+  },
+  {
+    "id": "done_report_major_issues_elsewhere",
+    "category": "When you’re done",
+    "title": "Report major issues without blocking a stall",
+    "bullets": [
+      "If you need to contact support, move to a normal spot first",
+      "Log the stall number/time for your own records"
+    ],
+    "why": "Support calls can take time — keep stalls flowing.",
+    "tags": ["busy", "stall"],
+    "priority": 71
+  },
+
+  {
+    "id": "respect_no_confrontations",
+    "category": "Respect & safety",
+    "title": "Avoid confrontation — assume confusion first",
+    "bullets": [
+      "If someone makes a mistake, keep it calm",
+      "Ask a simple question before accusing"
+    ],
+    "why": "Stations can be stressful; calm keeps everyone safe.",
+    "tags": ["safety", "courtesy"],
+    "priority": 76
+  },
+  {
+    "id": "respect_keep_kids_close",
+    "category": "Respect & safety",
+    "title": "Keep kids and pets close",
+    "bullets": [
+      "Charging lanes have moving cars and cables",
+      "Don’t let children run between stalls"
+    ],
+    "why": "Safety risk is highest in tight parking rows.",
+    "tags": ["safety"],
+    "priority": 73
+  },
+  {
+    "id": "respect_no_cable_trip_hazards",
+    "category": "Respect & safety",
+    "title": "Don’t create trip hazards with cables or gear",
+    "bullets": [
+      "Keep personal items out of walk paths",
+      "Avoid letting cable loops sit where people step"
+    ],
+    "why": "Trips and falls happen fast in crowded lots.",
+    "tags": ["safety", "cable"],
+    "priority": 69
+  },
+  {
+    "id": "respect_nighttime_lights",
+    "category": "Respect & safety",
+    "title": "At night, avoid shining bright lights into other cars",
+    "bullets": [
+      "Turn down interior brightness if you’re parked close",
+      "Avoid high beams while maneuvering near stalls"
+    ],
+    "why": "Glare increases stress and reduces visibility.",
+    "tags": ["safety", "courtesy"],
+    "priority": 44
+  },
+  {
+    "id": "respect_dont_smoke_near_stalls",
+    "category": "Respect & safety",
+    "title": "Don’t smoke/vape near charging equipment",
+    "bullets": [
+      "Step away from stalls if you smoke",
+      "Dispose of butts safely (never on the ground)"
+    ],
+    "why": "It’s inconsiderate and can be a safety issue.",
+    "tags": ["safety", "courtesy"],
+    "priority": 58
+  },
+  {
+    "id": "respect_keep_music_private",
+    "category": "Respect & safety",
+    "title": "Keep music private",
+    "bullets": [
+      "No loud speakers between cars",
+      "Use headphones if you’re outside the vehicle"
+    ],
+    "why": "People are often tired and traveling.",
+    "tags": ["courtesy"],
+    "priority": 40
+  },
+  {
+    "id": "respect_helpful_short_answers",
+    "category": "Respect & safety",
+    "title": "If asked, give short, helpful answers",
+    "bullets": [
+      "“Queue starts there” / “That stall failed for me”",
+      "Avoid lecturing or gatekeeping"
+    ],
+    "why": "Keeps the vibe friendly and the line moving.",
+    "tags": ["busy", "queue", "courtesy"],
+    "priority": 61
+  },
+
+  {
+    "id": "before_dont_idle_in_stall_no_plug",
+    "category": "Before you plug in",
+    "title": "Don’t idle in a stall while deciding what to do",
+    "bullets": [
+      "If you’re unsure about charging, pull into normal parking to decide",
+      "Only occupy a stall when you’re ready to plug in"
+    ],
+    "why": "Stalls are for charging, not staging.",
+    "tags": ["busy", "queue"],
+    "priority": 83
+  },
+  {
+    "id": "while_keep_window_cleanup_brief",
+    "category": "While charging",
+    "title": "Keep car cleaning brief if others are waiting",
+    "bullets": [
+      "A quick windshield wipe is fine",
+      "Don’t treat the stall as a detailing bay"
+    ],
+    "why": "People notice stall time, not your intent.",
+    "tags": ["busy", "queue", "courtesy"],
+    "priority": 64
+  },
+  {
+    "id": "busy_if_you_need_100_percent_choose_quiet_time",
+    "category": "When it’s busy",
+    "title": "If you truly need 100%, aim for off-peak hours",
+    "bullets": [
+      "Charging to 100% takes longer near the top",
+      "If the station is packed, consider a shorter stop now and another later"
+    ],
+    "why": "Maximizes fairness and your own time efficiency.",
+    "tags": ["busy", "queue"],
+    "priority": 52
+  },
+  {
+    "id": "done_pull_forward_to_set_route",
+    "category": "When you’re done",
+    "title": "Set your route after you leave the stall",
+    "bullets": [
+      "If you need to compare chargers or plan stops, pull into a normal spot",
+      "Don’t block exits while typing"
+    ],
+    "why": "Stops small delays from cascading into a queue.",
+    "tags": ["busy", "courtesy"],
+    "priority": 67
+  },
+  {
+    "id": "respect_no_litter_under_stalls",
+    "category": "Respect & safety",
+    "title": "Don’t discard food or liquids under stalls",
+    "bullets": [
+      "Spills attract pests and create slip hazards",
+      "Dispose of liquids in appropriate drains/trash"
+    ],
+    "why": "Keeps the site cleaner and safer.",
+    "tags": ["safety", "courtesy"],
+    "priority": 47
+  },
+
+  {
+    "id": "before_give_space_to_disabled_access",
+    "category": "Before you plug in",
+    "title": "Leave access clear for anyone who needs extra space",
+    "bullets": [
+      "Don’t crowd accessible pathways",
+      "Avoid blocking curb cuts or ramps"
+    ],
+    "why": "Access matters more than convenience.",
+    "tags": ["safety", "courtesy"],
+    "priority": 59
+  },
+  {
+    "id": "while_keep_door_dings_in_mind",
+    "category": "While charging",
+    "title": "Be mindful of door dings",
+    "bullets": [
+      "Open doors slowly in tight stalls",
+      "If you have passengers, guide them"
+    ],
+    "why": "Charging sites pack cars close together.",
+    "tags": ["courtesy", "safety"],
+    "priority": 46
+  },
+  {
+    "id": "busy_dont_hold_stall_for_friend",
+    "category": "When it’s busy",
+    "title": "Don’t hold a stall for a friend",
+    "bullets": [
+      "If there’s a queue, the next car in line gets the next stall",
+      "Meeting up is fine — holding capacity isn’t"
+    ],
+    "why": "Queues only work when everyone follows them.",
+    "tags": ["busy", "queue", "courtesy"],
+    "priority": 80
+  },
+  {
+    "id": "done_check_you_arent_blocking_neighbor_to_leave",
+    "category": "When you’re done",
+    "title": "Before you exit, make sure you’re not blocking a neighbor’s path",
+    "bullets": [
+      "Let others back out if they’re signaling",
+      "Yield in tight aisles"
+    ],
+    "why": "Prevents small jams that snowball into queues.",
+    "tags": ["busy", "safety"],
+    "priority": 54
+  },
+  {
+    "id": "respect_be_careful_with_open_flames",
+    "category": "Respect & safety",
+    "title": "Avoid open flames near stalls",
+    "bullets": [
+      "No grilling/candles near charging equipment",
+      "Keep any heat sources well away from cables"
+    ],
+    "why": "It’s rare, but the risk is needless.",
+    "tags": ["safety"],
+    "priority": 35
+  },
+
+  {
+    "id": "before_quick_stall_check_signage",
+    "category": "Before you plug in",
+    "title": "Do a quick stall signage check",
+    "bullets": [
+      "Some stalls are reserved, offline, or differently rated",
+      "Respect posted rules at shared lots"
+    ],
+    "why": "Prevents avoidable friction and confusion.",
+    "tags": ["courtesy", "stall"],
+    "priority": 53
+  },
+  {
+    "id": "while_dont_block_trash_bins",
+    "category": "While charging",
+    "title": "Don’t block trash bins or access paths",
+    "bullets": [
+      "People need to walk through the area",
+      "Keep the space functional"
+    ],
+    "why": "Small blocks create big annoyances.",
+    "tags": ["courtesy", "safety"],
+    "priority": 38
+  },
+  {
+    "id": "busy_if_theres_a_host_follow_their_direction",
+    "category": "When it’s busy",
+    "title": "If there’s a host/attendant, follow their direction",
+    "bullets": [
+      "They may be managing stalls for flow",
+      "Ask short questions and comply"
+    ],
+    "why": "A managed queue is faster than chaos.",
+    "tags": ["busy", "queue"],
+    "priority": 49
+  },
+  {
+    "id": "done_leave_stall_if_you_get_error_at_end",
+    "category": "When you’re done",
+    "title": "If you hit an end-of-session error, clear the stall first",
+    "bullets": [
+      "Move to normal parking, then handle app/payment issues",
+      "Note the stall ID and time"
+    ],
+    "why": "Keep stalls available while you resolve admin issues.",
+    "tags": ["busy", "stall"],
+    "priority": 56
+  },
+  {
+    "id": "respect_keep_advice_unsolicited_minimal",
+    "category": "Respect & safety",
+    "title": "Keep unsolicited advice minimal",
+    "bullets": [
+      "Offer help only if someone looks stuck or asks",
+      "A quick tip beats a lecture"
+    ],
+    "why": "People are tired and traveling — keep it friendly.",
+    "tags": ["courtesy"],
+    "priority": 41
+  }
+]

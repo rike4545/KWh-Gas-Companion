@@ -1,0 +1,766 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		93B468252F37A25100FE3B6A /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 93BBDA522E11725E0095B5A4 /* SwiftSoup */; };
+		93B468262F37A25100FE3B6A /* FirebaseAI in Frameworks */ = {isa = PBXBuildFile; productRef = 93687B602E255E4600690065 /* FirebaseAI */; };
+		93B468272F37A25100FE3B6A /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 93687B622E255E4600690065 /* FirebaseAnalytics */; };
+		93B468282F37A25100FE3B6A /* FirebaseAnalyticsCore in Frameworks */ = {isa = PBXBuildFile; productRef = 93687B642E255E4600690065 /* FirebaseAnalyticsCore */; };
+		93B468292F37A25100FE3B6A /* FirebaseAnalyticsIdentitySupport in Frameworks */ = {isa = PBXBuildFile; productRef = 93687B662E255E4600690065 /* FirebaseAnalyticsIdentitySupport */; };
+		93B4682A2F37A25100FE3B6A /* FirebaseAnalyticsOnDeviceConversion in Frameworks */ = {isa = PBXBuildFile; productRef = 93687B682E255E4600690065 /* FirebaseAnalyticsOnDeviceConversion */; };
+		93B4682B2F37A25100FE3B6A /* SwiftCSV in Frameworks */ = {isa = PBXBuildFile; productRef = 93FB5E042E33B0FC00FAF25B /* SwiftCSV */; };
+		93B4682C2F37A25100FE3B6A /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = 934A1F842F339FD700571D94 /* GoogleMobileAds */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		93AB53CE2E11704100686913 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 93AB53B72E11704000686913 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 93AB53BE2E11704000686913;
+			remoteInfo = "KWh Gas Companion";
+		};
+		93AB53D82E11704100686913 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 93AB53B72E11704000686913 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 93AB53BE2E11704000686913;
+			remoteInfo = "KWh Gas Companion";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		93787B232E6898AF00214734 /* Exceptions for "KWh Gas Companion" folder in "KWh Gas CompanionUITests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"GoogleService-Info.plist",
+			);
+			target = 93AB53D62E11704100686913 /* KWh Gas CompanionUITests */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		93AB53C12E11704000686913 /* KWh Gas Companion */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				93787B232E6898AF00214734 /* Exceptions for "KWh Gas Companion" folder in "KWh Gas CompanionUITests" target */,
+			);
+			path = "KWh Gas Companion";
+			sourceTree = "<group>";
+		};
+		93AB53D02E11704100686913 /* KWh Gas CompanionTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "KWh Gas CompanionTests";
+			sourceTree = "<group>";
+		};
+		93AB53DA2E11704100686913 /* KWh Gas CompanionUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "KWh Gas CompanionUITests";
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		93AB53BC2E11704000686913 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				93B4682C2F37A25100FE3B6A /* GoogleMobileAds in Frameworks */,
+				93B4682B2F37A25100FE3B6A /* SwiftCSV in Frameworks */,
+				93B4682A2F37A25100FE3B6A /* FirebaseAnalyticsOnDeviceConversion in Frameworks */,
+				93B468292F37A25100FE3B6A /* FirebaseAnalyticsIdentitySupport in Frameworks */,
+				93B468282F37A25100FE3B6A /* FirebaseAnalyticsCore in Frameworks */,
+				93B468272F37A25100FE3B6A /* FirebaseAnalytics in Frameworks */,
+				93B468262F37A25100FE3B6A /* FirebaseAI in Frameworks */,
+				93B468252F37A25100FE3B6A /* SwiftSoup in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		93AB53CA2E11704100686913 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		93AB53D42E11704100686913 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		93AB53B62E11704000686913 = {
+			isa = PBXGroup;
+			children = (
+				93AB53C12E11704000686913 /* KWh Gas Companion */,
+				93AB53D02E11704100686913 /* KWh Gas CompanionTests */,
+				93AB53DA2E11704100686913 /* KWh Gas CompanionUITests */,
+				93AB53C02E11704000686913 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		93AB53C02E11704000686913 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		93AB53BE2E11704000686913 /* KWh Gas Companion */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 93AB53E12E11704100686913 /* Build configuration list for PBXNativeTarget "KWh Gas Companion" */;
+			buildPhases = (
+				93AB53BB2E11704000686913 /* Sources */,
+				93AB53BC2E11704000686913 /* Frameworks */,
+				93AB53BD2E11704000686913 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				93AB53C12E11704000686913 /* KWh Gas Companion */,
+			);
+			name = "KWh Gas Companion";
+			packageProductDependencies = (
+				93BBDA522E11725E0095B5A4 /* SwiftSoup */,
+				93687B602E255E4600690065 /* FirebaseAI */,
+				93687B622E255E4600690065 /* FirebaseAnalytics */,
+				93687B642E255E4600690065 /* FirebaseAnalyticsCore */,
+				93687B662E255E4600690065 /* FirebaseAnalyticsIdentitySupport */,
+				93687B682E255E4600690065 /* FirebaseAnalyticsOnDeviceConversion */,
+				93FB5E042E33B0FC00FAF25B /* SwiftCSV */,
+				934A1F842F339FD700571D94 /* GoogleMobileAds */,
+			);
+			productName = "KWh Gas Companion";
+			productType = "com.apple.product-type.application";
+		};
+		93AB53CC2E11704100686913 /* KWh Gas CompanionTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 93AB53E42E11704100686913 /* Build configuration list for PBXNativeTarget "KWh Gas CompanionTests" */;
+			buildPhases = (
+				93AB53C92E11704100686913 /* Sources */,
+				93AB53CA2E11704100686913 /* Frameworks */,
+				93AB53CB2E11704100686913 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				93AB53CF2E11704100686913 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				93AB53D02E11704100686913 /* KWh Gas CompanionTests */,
+			);
+			name = "KWh Gas CompanionTests";
+			packageProductDependencies = (
+			);
+			productName = "KWh Gas CompanionTests";
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		93AB53D62E11704100686913 /* KWh Gas CompanionUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 93AB53E72E11704100686913 /* Build configuration list for PBXNativeTarget "KWh Gas CompanionUITests" */;
+			buildPhases = (
+				93AB53D32E11704100686913 /* Sources */,
+				93AB53D42E11704100686913 /* Frameworks */,
+				93AB53D52E11704100686913 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				93AB53D92E11704100686913 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				93AB53DA2E11704100686913 /* KWh Gas CompanionUITests */,
+			);
+			name = "KWh Gas CompanionUITests";
+			packageProductDependencies = (
+			);
+			productName = "KWh Gas CompanionUITests";
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		93AB53B72E11704000686913 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				KnownAssetTags = (
+					New,
+					"New-1",
+				);
+				LastSwiftUpdateCheck = 1640;
+				LastUpgradeCheck = 2620;
+				TargetAttributes = {
+					93AB53BE2E11704000686913 = {
+						CreatedOnToolsVersion = 16.4;
+						LastSwiftMigration = 1640;
+					};
+					93AB53CC2E11704100686913 = {
+						CreatedOnToolsVersion = 16.4;
+						TestTargetID = 93AB53BE2E11704000686913;
+					};
+					93AB53D62E11704100686913 = {
+						CreatedOnToolsVersion = 16.4;
+						TestTargetID = 93AB53BE2E11704000686913;
+					};
+				};
+			};
+			buildConfigurationList = 93AB53BA2E11704000686913 /* Build configuration list for PBXProject "KWh Gas Companion" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				"zh-HK",
+				"en-AU",
+				"en-GB",
+				"fr-CA",
+				de,
+				"zh-Hans",
+				"zh-Hant",
+				nl,
+				"es-US",
+				ru,
+				Base,
+			);
+			mainGroup = 93AB53B62E11704000686913;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				93BBDA512E11725E0095B5A4 /* XCRemoteSwiftPackageReference "SwiftSoup" */,
+				93687B5F2E255E4600690065 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				93FB5E032E33B0FC00FAF25B /* XCRemoteSwiftPackageReference "SwiftCSV" */,
+				934A1F832F339FD700571D94 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 93AB53C02E11704000686913 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				93AB53BE2E11704000686913 /* KWh Gas Companion */,
+				93AB53CC2E11704100686913 /* KWh Gas CompanionTests */,
+				93AB53D62E11704100686913 /* KWh Gas CompanionUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		93AB53BD2E11704000686913 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		93AB53CB2E11704100686913 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		93AB53D52E11704100686913 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		93AB53BB2E11704000686913 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		93AB53C92E11704100686913 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		93AB53D32E11704100686913 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		93AB53CF2E11704100686913 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 93AB53BE2E11704000686913 /* KWh Gas Companion */;
+			targetProxy = 93AB53CE2E11704100686913 /* PBXContainerItemProxy */;
+		};
+		93AB53D92E11704100686913 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 93AB53BE2E11704000686913 /* KWh Gas Companion */;
+			targetProxy = 93AB53D82E11704100686913 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		93AB53DF2E11704100686913 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = RT25WXR9M5;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_KEY_NSCalendarsUsageDescription = "This allows you to add Service Reminders for your Vehicle";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Needed to calculate your charging station proximity and range estimates.";
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		93AB53E02E11704100686913 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = RT25WXR9M5;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_KEY_NSCalendarsUsageDescription = "This allows you to add Service Reminders for your Vehicle";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Needed to calculate your charging station proximity and range estimates.";
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		93AB53E22E11704100686913 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = "KWh Gas Companion/KWh_Gas_Companion.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 46;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = RT25WXR9M5;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "KWh-Gas-Companion-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "My EV Companion";
+				INFOPLIST_KEY_GADApplicationIdentifier = "ca-app-pub-9917450718827221~5801754188";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSCalendarsUsageDescription = "This allows you to add Service Reminders for your Vehicle";
+				INFOPLIST_KEY_NSCameraUsageDescription = "We use the camera to scan your vehicle product plate.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Needed to calculate your charging station proximity and range estimates; nearby stations";
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 15.5;
+				MARKETING_VERSION = 2026.2.7;
+				PRODUCT_BUNDLE_IDENTIFIER = "Me.KWh-Gas-Companion";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				XROS_DEPLOYMENT_TARGET = 2.5;
+			};
+			name = Debug;
+		};
+		93AB53E32E11704100686913 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = "KWh Gas Companion/KWh_Gas_Companion.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 46;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = RT25WXR9M5;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "KWh-Gas-Companion-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "My EV Companion";
+				INFOPLIST_KEY_GADApplicationIdentifier = "ca-app-pub-9917450718827221~5801754188";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSCalendarsUsageDescription = "This allows you to add Service Reminders for your Vehicle";
+				INFOPLIST_KEY_NSCameraUsageDescription = "We use the camera to scan your vehicle product plate.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Needed to calculate your charging station proximity and range estimates; nearby stations";
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 15.5;
+				MARKETING_VERSION = 2026.2.7;
+				PRODUCT_BUNDLE_IDENTIFIER = "Me.KWh-Gas-Companion";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				"SWIFT_ACTIVE_COMPILATION_CONDITIONS[arch=*]" = "";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				XROS_DEPLOYMENT_TARGET = 2.5;
+			};
+			name = Release;
+		};
+		93AB53E52E11704100686913 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = RT25WXR9M5;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.5;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Me.KWh-Gas-CompanionTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/KWh Gas Companion.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/KWh Gas Companion";
+				XROS_DEPLOYMENT_TARGET = 2.5;
+			};
+			name = Debug;
+		};
+		93AB53E62E11704100686913 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = RT25WXR9M5;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.5;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Me.KWh-Gas-CompanionTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/KWh Gas Companion.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/KWh Gas Companion";
+				XROS_DEPLOYMENT_TARGET = 2.5;
+			};
+			name = Release;
+		};
+		93AB53E82E11704100686913 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = RT25WXR9M5;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.5;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Me.KWh-Gas-CompanionUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_TARGET_NAME = "KWh Gas Companion";
+				XROS_DEPLOYMENT_TARGET = 2.5;
+			};
+			name = Debug;
+		};
+		93AB53E92E11704100686913 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = RT25WXR9M5;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.5;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Me.KWh-Gas-CompanionUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_TARGET_NAME = "KWh Gas Companion";
+				XROS_DEPLOYMENT_TARGET = 2.5;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		93AB53BA2E11704000686913 /* Build configuration list for PBXProject "KWh Gas Companion" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				93AB53DF2E11704100686913 /* Debug */,
+				93AB53E02E11704100686913 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		93AB53E12E11704100686913 /* Build configuration list for PBXNativeTarget "KWh Gas Companion" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				93AB53E22E11704100686913 /* Debug */,
+				93AB53E32E11704100686913 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		93AB53E42E11704100686913 /* Build configuration list for PBXNativeTarget "KWh Gas CompanionTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				93AB53E52E11704100686913 /* Debug */,
+				93AB53E62E11704100686913 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		93AB53E72E11704100686913 /* Build configuration list for PBXNativeTarget "KWh Gas CompanionUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				93AB53E82E11704100686913 /* Debug */,
+				93AB53E92E11704100686913 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		934A1F832F339FD700571D94 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/swift-package-manager-google-mobile-ads.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.14.0;
+			};
+		};
+		93687B5F2E255E4600690065 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.15.0;
+			};
+		};
+		93BBDA512E11725E0095B5A4 /* XCRemoteSwiftPackageReference "SwiftSoup" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/scinfu/SwiftSoup.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.8.8;
+			};
+		};
+		93FB5E032E33B0FC00FAF25B /* XCRemoteSwiftPackageReference "SwiftCSV" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/swiftcsv/SwiftCSV";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.10.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		934A1F842F339FD700571D94 /* GoogleMobileAds */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 934A1F832F339FD700571D94 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
+			productName = GoogleMobileAds;
+		};
+		93687B602E255E4600690065 /* FirebaseAI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 93687B5F2E255E4600690065 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAI;
+		};
+		93687B622E255E4600690065 /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 93687B5F2E255E4600690065 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
+		};
+		93687B642E255E4600690065 /* FirebaseAnalyticsCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 93687B5F2E255E4600690065 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalyticsCore;
+		};
+		93687B662E255E4600690065 /* FirebaseAnalyticsIdentitySupport */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 93687B5F2E255E4600690065 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalyticsIdentitySupport;
+		};
+		93687B682E255E4600690065 /* FirebaseAnalyticsOnDeviceConversion */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 93687B5F2E255E4600690065 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalyticsOnDeviceConversion;
+		};
+		93BBDA522E11725E0095B5A4 /* SwiftSoup */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 93BBDA512E11725E0095B5A4 /* XCRemoteSwiftPackageReference "SwiftSoup" */;
+			productName = SwiftSoup;
+		};
+		93FB5E042E33B0FC00FAF25B /* SwiftCSV */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 93FB5E032E33B0FC00FAF25B /* XCRemoteSwiftPackageReference "SwiftCSV" */;
+			productName = SwiftCSV;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 93AB53B72E11704000686913 /* Project object */;
+}
