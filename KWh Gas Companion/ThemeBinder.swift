@@ -1,20 +1,10 @@
-//
-//  ThemeBinder.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 12/24/25.
-//
-
+// Copyright Bryan Carroll. Made with Love in New York. All rights reserved. 2026.
 
 //
 //  ThemeBinder.swift
 //  KWh Gas Companion
 //
 //  Central theme binding.
-//  - Reads SettingsView's persisted UI style ("uiStyle")
-//  - Uses an explicit AppAppearance instance (no EnvironmentObject dependency -> no runtime crash)
-//  - Injects AppThemeBox into the environment
-//
 //  Swift 6 • iOS 17+
 //
 
@@ -26,41 +16,20 @@ private struct ThemeBinder: ViewModifier {
     @ObservedObject var appearance: AppAppearance
     @Environment(\.colorScheme) private var scheme
 
-    // SettingsView writes this key
-    @AppStorage("uiStyle") private var uiStyleRaw: String = "teslaGlass"
+    @AppStorage("themePreset") private var themePresetRaw: String = ThemeStyle.appDefault.rawValue
+    @AppStorage("uiStyle") private var legacyUIStyleRaw: String = "classic"
 
-    private enum Style { case classic, teslaGlass }
-
-    private var style: Style {
-        switch uiStyleRaw.lowercased() {
-        case "teslaglass", "glass":
-            return .teslaGlass
-        default:
-            return .classic
-        }
+    private var style: ThemeStyle {
+        ThemeStyle.resolve(themePresetRaw: themePresetRaw, legacyUIStyleRaw: legacyUIStyleRaw)
     }
 
     func body(content: Content) -> some View {
-        let accent = appearance.accentColor
-
-        let theme: any AppThemeSpec = {
-            switch style {
-            case .classic:
-                return SystemTheme(accentColor: accent, scheme: scheme)
-            case .teslaGlass:
-                return TeslaGlassTheme(accentColor: accent, scheme: scheme)
-            }
-        }()
-
-        // NOTE: Intentionally NOT calling `.tint(...)` here to avoid symbol conflicts
-        // in projects where a package-defined `tint` shadows SwiftUI’s `tint`.
-        return content
-            .environment(\.appThemeBox, AppThemeBox(base: theme))
+        let box = ThemeCoordinator.makeThemeBox(style: style, accentColor: appearance.accentColor, scheme: scheme)
+        return content.environment(\.appThemeBox, box)
     }
 }
 
 public extension View {
-    /// Bind app theme using an explicit AppAppearance instance (safe; no missing EnvironmentObject crash).
     func bindAppTheme(using appearance: AppAppearance) -> some View {
         modifier(ThemeBinder(appearance: appearance))
     }

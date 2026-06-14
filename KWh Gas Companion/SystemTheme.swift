@@ -1,19 +1,181 @@
+// Copyright Bryan Carroll. Made with Love in New York. All rights reserved. 2026.
+
 //
 //  SystemTheme.swift
 //  My KWh Companion
 //
-//  Concrete themes used by ThemeBinder / SettingsView.
+//  Concrete themes for ThemeCoordinator.
 //  Swift 6 • iOS 17+
-//
-//  Notes:
-//  - `SystemTheme` (classic) mirrors system surfaces in both light/dark.
-//  - `TeslaGlassTheme` is a "glass" aesthetic that remains readable in light mode.
-//  - Both offer an init(accentColor:scheme:) with DEFAULT values to avoid call-site churn.
 //
 
 import SwiftUI
 
-// MARK: - Classic theme (system-respecting)
+private struct ThemeSurfacePalette {
+    let darkCard: UIColor
+    let lightCard: UIColor
+    let darkSeparator: UIColor
+    let lightSeparator: UIColor
+    let darkStops: [Color]
+    let lightStops: [Color]
+    let pillDarkOpacity: Double
+    let pillLightOpacity: Double
+}
+
+private extension ThemeSurfacePalette {
+    func cardColor(for scheme: ColorScheme) -> Color {
+        Color(uiColor: scheme == .dark ? darkCard : lightCard)
+    }
+
+    func separatorColor(for scheme: ColorScheme) -> Color {
+        Color(uiColor: scheme == .dark ? darkSeparator : lightSeparator)
+    }
+
+    func screenStyle(for scheme: ColorScheme) -> AnyShapeStyle {
+        AnyShapeStyle(
+            LinearGradient(
+                colors: scheme == .dark ? darkStops : lightStops,
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+    }
+
+    func pillTint(accent: Color, scheme: ColorScheme) -> Color {
+        accent.opacity(scheme == .dark ? pillDarkOpacity : pillLightOpacity)
+    }
+}
+
+public struct ClassicTheme: AppThemeSpec {
+    public let accentColor: Color
+    public let scheme: ColorScheme
+
+    public init(accentColor: Color = Color(hex: "#FF4D5A"), scheme: ColorScheme = .light) {
+        self.accentColor = accentColor
+        self.scheme = scheme
+    }
+
+    public var spacing: CGFloat { 14 }
+    public var corner: CGFloat { 18 }
+    public var smallCorner: CGFloat { 12 }
+    public var elevation: CGFloat { 6 }
+
+    public var accent: Color { accentColor }
+    public var onAccent: Color { .white }
+
+    private var palette: ThemeSurfacePalette {
+        ThemeSurfacePalette(
+            darkCard: UIColor(red: 0.13, green: 0.14, blue: 0.17, alpha: 1.0),
+            lightCard: UIColor(red: 0.992, green: 0.975, blue: 0.978, alpha: 1.0),
+            darkSeparator: UIColor(white: 1.0, alpha: 0.12),
+            lightSeparator: UIColor(red: 0.90, green: 0.79, blue: 0.81, alpha: 0.78),
+            darkStops: [
+                Color(hex: "#0B0C10"),
+                Color(hex: "#161920"),
+                accent.opacity(0.18)
+            ],
+            lightStops: [
+                Color(hex: "#FFF7F7"),
+                Color(hex: "#FCEEEF"),
+                accent.opacity(0.10)
+            ],
+            pillDarkOpacity: 0.26,
+            pillLightOpacity: 0.15
+        )
+    }
+
+    public var cardBackground: Color { palette.cardColor(for: scheme) }
+    public var separator: Color { palette.separatorColor(for: scheme) }
+    public var pillTint: Color { palette.pillTint(accent: accent, scheme: scheme) }
+    public var screenBackground: AnyShapeStyle { palette.screenStyle(for: scheme) }
+}
+
+public struct ModernTheme: AppThemeSpec {
+    public let accentColor: Color
+    public let scheme: ColorScheme
+
+    public init(accentColor: Color = Color(hex: "#C9A84F"), scheme: ColorScheme = .dark) {
+        self.accentColor = accentColor
+        self.scheme = scheme
+    }
+
+    public var spacing: CGFloat { 14 }
+    public var corner: CGFloat { 16 }
+    public var smallCorner: CGFloat { 12 }
+    public var elevation: CGFloat { 7 }
+
+    public var accent: Color { accentColor }
+    public var onAccent: Color { .black }
+
+    private var palette: ThemeSurfacePalette {
+        ThemeSurfacePalette(
+            darkCard: UIColor(red: 0.16, green: 0.18, blue: 0.21, alpha: 1.0),
+            lightCard: UIColor(red: 0.955, green: 0.958, blue: 0.965, alpha: 1.0),
+            darkSeparator: UIColor(white: 1.0, alpha: 0.10),
+            lightSeparator: UIColor(white: 0.0, alpha: 0.10),
+            darkStops: [
+                Color(hex: "#0B0D0F"),
+                Color(hex: "#171A1E"),
+                Color(hex: "#23262D")
+            ],
+            lightStops: [
+                Color(hex: "#F6F5F1"),
+                Color(hex: "#EEECE5"),
+                accent.opacity(0.10)
+            ],
+            pillDarkOpacity: 0.24,
+            pillLightOpacity: 0.14
+        )
+    }
+
+    public var cardBackground: Color { palette.cardColor(for: scheme) }
+    public var separator: Color { palette.separatorColor(for: scheme) }
+    public var pillTint: Color { palette.pillTint(accent: accent, scheme: scheme) }
+    public var screenBackground: AnyShapeStyle { palette.screenStyle(for: scheme) }
+}
+
+public struct OrangeTheme: AppThemeSpec {
+    public let accentColor: Color
+    public let scheme: ColorScheme
+
+    public init(accentColor: Color = Color(hex: "#F07A45"), scheme: ColorScheme = .light) {
+        self.accentColor = accentColor
+        self.scheme = scheme
+    }
+
+    public var spacing: CGFloat { 14 }
+    public var corner: CGFloat { 16 }
+    public var smallCorner: CGFloat { 12 }
+    public var elevation: CGFloat { 6 }
+
+    public var accent: Color { accentColor }
+    public var onAccent: Color { .white }
+
+    private var palette: ThemeSurfacePalette {
+        ThemeSurfacePalette(
+            darkCard: UIColor(red: 0.17, green: 0.15, blue: 0.14, alpha: 1.0),
+            lightCard: UIColor(red: 1.0, green: 0.995, blue: 0.992, alpha: 1.0),
+            darkSeparator: UIColor(white: 1.0, alpha: 0.12),
+            lightSeparator: UIColor(red: 0.90, green: 0.91, blue: 0.93, alpha: 0.90),
+            darkStops: [
+                Color(hex: "#15110F"),
+                Color(hex: "#231B17"),
+                accent.opacity(0.20)
+            ],
+            lightStops: [
+                Color(hex: "#FFF7F2"),
+                Color(hex: "#F7F1EB"),
+                accent.opacity(0.10)
+            ],
+            pillDarkOpacity: 0.22,
+            pillLightOpacity: 0.16
+        )
+    }
+
+    public var cardBackground: Color { palette.cardColor(for: scheme) }
+    public var separator: Color { palette.separatorColor(for: scheme) }
+    public var pillTint: Color { palette.pillTint(accent: accent, scheme: scheme) }
+    public var screenBackground: AnyShapeStyle { palette.screenStyle(for: scheme) }
+}
 
 public struct SystemTheme: AppThemeSpec {
     public let accentColor: Color
@@ -24,198 +186,46 @@ public struct SystemTheme: AppThemeSpec {
         self.scheme = scheme
     }
 
-    // Layout
     public var spacing: CGFloat { 14 }
     public var corner: CGFloat { 18 }
     public var smallCorner: CGFloat { 12 }
-    public var elevation: CGFloat { 8 }
+    public var elevation: CGFloat { 6 }
 
-    // Colors
     public var accent: Color { accentColor }
     public var onAccent: Color { .white }
 
-    // Surfaces
     public var cardBackground: Color {
-        let accentUIColor = UIColor(accentColor)
-        return Color(uiColor: UIColor { traits in
+        Color(uiColor: UIColor { traits in
             let base = UIColor.secondarySystemBackground.resolvedColor(with: traits)
-            let overlayAlpha: CGFloat = traits.userInterfaceStyle == .dark ? 0.06 : 0.03
-            return base.blended(with: accentUIColor.resolvedColor(with: traits), alpha: overlayAlpha)
+            let overlay = UIColor(accentColor).resolvedColor(with: traits)
+            return base.blended(with: overlay, alpha: traits.userInterfaceStyle == .dark ? 0.12 : 0.06)
         })
     }
 
     public var separator: Color {
         Color(uiColor: UIColor { traits in
-            let base = UIColor.separator.resolvedColor(with: traits)
-            let alpha: CGFloat = traits.userInterfaceStyle == .dark ? 0.40 : 0.28
-            return base.withAlphaComponent(alpha)
+            UIColor.separator
+                .resolvedColor(with: traits)
+                .withAlphaComponent(traits.userInterfaceStyle == .dark ? 0.42 : 0.28)
         })
     }
 
-    public var pillTint: Color {
-        accent.opacity(scheme == .dark ? 0.16 : 0.12)
-    }
-
-    // Background
-    public var screenBackground: AnyShapeStyle {
-        if scheme == .dark {
-            return AnyShapeStyle(
-                LinearGradient(
-                    colors: [
-                        Color(uiColor: .systemBackground),
-                        accent.opacity(0.08),
-                        Color(uiColor: .secondarySystemBackground)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-        } else {
-            return AnyShapeStyle(
-                LinearGradient(
-                    colors: [
-                        accent.opacity(0.06),
-                        Color(uiColor: .systemBackground),
-                        Color(uiColor: .secondarySystemBackground)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-        }
-    }
-}
-
-// MARK: - Tesla glass theme
-
-public struct TeslaGlassTheme: AppThemeSpec {
-    public let accentColor: Color
-    public let scheme: ColorScheme
-
-    public init(accentColor: Color = Color(red: 0.89, green: 0.12, blue: 0.18), scheme: ColorScheme = .dark) {
-        self.accentColor = accentColor
-        self.scheme = scheme
-    }
-
-    // Layout
-    public var spacing: CGFloat { 14 }
-    public var corner: CGFloat { 22 }
-    public var smallCorner: CGFloat { 14 }
-    public var elevation: CGFloat { 12 }
-
-    // Colors
-    public var accent: Color { accentColor }
-    public var onAccent: Color { .white }
-
-    // Surfaces
-    public var cardBackground: Color {
-        // Glassy, high-contrast surface with a subtle red cast in dark mode.
-        let accentUIColor = UIColor(accentColor)
-        return Color(uiColor: UIColor { traits in
-            if traits.userInterfaceStyle == .dark {
-                let base = UIColor(white: 1.0, alpha: 0.08)
-                return base.blended(with: accentUIColor.resolvedColor(with: traits), alpha: 0.08)
-            } else {
-                return UIColor(white: 1.0, alpha: 0.90)
-            }
-        })
-    }
-
-    public var separator: Color {
-        Color(uiColor: UIColor { traits in
-            if traits.userInterfaceStyle == .dark {
-                return UIColor(white: 1.0, alpha: 0.18)
-            } else {
-                return UIColor(white: 0.0, alpha: 0.10)
-            }
-        })
-    }
-
-    public var pillTint: Color {
-        accent.opacity(scheme == .dark ? 0.20 : 0.16)
-    }
-
-    // Background
-    public var screenBackground: AnyShapeStyle {
-        if scheme == .dark {
-            return AnyShapeStyle(
-                LinearGradient(
-                    colors: [
-                        Color(red: 0.03, green: 0.04, blue: 0.06),
-                        Color(red: 0.02, green: 0.02, blue: 0.03),
-                        Color(red: 0.01, green: 0.01, blue: 0.02)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-        } else {
-            return AnyShapeStyle(
-                LinearGradient(
-                    colors: [
-                        accent.opacity(0.16),
-                        Color(uiColor: .systemBackground),
-                        Color(uiColor: .secondarySystemBackground)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-        }
-    }
-}
-
-// MARK: - Compatibility aliases (avoid breaking older call-sites)
-
-public typealias KWhClassicTheme = SystemTheme
-public typealias KWhTeslaGlassTheme = TeslaGlassTheme
-
-// Keep older name used in some files; this points to the glass aesthetic.
-public typealias TeslaTheme = TeslaGlassTheme
-
-// Optional: a second accent flavor if you still reference it elsewhere.
-public struct RivianTheme: AppThemeSpec {
-    public let accentColor: Color
-    public let scheme: ColorScheme
-
-    public init(accentColor: Color = Color(red: 0.00, green: 0.65, blue: 0.55), scheme: ColorScheme = .dark) {
-        self.accentColor = accentColor
-        self.scheme = scheme
-    }
-
-    public var spacing: CGFloat { 14 }
-    public var corner: CGFloat { 20 }
-    public var smallCorner: CGFloat { 12 }
-    public var elevation: CGFloat { 9 }
-
-    public var accent: Color { accentColor }
-    public var onAccent: Color { .white }
-
-    public var cardBackground: Color {
-        let accentUIColor = UIColor(accentColor)
-        return Color(uiColor: UIColor { traits in
-            let base = UIColor.secondarySystemBackground.resolvedColor(with: traits)
-            let overlayAlpha: CGFloat = traits.userInterfaceStyle == .dark ? 0.07 : 0.04
-            return base.blended(with: accentUIColor.resolvedColor(with: traits), alpha: overlayAlpha)
-        })
-    }
-    public var separator: Color {
-        Color(uiColor: UIColor { traits in
-            let base = UIColor.separator.resolvedColor(with: traits)
-            let alpha: CGFloat = traits.userInterfaceStyle == .dark ? 0.42 : 0.30
-            return base.withAlphaComponent(alpha)
-        })
-    }
     public var pillTint: Color { accent.opacity(scheme == .dark ? 0.18 : 0.12) }
 
     public var screenBackground: AnyShapeStyle {
         AnyShapeStyle(
             LinearGradient(
-                colors: [
-                    accent.opacity(scheme == .dark ? 0.10 : 0.16),
-                    Color(uiColor: .systemBackground),
-                    Color(uiColor: .secondarySystemBackground)
-                ],
+                colors: scheme == .dark
+                    ? [
+                        Color(uiColor: .systemBackground),
+                        Color(uiColor: .secondarySystemBackground),
+                        accent.opacity(0.12)
+                    ]
+                    : [
+                        Color(uiColor: .systemBackground),
+                        Color(uiColor: .secondarySystemBackground),
+                        accent.opacity(0.08)
+                    ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -223,7 +233,144 @@ public struct RivianTheme: AppThemeSpec {
     }
 }
 
-// MARK: - UIColor blending helper
+public struct TeslaTheme: AppThemeSpec {
+    public let accentColor: Color
+    public let scheme: ColorScheme
+
+    public init(accentColor: Color = Color(hex: "#3E6AE1"), scheme: ColorScheme = .dark) {
+        self.accentColor = accentColor
+        self.scheme = scheme
+    }
+
+    public var spacing: CGFloat { 13 }
+    public var corner: CGFloat { 14 }
+    public var smallCorner: CGFloat { 10 }
+    public var elevation: CGFloat { 4 }
+
+    public var accent: Color { Color(hex: "#3E6AE1") }
+    public var onAccent: Color { .white }
+
+    private var palette: ThemeSurfacePalette {
+        ThemeSurfacePalette(
+            // Cards sit a touch lighter than the flat-black canvas so they read
+            // as distinct surfaces — matching the Tesla app's ~#1C1C1E cards.
+            darkCard: UIColor(red: 0.11, green: 0.11, blue: 0.118, alpha: 1.0),
+            lightCard: UIColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 1.0),
+            darkSeparator: UIColor(white: 1.0, alpha: 0.07),
+            lightSeparator: UIColor(white: 0.0, alpha: 0.07),
+            // Near-flat black background, like the Tesla app (no visible gradient).
+            darkStops: [
+                Color(hex: "#000000"),
+                Color(hex: "#000000"),
+                Color(hex: "#0A0A0A")
+            ],
+            lightStops: [
+                Color(hex: "#F4F4F4"),
+                Color(hex: "#EDEEEF"),
+                Color(hex: "#F9F9F9")
+            ],
+            pillDarkOpacity: 0.16,
+            pillLightOpacity: 0.10
+        )
+    }
+
+    public var cardBackground: Color { palette.cardColor(for: scheme) }
+    public var separator: Color { palette.separatorColor(for: scheme) }
+    public var pillTint: Color { palette.pillTint(accent: accent, scheme: scheme) }
+    public var screenBackground: AnyShapeStyle { palette.screenStyle(for: scheme) }
+}
+
+public struct RivianTheme: AppThemeSpec {
+    public let accentColor: Color
+    public let scheme: ColorScheme
+
+    public init(accentColor: Color = Color(hex: "#F5B400"), scheme: ColorScheme = .light) {
+        self.accentColor = accentColor
+        self.scheme = scheme
+    }
+
+    public var spacing: CGFloat { 14 }
+    public var corner: CGFloat { 20 }
+    public var smallCorner: CGFloat { 12 }
+    public var elevation: CGFloat { 8 }
+
+    public var accent: Color { accentColor }
+    public var onAccent: Color { .black }
+
+    private var palette: ThemeSurfacePalette {
+        ThemeSurfacePalette(
+            darkCard: UIColor(red: 0.11, green: 0.12, blue: 0.15, alpha: 1.0),
+            lightCard: UIColor(red: 0.975, green: 0.976, blue: 0.98, alpha: 1.0),
+            darkSeparator: UIColor(white: 1.0, alpha: 0.10),
+            lightSeparator: UIColor(white: 0.0, alpha: 0.10),
+            darkStops: [
+                Color(hex: "#0B0D10"),
+                Color(hex: "#14171B"),
+                Color(hex: "#21252B")
+            ],
+            lightStops: [
+                Color(hex: "#F5F3EE"),
+                Color(hex: "#EDE9DF"),
+                accent.opacity(0.11)
+            ],
+            pillDarkOpacity: 0.22,
+            pillLightOpacity: 0.14
+        )
+    }
+
+    public var cardBackground: Color { palette.cardColor(for: scheme) }
+    public var separator: Color { palette.separatorColor(for: scheme) }
+    public var pillTint: Color { palette.pillTint(accent: accent, scheme: scheme) }
+    public var screenBackground: AnyShapeStyle { palette.screenStyle(for: scheme) }
+}
+
+public struct TessieTheme: AppThemeSpec {
+    public let accentColor: Color
+    public let scheme: ColorScheme
+
+    public init(accentColor: Color = Color(red: 0.20, green: 0.56, blue: 0.98), scheme: ColorScheme = .dark) {
+        self.accentColor = accentColor
+        self.scheme = scheme
+    }
+
+    public var spacing: CGFloat { 14 }
+    public var corner: CGFloat { 16 }
+    public var smallCorner: CGFloat { 10 }
+    public var elevation: CGFloat { 6 }
+
+    public var accent: Color { accentColor }
+    public var onAccent: Color { .white }
+
+    private var palette: ThemeSurfacePalette {
+        ThemeSurfacePalette(
+            darkCard: UIColor(red: 0.08, green: 0.10, blue: 0.14, alpha: 1.0),
+            lightCard: UIColor(red: 0.95, green: 0.975, blue: 1.0, alpha: 1.0),
+            darkSeparator: UIColor(white: 1.0, alpha: 0.12),
+            lightSeparator: UIColor(white: 0.0, alpha: 0.10),
+            darkStops: [
+                Color(hex: "#020611"),
+                Color(hex: "#0A1322"),
+                Color(hex: "#123050")
+            ],
+            lightStops: [
+                Color(hex: "#EFF7FF"),
+                Color(hex: "#DCEEFF"),
+                accent.opacity(0.12)
+            ],
+            pillDarkOpacity: 0.22,
+            pillLightOpacity: 0.16
+        )
+    }
+
+    public var cardBackground: Color { palette.cardColor(for: scheme) }
+    public var separator: Color { palette.separatorColor(for: scheme) }
+    public var pillTint: Color { palette.pillTint(accent: accent, scheme: scheme) }
+    public var screenBackground: AnyShapeStyle { palette.screenStyle(for: scheme) }
+}
+
+public typealias KWhClassicTheme = ClassicTheme
+public typealias KWhTeslaGlassTheme = TeslaTheme
+public typealias TeslaGlassTheme = TeslaTheme
 
 private extension UIColor {
     func blended(with overlay: UIColor, alpha: CGFloat) -> UIColor {
