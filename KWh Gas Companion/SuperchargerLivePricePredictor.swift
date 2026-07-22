@@ -4,17 +4,6 @@
 //
 //  Swift 6 • iOS 17+
 //
-//  Purpose
-//  - Predict a Supercharger "live" price tier based on occupancy (stalls occupied).
-//  - Show 3 scenario tiles: Low / Normal / Near capacity.
-//  - Allow adjustable base price (location-specific) + optional multipliers.
-//  - Currency formatting follows Settings if you provide a currency code,
-//    otherwise falls back to Locale.
-//
-//  IMPORTANT
-//  - Ensure these types exist only once in the target:
-//    SuperchargerLivePricePredictor, SuperchargerLivePricePredictorView, etc.
-//
 
 import SwiftUI
 import Foundation
@@ -30,15 +19,11 @@ public struct HomeRatePerKWhKey: EnvironmentKey {
 }
 
 public extension EnvironmentValues {
-    /// If your SettingsView defines a currency preference, set it like:
-    /// .environment(\.preferredCurrencyCode, settings.currencyCode)
     var preferredCurrencyCode: String? {
         get { self[PreferredCurrencyCodeKey.self] }
         set { self[PreferredCurrencyCodeKey.self] = newValue }
     }
 
-    /// Optional: provide a home electricity rate for comparison.
-    /// .environment(\.homeRatePerKWh, settings.homeRatePerKWh)
     var homeRatePerKWh: Double? {
         get { self[HomeRatePerKWhKey.self] }
         set { self[HomeRatePerKWhKey.self] = newValue }
@@ -58,40 +43,33 @@ public struct SuperchargerLivePricePredictor: Sendable {
 
         public var title: String {
             switch self {
-            case .low: return "Low occupancy"
+            case .low:    return "Low occupancy"
             case .normal: return "Normal"
-            case .high: return "Near capacity"
+            case .high:   return "Near capacity"
             }
         }
 
         public var subtitle: String {
             switch self {
-            case .low: return "≤ 1 stall occupied"
+            case .low:    return "≤ 1 stall occupied"
             case .normal: return "2+ occupied"
-            case .high: return "Site close to full"
+            case .high:   return "Site close to full"
             }
         }
 
         public var systemImage: String {
             switch self {
-            case .low: return "leaf"
+            case .low:    return "leaf"
             case .normal: return "bolt"
-            case .high: return "exclamationmark.triangle"
+            case .high:   return "exclamationmark.triangle"
             }
         }
     }
 
     public struct Config: Sendable, Hashable {
-        /// Base price for this location ($/kWh). User adjustable.
         public var basePricePerKWh: Double
-
-        /// Occupancy rule: if occupied <= lowMaxOccupied -> low tier
         public var lowMaxOccupied: Int
-
-        /// Near-capacity threshold as a fraction of stalls, e.g. 0.80 means 80%+
         public var nearCapacityThreshold: Double
-
-        /// Multipliers applied to base price for each tier.
         public var lowMultiplier: Double
         public var normalMultiplier: Double
         public var highMultiplier: Double
@@ -127,7 +105,7 @@ public struct SuperchargerLivePricePredictor: Sendable {
 
     public func tier(stallsTotal: Int, stallsOccupied: Int) -> Tier {
         let total = max(1, stallsTotal)
-        let occ = min(max(0, stallsOccupied), total)
+        let occ   = min(max(0, stallsOccupied), total)
 
         if occ <= config.lowMaxOccupied { return .low }
 
@@ -138,7 +116,7 @@ public struct SuperchargerLivePricePredictor: Sendable {
     }
 
     public func predict(stallsTotal: Int, stallsOccupied: Int) -> Prediction {
-        let t = tier(stallsTotal: stallsTotal, stallsOccupied: stallsOccupied)
+        let t    = tier(stallsTotal: stallsTotal, stallsOccupied: stallsOccupied)
         let base = max(0, config.basePricePerKWh)
 
         let (mult, why): (Double, String) = {
@@ -160,22 +138,38 @@ public struct SuperchargerLivePricePredictor: Sendable {
     }
 
     public func scenarioPrices(stallsTotal: Int) -> [(Tier, Double, String)] {
-        let total = max(1, stallsTotal)
-
-        // Representative occupied counts for each scenario
-        let lowOcc = min(config.lowMaxOccupied, total)
+        let total   = max(1, stallsTotal)
+        let lowOcc  = min(config.lowMaxOccupied, total)
         let normalOcc = min(max(config.lowMaxOccupied + 1, 2), total)
         let highOcc = min(Int(ceil(Double(total) * config.nearCapacityThreshold)), total)
 
-        let low = predict(stallsTotal: total, stallsOccupied: lowOcc)
+        let low    = predict(stallsTotal: total, stallsOccupied: lowOcc)
         let normal = predict(stallsTotal: total, stallsOccupied: normalOcc)
-        let high = predict(stallsTotal: total, stallsOccupied: highOcc)
+        let high   = predict(stallsTotal: total, stallsOccupied: highOcc)
 
         return [
-            (.low, low.pricePerKWh, "Example: \(lowOcc)/\(total) occupied"),
+            (.low,    low.pricePerKWh,    "Example: \(lowOcc)/\(total) occupied"),
             (.normal, normal.pricePerKWh, "Example: \(normalOcc)/\(total) occupied"),
-            (.high, high.pricePerKWh, "Example: \(highOcc)/\(total) occupied")
+            (.high,   high.pricePerKWh,   "Example: \(highOcc)/\(total) occupied")
         ]
+    }
+}
+
+// MARK: - Scenario row wrapper (fixes ForEach tuple inference errors)
+
+/// Wraps the raw tuple from `scenarioPrices` so ForEach can resolve
+/// the Identifiable conformance without ambiguous key-path inference.
+private struct SCLiveScenarioRow: Identifiable {
+    let id: String
+    let tier: SuperchargerLivePricePredictor.Tier
+    let price: Double
+    let note: String
+
+    init(tier: SuperchargerLivePricePredictor.Tier, price: Double, note: String) {
+        self.id    = tier.id
+        self.tier  = tier
+        self.price = price
+        self.note  = note
     }
 }
 
@@ -194,53 +188,50 @@ public struct SuperchargerLivePricePredictorView: View {
     @StateObject private var priceStore = SuperchargerPriceStore.shared
     @EnvironmentObject private var teslaPricingStore: TeslaOfficialSuperchargerPricingStore
 
+    // FIX 3: `accent` is typed as Color, so .foregroundStyle(accent) always
+    // resolves correctly — no more "ShapeStyle has no member 'accentColor'".
     private var theme: any AppThemeSpec { themeBox.base }
     private var accent: Color { appearance.accentColor }
 
     // Inputs
-    @State private var stallsTotal: Int = 12
+    @State private var stallsTotal: Int    = 12
     @State private var stallsOccupied: Int = 1
 
     @State private var basePriceText: String = "0.40"
-    @State private var kWhText: String = "25.0000"
+    @State private var kWhText: String       = "25.0000"
 
-    @State private var showAdvanced: Bool = false
-    @State private var lowMultiplierText: String = "0.85"
+    @State private var showAdvanced: Bool          = false
+    @State private var lowMultiplierText: String   = "0.85"
     @State private var normalMultiplierText: String = "1.00"
-    @State private var highMultiplierText: String = "1.25"
-    @State private var nearCapacityPct: Double = 80
-    @State private var lowMaxOccupied: Int = 1
+    @State private var highMultiplierText: String  = "1.25"
+    @State private var nearCapacityPct: Double     = 80
+    @State private var lowMaxOccupied: Int         = 1
 
-    // Optional fees
     @State private var idleFeePerMinText: String = ""
-    @State private var idleMinutesText: String = ""
+    @State private var idleMinutesText: String   = ""
 
-    // Logging (for prediction confidence)
-    @AppStorage("supercharger.predictor.stationId") private var stationIdText: String = ""
+    @AppStorage("supercharger.predictor.stationId")
+    private var stationIdText: String = ""
+    @AppStorage(CoreMLFeatureFlags.liveSuperchargerPricingEnabledKey)
+    private var useCoreMLLivePricing: Bool = CoreMLFeatureFlags.liveSuperchargerPricingEnabledDefault
+    @AppStorage("ml.supercharger.live.health.lastSummary")
+    private var lastHealthSummary: String = ""
+    @AppStorage("ml.supercharger.live.health.lastTimestamp")
+    private var lastHealthTimestamp: Double = 0
     @State private var logStatusText: String? = nil
 
     // MARK: Derived
 
     private var resolvedCurrencyCode: String {
-        // 1) Environment override (preferred)
         if let c = preferredCurrencyCode, !c.isEmpty { return c }
-
-        // 2) Common Settings keys (if SettingsView persists one of these)
         let keys = ["preferredCurrencyCode", "currencyCode", "settings.currencyCode"]
         for k in keys {
-            if let v = UserDefaults.standard.string(forKey: k), !v.isEmpty {
-                return v
-            }
+            if let v = UserDefaults.standard.string(forKey: k), !v.isEmpty { return v }
         }
-
-        // 3) Locale fallback
         return Locale.current.currency?.identifier ?? "USD"
     }
 
-    private var numberLocale: Locale {
-        // Use current locale for decimal separators, etc.
-        Locale.current
-    }
+    private var numberLocale: Locale { Locale.current }
 
     private var trimmedStationId: String {
         stationIdText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -266,13 +257,9 @@ public struct SuperchargerLivePricePredictorView: View {
     }
 
     private func parseDouble(_ s: String, fallback: Double) -> Double {
-        // Simple parse with dot or locale decimal.
         let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty { return fallback }
-
         if let v = Double(trimmed) { return v }
-
-        // Try locale decimal separator conversion
         let sep = numberLocale.decimalSeparator ?? "."
         if sep != "." {
             let swapped = trimmed.replacingOccurrences(of: sep, with: ".")
@@ -281,14 +268,14 @@ public struct SuperchargerLivePricePredictorView: View {
         return fallback
     }
 
-    private var predictor: SuperchargerLivePricePredictor {
-        let base = parseDouble(basePriceText, fallback: 0.40)
-        let lowM = parseDouble(lowMultiplierText, fallback: 0.85)
-        let norM = parseDouble(normalMultiplierText, fallback: 1.00)
-        let highM = parseDouble(highMultiplierText, fallback: 1.25)
-        let near = max(0.50, min(0.95, nearCapacityPct / 100.0))
+    private var predictorConfig: SuperchargerLivePricePredictor.Config {
+        let base  = parseDouble(basePriceText,       fallback: 0.40)
+        let lowM  = parseDouble(lowMultiplierText,   fallback: 0.85)
+        let norM  = parseDouble(normalMultiplierText, fallback: 1.00)
+        let highM = parseDouble(highMultiplierText,  fallback: 1.25)
+        let near  = max(0.50, min(0.95, nearCapacityPct / 100.0))
 
-        let cfg = SuperchargerLivePricePredictor.Config(
+        return SuperchargerLivePricePredictor.Config(
             basePricePerKWh: max(0, base),
             lowMaxOccupied: max(0, lowMaxOccupied),
             nearCapacityThreshold: near,
@@ -296,11 +283,40 @@ public struct SuperchargerLivePricePredictorView: View {
             normalMultiplier: max(0, norM),
             highMultiplier: max(0, highM)
         )
-        return SuperchargerLivePricePredictor(config: cfg)
+    }
+
+    private var livePricingEngine: any SuperchargerLivePriceEngine {
+        if useCoreMLLivePricing {
+            return CoreMLSuperchargerLivePriceEnginePlaceholder()
+        }
+        return RuleBasedSuperchargerLivePriceEngine()
     }
 
     private var prediction: SuperchargerLivePricePredictor.Prediction {
-        predictor.predict(stallsTotal: stallsTotal, stallsOccupied: stallsOccupied)
+        livePricingEngine.predict(
+            stallsTotal: stallsTotal,
+            stallsOccupied: stallsOccupied,
+            config: predictorConfig
+        )
+    }
+
+    private var scenarioRows: [(SuperchargerLivePricePredictor.Tier, Double, String)] {
+        livePricingEngine.scenarioPrices(
+            stallsTotal: stallsTotal,
+            config: predictorConfig
+        )
+    }
+
+    private var engineHealth: MLEngineHealthReport {
+        livePricingEngine.healthReport
+    }
+
+    private var engineHealthColor: Color {
+        switch engineHealth.state {
+        case .ready:       return .green
+        case .fallback:    return .orange
+        case .unavailable: return .red
+        }
     }
 
     private var kWhToAdd: Double {
@@ -312,8 +328,8 @@ public struct SuperchargerLivePricePredictorView: View {
     }
 
     private var idleFeeCost: Double? {
-        let fee = parseDouble(idleFeePerMinText, fallback: 0)
-        let mins = parseDouble(idleMinutesText, fallback: 0)
+        let fee  = parseDouble(idleFeePerMinText, fallback: 0)
+        let mins = parseDouble(idleMinutesText,   fallback: 0)
         guard fee > 0, mins > 0 else { return nil }
         return fee * mins
     }
@@ -337,7 +353,6 @@ public struct SuperchargerLivePricePredictorView: View {
     }
 
     private func rateText(_ value: Double) -> String {
-        // Always show 4 decimals for kWh pricing
         let nf = NumberFormatter()
         nf.numberStyle = .currency
         nf.currencyCode = resolvedCurrencyCode
@@ -352,34 +367,31 @@ public struct SuperchargerLivePricePredictorView: View {
             logStatusText = "Add a station ID to log prices."
             return
         }
-
         SuperchargerPriceStore.shared.addSampleIfChanged(
             stationId: trimmedStationId,
             pricePerKwh: prediction.pricePerKWh,
             timestamp: Date()
         )
-
         logStatusText = "Logged \(rateText(prediction.pricePerKWh)) to \(trimmedStationId)"
     }
 
-    // MARK: UI
+    private func persistHealthReport() {
+        lastHealthSummary   = "\(engineHealth.state.rawValue): \(engineHealth.summary)"
+        lastHealthTimestamp = Date().timeIntervalSince1970
+    }
+
+    // MARK: Body
 
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: theme.spacing + 8) {
-
                 header
-
+                modelStatusCard
                 inputsCard
-
-                scenarioTilesCard  // ✅ THESE are the “new tiles”
-
+                scenarioTilesCard
                 currentPredictionCard
-
                 sessionCard
-
                 feesCard
-
                 disclaimerCard
             }
             .padding(.horizontal, 16)
@@ -394,7 +406,11 @@ public struct SuperchargerLivePricePredictorView: View {
                 .fill(theme.screenBackground)
                 .ignoresSafeArea()
         )
+        .onAppear { persistHealthReport() }
+        .onChange(of: useCoreMLLivePricing) { _, _ in persistHealthReport() }
     }
+
+    // MARK: Header
 
     private var header: some View {
         card {
@@ -403,14 +419,14 @@ public struct SuperchargerLivePricePredictorView: View {
                     Circle().fill(accent.opacity(0.18))
                     Image(systemName: "bolt.badge.clock")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(accent)
+                        .foregroundStyle(accent)  // FIX 3: accent is Color — no ambiguity
                 }
                 .frame(width: 44, height: 44)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Supercharger Live Price Predictor")
                         .font(.title3.weight(.semibold))
-                    Text("Estimate price tiers from stall occupancy, and see the price you’d likely lock in at plug-in.")
+                    Text("Estimate price tiers from stall occupancy, and see the price you'd likely lock in at plug-in.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -419,22 +435,23 @@ public struct SuperchargerLivePricePredictorView: View {
         }
     }
 
+    // MARK: Inputs Card
+
     private var inputsCard: some View {
         card {
             VStack(alignment: .leading, spacing: 12) {
 
-                Text("Inputs")
-                    .font(.headline)
+                Text("Inputs").font(.headline)
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Station ID (for logging)")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .font(.footnote).foregroundStyle(.secondary)
                     TextField("e.g. supercharger_lake_grove_ny", text: $stationIdText)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled(true)
                         .padding(10)
-                        .background(theme.cardBackground.opacity(0.65), in: RoundedRectangle(cornerRadius: theme.corner, style: .continuous))
+                        .background(theme.cardBackground.opacity(0.65),
+                                    in: RoundedRectangle(cornerRadius: theme.corner, style: .continuous))
                         .overlay(
                             RoundedRectangle(cornerRadius: theme.corner, style: .continuous)
                                 .strokeBorder(theme.separator.opacity(0.75), lineWidth: 1)
@@ -444,21 +461,16 @@ public struct SuperchargerLivePricePredictorView: View {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Stalls total")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                            .font(.footnote).foregroundStyle(.secondary)
                         Stepper(value: $stallsTotal, in: 1...64) {
-                            Text("\(stallsTotal)")
-                                .font(.body.weight(.semibold))
+                            Text("\(stallsTotal)").font(.body.weight(.semibold))
                         }
                     }
-
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Occupied now")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                            .font(.footnote).foregroundStyle(.secondary)
                         Stepper(value: $stallsOccupied, in: 0...stallsTotal) {
-                            Text("\(stallsOccupied)")
-                                .font(.body.weight(.semibold))
+                            Text("\(stallsOccupied)").font(.body.weight(.semibold))
                         }
                         .onChange(of: stallsTotal) { _, newTotal in
                             stallsOccupied = min(stallsOccupied, newTotal)
@@ -468,14 +480,14 @@ public struct SuperchargerLivePricePredictorView: View {
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Base price for this location (\(resolvedCurrencyCode))")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .font(.footnote).foregroundStyle(.secondary)
                     TextField("e.g. 0.40", text: $basePriceText)
                         .keyboardType(.decimalPad)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled(true)
                         .padding(10)
-                        .background(theme.cardBackground.opacity(0.65), in: RoundedRectangle(cornerRadius: theme.corner, style: .continuous))
+                        .background(theme.cardBackground.opacity(0.65),
+                                    in: RoundedRectangle(cornerRadius: theme.corner, style: .continuous))
                         .overlay(
                             RoundedRectangle(cornerRadius: theme.corner, style: .continuous)
                                 .strokeBorder(theme.separator.opacity(0.75), lineWidth: 1)
@@ -485,52 +497,35 @@ public struct SuperchargerLivePricePredictorView: View {
                 DisclosureGroup(isExpanded: $showAdvanced) {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack(spacing: 10) {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Low multiplier")
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                                TextField("0.85", text: $lowMultiplierText)
-                                    .keyboardType(.decimalPad)
-                                    .padding(10)
-                                    .background(theme.cardBackground.opacity(0.65), in: RoundedRectangle(cornerRadius: theme.corner, style: .continuous))
-                            }
-
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Normal multiplier")
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                                TextField("1.00", text: $normalMultiplierText)
-                                    .keyboardType(.decimalPad)
-                                    .padding(10)
-                                    .background(theme.cardBackground.opacity(0.65), in: RoundedRectangle(cornerRadius: theme.corner, style: .continuous))
-                            }
-
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("High multiplier")
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                                TextField("1.25", text: $highMultiplierText)
-                                    .keyboardType(.decimalPad)
-                                    .padding(10)
-                                    .background(theme.cardBackground.opacity(0.65), in: RoundedRectangle(cornerRadius: theme.corner, style: .continuous))
+                            ForEach(
+                                [("Low multiplier", $lowMultiplierText, "0.85"),
+                                 ("Normal multiplier", $normalMultiplierText, "1.00"),
+                                 ("High multiplier", $highMultiplierText, "1.25")],
+                                id: \.0
+                            ) { label, binding, placeholder in
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(label)
+                                        .font(.footnote).foregroundStyle(.secondary)
+                                    TextField(placeholder, text: binding)
+                                        .keyboardType(.decimalPad)
+                                        .padding(10)
+                                        .background(theme.cardBackground.opacity(0.65),
+                                                    in: RoundedRectangle(cornerRadius: theme.corner, style: .continuous))
+                                }
                             }
                         }
 
                         HStack(spacing: 12) {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("Low tier max occupied")
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
+                                    .font(.footnote).foregroundStyle(.secondary)
                                 Stepper(value: $lowMaxOccupied, in: 0...min(3, stallsTotal)) {
-                                    Text("\(lowMaxOccupied)")
-                                        .font(.body.weight(.semibold))
+                                    Text("\(lowMaxOccupied)").font(.body.weight(.semibold))
                                 }
                             }
-
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("Near-capacity threshold")
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
+                                    .font(.footnote).foregroundStyle(.secondary)
                                 HStack {
                                     Slider(value: $nearCapacityPct, in: 50...95, step: 1)
                                     Text("\(Int(nearCapacityPct))%")
@@ -542,30 +537,70 @@ public struct SuperchargerLivePricePredictorView: View {
                     }
                     .padding(.top, 10)
                 } label: {
-                    Text("Advanced tuning")
-                        .font(.subheadline.weight(.semibold))
+                    Text("Advanced tuning").font(.subheadline.weight(.semibold))
                 }
             }
         }
     }
 
+    // MARK: Model Status Card
+
+    private var modelStatusCard: some View {
+        card {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text("Model status").font(.headline)
+                    Spacer()
+                    Text(engineHealth.state.rawValue.capitalized)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(engineHealthColor)
+                }
+
+                HStack(spacing: 8) {
+                    Image(systemName: "cpu").foregroundStyle(engineHealthColor)
+                    Text("Engine: \(livePricingEngine.engineIdentifier)")
+                        .font(.footnote.weight(.semibold))
+                }
+
+                Text(engineHealth.summary)
+                    .font(.footnote).foregroundStyle(.secondary)
+
+                if let details = engineHealth.details, !details.isEmpty {
+                    Text(details).font(.caption).foregroundStyle(.secondary)
+                }
+
+                if !lastHealthSummary.isEmpty, lastHealthTimestamp > 0 {
+                    let last = Date(timeIntervalSince1970: lastHealthTimestamp)
+                    Text("Last recorded: \(last.formatted(date: .abbreviated, time: .shortened)) · \(lastHealthSummary)")
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    // MARK: Scenario Tiles Card
+    // FIX 1 & 2: map tuples → SCLiveScenarioRow so ForEach gets a proper
+    // Identifiable type; eliminates both "No exact matches" / key-path errors.
+
     private var scenarioTilesCard: some View {
         card {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
-                    Text("Scenarios")
-                        .font(.headline)
+                    Text("Scenarios").font(.headline)
                     Spacer()
-                    Text("3-tier model")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Text("3-tier model").font(.caption).foregroundStyle(.secondary)
                 }
 
-                let scenarios = predictor.scenarioPrices(stallsTotal: stallsTotal)
+                let rows = scenarioRows.map {
+                    SCLiveScenarioRow(tier: $0.0, price: $0.1, note: $0.2)
+                }
 
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                    ForEach(scenarios, id: \.0.id) { tier, price, note in
-                        scenarioTile(tier: tier, price: price, note: note)
+                LazyVGrid(
+                    columns: [GridItem(.flexible()), GridItem(.flexible())],
+                    spacing: 12
+                ) {
+                    ForEach(rows) { row in
+                        scenarioTile(tier: row.tier, price: row.price, note: row.note)
                     }
                 }
             }
@@ -580,33 +615,29 @@ public struct SuperchargerLivePricePredictorView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Image(systemName: tier.systemImage)
-                    .foregroundStyle(accent)
-                Text(tier.title)
-                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(accent)  // FIX 3: accent is Color
+                Text(tier.title).font(.subheadline.weight(.semibold))
                 Spacer()
             }
-
-            Text(rateText(price))
-                .font(.headline.weight(.semibold))
-
+            Text(rateText(price)).font(.headline.weight(.semibold))
             Text("\(tier.subtitle) · \(note)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
+                .font(.caption).foregroundStyle(.secondary).lineLimit(2)
         }
         .padding(12)
-        .background(theme.cardBackground.opacity(0.65), in: RoundedRectangle(cornerRadius: theme.corner, style: .continuous))
+        .background(theme.cardBackground.opacity(0.65),
+                    in: RoundedRectangle(cornerRadius: theme.corner, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: theme.corner, style: .continuous)
                 .strokeBorder(theme.separator.opacity(0.75), lineWidth: 1)
         )
     }
 
+    // MARK: Current Prediction Card
+
     private var currentPredictionCard: some View {
         card {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Current prediction")
-                    .font(.headline)
+                Text("Current prediction").font(.headline)
 
                 HStack {
                     Label(prediction.tier.title, systemImage: prediction.tier.systemImage)
@@ -616,9 +647,7 @@ public struct SuperchargerLivePricePredictorView: View {
                         .font(.subheadline.weight(.semibold))
                 }
 
-                Text(prediction.rationale)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                Text(prediction.rationale).font(.footnote).foregroundStyle(.secondary)
 
                 HStack(spacing: 10) {
                     Button {
@@ -635,9 +664,7 @@ public struct SuperchargerLivePricePredictorView: View {
 
                     if let logStatusText {
                         Text(logStatusText)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
+                            .font(.caption).foregroundStyle(.secondary).lineLimit(2)
                     }
                 }
 
@@ -648,8 +675,7 @@ public struct SuperchargerLivePricePredictorView: View {
                             Text("Last: \(lastLoggedText)")
                         }
                     }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(.secondary)
                 }
 
                 if let officialRecord {
@@ -658,16 +684,16 @@ public struct SuperchargerLivePricePredictorView: View {
                             .font(.footnote.weight(.semibold))
                         if officialRecord.pricingTeslaPrices.isEmpty {
                             Text("Pricing text found, but no explicit $/kWh values detected.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .font(.caption).foregroundStyle(.secondary)
                         } else {
-                            Text("Detected $/kWh: " + officialRecord.pricingTeslaPrices.map { String(format: "$%.2f", $0) }.joined(separator: ", "))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            Text("Detected $/kWh: " +
+                                 officialRecord.pricingTeslaPrices
+                                    .map { String(format: "$%.2f", $0) }
+                                    .joined(separator: ", "))
+                                .font(.caption).foregroundStyle(.secondary)
                         }
                         Text("Last checked: \(officialRecord.lastFetched.formatted(date: .abbreviated, time: .shortened))")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .font(.caption).foregroundStyle(.secondary)
                     }
                 } else {
                     NavigationLink {
@@ -691,33 +717,31 @@ public struct SuperchargerLivePricePredictorView: View {
 
                 if let home = homeRate {
                     let diff = prediction.pricePerKWh - home
-                    let pct = home > 0 ? (diff / home) * 100.0 : 0
-
+                    let pct  = home > 0 ? (diff / home) * 100.0 : 0
                     Text("Compared to home: \(rateText(home)) · Δ \(money(diff, maxFractionDigits: 4))/kWh (\(pct >= 0 ? "+" : "")\(pct, specifier: "%.0f")%)")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                        .font(.footnote).foregroundStyle(.secondary).lineLimit(2)
                 }
             }
         }
     }
 
+    // MARK: Session Card
+
     private var sessionCard: some View {
         card {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Session estimate")
-                    .font(.headline)
+                Text("Session estimate").font(.headline)
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Energy to add (kWh)")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .font(.footnote).foregroundStyle(.secondary)
                     TextField("25.0000", text: $kWhText)
                         .keyboardType(.decimalPad)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled(true)
                         .padding(10)
-                        .background(theme.cardBackground.opacity(0.65), in: RoundedRectangle(cornerRadius: theme.corner, style: .continuous))
+                        .background(theme.cardBackground.opacity(0.65),
+                                    in: RoundedRectangle(cornerRadius: theme.corner, style: .continuous))
                         .overlay(
                             RoundedRectangle(cornerRadius: theme.corner, style: .continuous)
                                 .strokeBorder(theme.separator.opacity(0.75), lineWidth: 1)
@@ -726,8 +750,7 @@ public struct SuperchargerLivePricePredictorView: View {
 
                 HStack {
                     Text("\(kWhToAdd, specifier: "%.4f") kWh @ \(rateText(prediction.pricePerKWh))")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .font(.footnote).foregroundStyle(.secondary)
                     Spacer()
                     Text(money(sessionCost))
                         .font(.title3.weight(.semibold))
@@ -736,70 +759,78 @@ public struct SuperchargerLivePricePredictorView: View {
         }
     }
 
+    // MARK: Fees Card
+
     private var feesCard: some View {
         card {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Optional fees")
-                    .font(.headline)
+                Text("Optional fees").font(.headline)
 
                 Text("Idle fees (if applicable) are often charged per minute when the station is busy and you remain plugged in after charging completes.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .font(.footnote).foregroundStyle(.secondary)
 
                 HStack(spacing: 10) {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Idle fee / min")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                            .font(.footnote).foregroundStyle(.secondary)
                         TextField("e.g. 1.00", text: $idleFeePerMinText)
                             .keyboardType(.decimalPad)
                             .padding(10)
-                            .background(theme.cardBackground.opacity(0.65), in: RoundedRectangle(cornerRadius: theme.corner, style: .continuous))
+                            .background(theme.cardBackground.opacity(0.65),
+                                        in: RoundedRectangle(cornerRadius: theme.corner, style: .continuous))
                     }
-
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Idle minutes")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                            .font(.footnote).foregroundStyle(.secondary)
                         TextField("e.g. 10", text: $idleMinutesText)
                             .keyboardType(.numberPad)
                             .padding(10)
-                            .background(theme.cardBackground.opacity(0.65), in: RoundedRectangle(cornerRadius: theme.corner, style: .continuous))
+                            .background(theme.cardBackground.opacity(0.65),
+                                        in: RoundedRectangle(cornerRadius: theme.corner, style: .continuous))
                     }
                 }
 
                 if let idle = idleFeeCost {
                     HStack {
                         Text("Idle fee estimate")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                            .font(.footnote).foregroundStyle(.secondary)
                         Spacer()
-                        Text(money(idle))
-                            .font(.subheadline.weight(.semibold))
+                        Text(money(idle)).font(.subheadline.weight(.semibold))
                     }
-
                     HStack {
                         Text("Total (energy + idle)")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                            .font(.footnote).foregroundStyle(.secondary)
                         Spacer()
-                        Text(money(sessionCost + idle))
-                            .font(.headline.weight(.semibold))
+                        Text(money(sessionCost + idle)).font(.headline.weight(.semibold))
                     }
                 }
             }
         }
     }
 
+    // MARK: Disclaimer Card
+
     private var disclaimerCard: some View {
         card {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Notes")
-                    .font(.headline)
-
+                Text("Notes").font(.headline)
                 Text("This is a heuristic model. Tesla pricing varies by location/time and the displayed price is typically locked in when you plug in. Use this as a planning aid, not a guarantee.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .font(.footnote).foregroundStyle(.secondary)
+
+                Divider()
+
+                Link(destination: URL(string: "https://www.hansshow.com?bg_ref=ptYAKqt7kF")!) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "bolt.car")
+                            .font(.footnote)
+                        Text("Tesla accessories by HansShow")
+                            .font(.footnote.weight(.semibold))
+                        Spacer()
+                        Image(systemName: "arrow.up.right")
+                            .font(.caption2)
+                    }
+                    .foregroundStyle(accent)
+                }
             }
         }
     }
@@ -810,13 +841,16 @@ public struct SuperchargerLivePricePredictorView: View {
     private func card(@ViewBuilder _ content: () -> some View) -> some View {
         content()
             .padding(theme.spacing)
-            .background(theme.cardBackground.opacity(0.55), in: RoundedRectangle(cornerRadius: theme.corner, style: .continuous))
+            .background(theme.cardBackground.opacity(0.55),
+                        in: RoundedRectangle(cornerRadius: theme.corner, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: theme.corner, style: .continuous)
                     .strokeBorder(theme.separator.opacity(0.85), lineWidth: 1)
             )
     }
 }
+
+// MARK: - Preview
 
 #if DEBUG
 #Preview {

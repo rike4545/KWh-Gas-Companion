@@ -2,9 +2,7 @@
 //  FilterMenu 2.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 7/29/25.
 //
-
 
 // FilterMenu.swift
 // MyKwH Companion

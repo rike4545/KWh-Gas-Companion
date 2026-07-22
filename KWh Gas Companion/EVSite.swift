@@ -1,12 +1,3 @@
-//
-//  EVSite.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 9/15/25.
-//
-
-
-//
 //  EVSite.swift
 //  KWh Gas Companion
 //
@@ -152,7 +143,8 @@ public extension EVSite {
 
     /// An `MKMapItem` for opening in Apple Maps.
     var mapItem: MKMapItem {
-        let item = MKMapItem(placemark: MKPlacemark(coordinate: coordinate))
+        let placemark = MKPlacemark(coordinate: coordinate)
+        let item = MKMapItem(placemark: placemark)
         item.name = title
         return item
     }

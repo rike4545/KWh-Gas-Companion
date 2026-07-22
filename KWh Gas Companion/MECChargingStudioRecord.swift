@@ -30,7 +30,7 @@ private struct MECChargingStudioRecord: Identifiable, Hashable {
         var title: String {
             switch self {
             case .all: return "All"
-            case .teslaFi: return "TeslaFi"
+            case .teslaFi: return "Imported"
             case .energyEntry: return "Entries"
             case .external: return "External"
             }
@@ -242,10 +242,10 @@ private final class ChargingDataStudioViewModel: ObservableObject {
         let location  = extractString(item, names: ["location", "siteName", "name", "stationName"]) ?? "Unknown location"
         let kWh       = extractDouble(item, names: ["energyAdded", "energyAddedKWh", "kWh", "kwh", "energy", "energyKWh"]) ?? 0
         let cost      = extractDouble(item, names: ["cost", "totalCost", "amount", "price", "sessionCost"]) ?? 0
-        let provider  = extractString(item, names: ["providerName", "provider", "network", "chargerNetwork"]) ?? "TeslaFi"
+        let provider  = extractString(item, names: ["providerName", "provider", "network", "chargerNetwork"]) ?? "Imported Session"
 
         var tags = extractStringArray(item, names: ["tags", "tagList"]) ?? []
-        tags.append("TeslaFi")
+        tags.append("Imported")
 
         let id = stableID("tfi|\(startDate.timeIntervalSince1970)|\(location)|\(kWh)|\(cost)|\(provider)")
 
@@ -582,7 +582,7 @@ private struct ChargingStudioRow: View {
 
     private var sourceLabel: String {
         switch record.source {
-        case .teslaFi: return "TeslaFi"
+        case .teslaFi: return "Imported"
         case .energyEntry: return "Entry"
         case .external: return "External"
         case .all: return ""

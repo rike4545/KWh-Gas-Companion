@@ -2,17 +2,18 @@
 //  Persistence.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 7/12/25.
-//
 
-
-// Persistence.swift
 import Foundation
 
 struct Persistence {
     private static func documentsURL(for fileName: String) -> URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent(fileName)
+        let base = (try? FileManager.default.url(
+            for: .documentDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )) ?? FileManager.default.temporaryDirectory
+        return base.appendingPathComponent(fileName)
     }
 
     static func save<T: Codable>(_ object: T, to fileName: String) {

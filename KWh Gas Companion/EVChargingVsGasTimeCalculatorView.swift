@@ -1,12 +1,3 @@
-//
-//  EVChargingVsGasTimeCalculatorView 2.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 1/26/26.
-//
-
-
-//
 //  EVChargingVsGasTimeCalculatorView.swift
 //  My KWh Companion
 //
@@ -51,6 +42,22 @@ struct EVChargingVsGasTimeCalculatorView: View {
                         Divider().overlay(theme.separator.opacity(0.85))
 
                         resultRow("Estimated charging time", value: formatMinutes(evTotalMinutes))
+                    }
+                }
+
+                card(title: "Real-world context", systemImage: "bolt.badge.clock") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("This estimate assumes a stable average charging rate. Real EV charging curves taper as the battery fills, so peak power is not the same as whole-session speed.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+
+                        Text("For comparison, Tesla's premium NCA packs can briefly approach about 3C when pulling 250 kW at a Supercharger, but the average rate over the stop is much lower once taper begins.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+
+                        Text("Tesla's standard-range LFP packs are more conservative, often closer to roughly 1C to 2C at peak. A sustained 3C LFP pack would make 10% to 80% charging meaningfully faster for entry-level EVs.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                     }
                 }
 

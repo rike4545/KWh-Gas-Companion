@@ -1,11 +1,3 @@
-//
-//  MonthToDateSummary.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 9/3/25.
-//
-
-
 //  MonthToDateSummary.swift
 //  My KWh Companion
 //

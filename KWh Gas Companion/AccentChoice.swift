@@ -1,12 +1,3 @@
-//
-//  AccentChoice.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 12/23/25.
-//
-
-
-//
 //  AppAppearance.swift
 //  KWh Gas Companion
 //
@@ -81,7 +72,8 @@ public final class AppAppearance: ObservableObject {
         let storedAccent = defaults.string(forKey: Keys.accent).flatMap(AccentChoice.init(rawValue:))
 
         let resolvedScheme = storedScheme ?? scheme
-        let resolvedAccent = storedAccent ?? .red
+        // Default to blue to match the Tesla default look; explicit user choices persist and win.
+        let resolvedAccent = storedAccent ?? .blue
 
         self.scheme = resolvedScheme
         self.accentChoice = resolvedAccent
@@ -91,5 +83,13 @@ public final class AppAppearance: ObservableObject {
         if accentColor != Color.accentColor && storedAccent == nil {
             self.accentColor = accentColor
         }
+    }
+
+    public func resetToDefaults() {
+        defaults.removeObject(forKey: Keys.scheme)
+        defaults.removeObject(forKey: Keys.accent)
+        scheme = .automatic
+        accentChoice = .blue
+        accentColor = accentChoice.color
     }
 }

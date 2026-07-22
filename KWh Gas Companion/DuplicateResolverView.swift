@@ -41,7 +41,7 @@ struct DuplicateResolverView: View {
 
     private func duplicateRow(_ dup: DataQualityDuplicate) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(dup.entry.location ?? "Entry vs TeslaFi")
+            Text(dup.entry.location ?? "Entry vs imported session")
                 .font(.subheadline.weight(.semibold))
             Text("Δ \(String(format: "%.1f", dup.kwhDelta)) kWh • \(Int(dup.minutesApart)) min apart")
                 .font(.footnote)

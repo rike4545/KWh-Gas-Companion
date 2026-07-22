@@ -16,15 +16,16 @@ final class EntriesStore: ObservableObject {
 
     /// Canonical source of truth for all expense/charging entries.
     @Published var entries: [ExpenseEntry] = [] {
-        didSet { persistAsync() }
+        didSet {
+            guard !isHydrating else { return }
+            persistAsync()
+        }
     }
 
     // MARK: - Persistence
 
-    private let saveURL: URL = {
-        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        return dir.appendingPathComponent("entries.store.json")
-    }()
+    private let saveURL: URL = EntriesStore.makeSaveURL()
+    private var isHydrating = true
 
     /// Serialize / write on a background queue (Data only, never the array itself).
     private let writeQueue = DispatchQueue(label: "EntriesStore.WriteQueue", qos: .utility)
@@ -42,6 +43,19 @@ final class EntriesStore: ObservableObject {
         dec.dateDecodingStrategy = .iso8601
         return dec
     }()
+
+    private nonisolated static func makeSaveURL(fileManager: FileManager = .default) -> URL {
+        let baseDir =
+            fileManager.urls(for: .documentDirectory, in: .userDomainMask).first
+            ?? fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? fileManager.temporaryDirectory
+
+        if !fileManager.fileExists(atPath: baseDir.path) {
+            try? fileManager.createDirectory(at: baseDir, withIntermediateDirectories: true)
+        }
+
+        return baseDir.appendingPathComponent("entries.store.json")
+    }
 
     // MARK: - Init
 
@@ -146,17 +160,15 @@ final class EntriesStore: ObservableObject {
     private func loadAsync() {
         let url = saveURL
         Task.detached(priority: .utility) { [url] in
+            let decoded: [ExpenseEntry]
             do {
                 let data = try Data(contentsOf: url)
                 let dec = JSONDecoder()
                 dec.dateDecodingStrategy = .iso8601
-                let decoded = try dec.decode([ExpenseEntry].self, from: data)
-                await MainActor.run { [decoded] in
-                    self.entries = decoded
-                }
+                decoded = try dec.decode([ExpenseEntry].self, from: data)
             } catch {
+                decoded = []
                 await MainActor.run {
-                    self.entries = []
                     #if DEBUG
                     let ns = error as NSError
                     if !(ns.domain == NSCocoaErrorDomain && ns.code == NSFileReadNoSuchFileError) {
@@ -164,6 +176,19 @@ final class EntriesStore: ObservableObject {
                     }
                     #endif
                 }
+            }
+
+            await MainActor.run { [decoded] in
+                // Capture any entries that were written before hydration completed
+                // (e.g., from another store's init calling upsert during this window).
+                let pending = self.entries
+                self.isHydrating = true
+                self.entries = decoded
+                // Merge pending entries that aren't already in the loaded data.
+                for e in pending where !decoded.contains(where: { $0.id == e.id }) {
+                    self.entries.append(e)
+                }
+                self.isHydrating = false
             }
         }
     }

@@ -63,8 +63,14 @@ struct ChargeSpeedProfilerView: View {
             }
         }
         .sheet(isPresented: $showingAdd) {
-            ChargeSpeedSessionEditor { newSession in
-                store.items.insert(newSession, at: 0)
+            // 🔧 FIX: ChargeSpeedSessionEditor no longer wraps itself in a NavigationStack.
+            // ChargeSpeedProfilerView is pushed via NavigationLink (already in a stack),
+            // so the editor sheet gets its own NavigationStack here at the call site —
+            // the only place a new stack is correct.
+            NavigationStack {
+                ChargeSpeedSessionEditorForm { newSession in
+                    store.items.insert(newSession, at: 0)
+                }
             }
         }
         .task { await adsStore.load() }
@@ -137,16 +143,22 @@ struct ChargeSpeedProfilerView: View {
 
         return buckets.map { bucket in
             let matching = store.items.filter { bucket.range.contains($0.socStart) }
-            guard !matching.isEmpty else {
-                return (bucket.label, "—")
-            }
+            guard !matching.isEmpty else { return (bucket.label, "—") }
             let avg = matching.map(\.avgKW).reduce(0, +) / Double(matching.count)
             return (bucket.label, String(format: "%.0f kW", avg))
         }
     }
 }
 
-struct ChargeSpeedSessionEditor: View {
+// MARK: - Editor form (no NavigationStack — caller provides it)
+
+// 🔧 FIX: Renamed from ChargeSpeedSessionEditor to ChargeSpeedSessionEditorForm.
+// The old struct wrapped itself in a NavigationStack, creating a double nav stack
+// when presented as a sheet by ChargeSpeedProfilerView (which is already in a
+// NavigationStack). The form's content is now stack-free; the sheet call site
+// above wraps it in NavigationStack exactly once.
+
+struct ChargeSpeedSessionEditorForm: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var location: String = ""
@@ -159,77 +171,80 @@ struct ChargeSpeedSessionEditor: View {
     let onSave: (ChargeSpeedSession) -> Void
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section("Session") {
-                    TextField("Location", text: $location)
-                    HStack {
-                        Text("SOC start %")
-                        Spacer()
-                        TextField("0", value: $socStart, format: .number)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 80)
-                    }
-                    HStack {
-                        Text("SOC end %")
-                        Spacer()
-                        TextField("0", value: $socEnd, format: .number)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 80)
-                    }
+        Form {
+            Section("Session") {
+                TextField("Location", text: $location)
+                HStack {
+                    Text("SOC start %")
+                    Spacer()
+                    TextField("0", value: $socStart, format: .number)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 80)
                 }
-
-                Section("Speed") {
-                    HStack {
-                        Text("Avg kW")
-                        Spacer()
-                        TextField("0", value: $avgKW, format: .number)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 80)
-                    }
-                    HStack {
-                        Text("Peak kW")
-                        Spacer()
-                        TextField("0", value: $peakKW, format: .number)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 80)
-                    }
-                    HStack {
-                        Text("Outside temp °F")
-                        Spacer()
-                        TextField("0", value: $tempF, format: .number)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 80)
-                    }
+                HStack {
+                    Text("SOC end %")
+                    Spacer()
+                    TextField("0", value: $socEnd, format: .number)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 80)
                 }
             }
-            .navigationTitle("New Session")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") { dismiss() }
+
+            Section("Speed") {
+                HStack {
+                    Text("Avg kW")
+                    Spacer()
+                    TextField("0", value: $avgKW, format: .number)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 80)
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Save") {
-                        let session = ChargeSpeedSession(
-                            id: UUID(),
-                            location: location.trimmingCharacters(in: .whitespacesAndNewlines),
-                            socStart: socStart,
-                            socEnd: socEnd,
-                            avgKW: avgKW,
-                            peakKW: peakKW,
-                            outsideTempF: tempF,
-                            date: Date()
-                        )
-                        onSave(session)
-                        dismiss()
-                    }
+                HStack {
+                    Text("Peak kW")
+                    Spacer()
+                    TextField("0", value: $peakKW, format: .number)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 80)
+                }
+                HStack {
+                    Text("Outside temp °F")
+                    Spacer()
+                    TextField("0", value: $tempF, format: .number)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 80)
+                }
+            }
+        }
+        .navigationTitle("New Session")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button("Cancel") { dismiss() }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Save") {
+                    let session = ChargeSpeedSession(
+                        id: UUID(),
+                        location: location.trimmingCharacters(in: .whitespacesAndNewlines),
+                        socStart: socStart,
+                        socEnd: socEnd,
+                        avgKW: avgKW,
+                        peakKW: peakKW,
+                        outsideTempF: tempF,
+                        date: Date()
+                    )
+                    onSave(session)
+                    dismiss()
                 }
             }
         }
     }
 }
+
+// Keep the old name as a typealias for any callers using ChargeSpeedSessionEditor
+// directly. Remove this once all call sites are updated to the new name.
+typealias ChargeSpeedSessionEditor = ChargeSpeedSessionEditorForm

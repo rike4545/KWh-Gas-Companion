@@ -2,9 +2,7 @@
 //  KWChargeLogEntry.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 7/15/25.
 //
-
 
 // KWChargeLogEntry.swift
 // MyKwH Companion

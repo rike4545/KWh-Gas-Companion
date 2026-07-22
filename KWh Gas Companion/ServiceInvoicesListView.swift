@@ -121,7 +121,7 @@ public struct ServiceInvoicesListView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle(vehicleName?.isEmpty == false ? "\(vehicleName!) Invoices" : "Service Invoices")
+        .navigationTitle(navigationTitleText)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -179,7 +179,7 @@ public struct ServiceInvoicesListView: View {
                     .background(Circle().fill(Color.accentColor))
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(vehicleName?.isEmpty == false ? vehicleName! : "Current Vehicle")
+                    Text(displayVehicleName)
                         .font(.headline)
                     Text(vehicleKey)
                         .font(.subheadline)
@@ -190,6 +190,22 @@ public struct ServiceInvoicesListView: View {
                 Spacer()
             }
             .padding(8)
+        }
+    }
+
+    private var displayVehicleName: String {
+        if let vehicleName, !vehicleName.isEmpty {
+            vehicleName
+        } else {
+            "Current Vehicle"
+        }
+    }
+
+    private var navigationTitleText: String {
+        if let vehicleName, !vehicleName.isEmpty {
+            "\(vehicleName) Invoices"
+        } else {
+            "Service Invoices"
         }
     }
 

@@ -2,9 +2,7 @@
 //  VehicleIdentity.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 10/30/25.
 //
-
 
 // VehicleIdentity.swift
 // My KWh Companion

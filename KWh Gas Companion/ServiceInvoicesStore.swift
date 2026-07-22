@@ -163,7 +163,12 @@ extension ServiceInvoicesStore: _InvoicesStoreUpdating {
 
 private extension ServiceInvoicesStore {
     func documentsDir() -> URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        (try? FileManager.default.url(
+            for: .documentDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )) ?? FileManager.default.temporaryDirectory
     }
 
     func rootDir() -> URL {

@@ -2,9 +2,7 @@
 //  ChargingSession.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 12/17/25.
 //
-
 
 import Foundation
 

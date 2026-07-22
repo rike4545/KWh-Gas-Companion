@@ -449,10 +449,7 @@ private struct EVSafariView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> SFSafariViewController {
         let config = SFSafariViewController.Configuration()
         config.entersReaderIfAvailable = true
-        let vc = SFSafariViewController(url: url, configuration: config)
-        vc.preferredBarTintColor = nil
-        vc.preferredControlTintColor = nil
-        return vc
+        return SFSafariViewController(url: url, configuration: config)
     }
 
     func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {}

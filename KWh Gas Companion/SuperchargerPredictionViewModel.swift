@@ -10,6 +10,38 @@ import Foundation
 import SwiftUI
 
 @MainActor
+private final class UnavailableSuperchargerPredictor: SuperchargerPricePredicting {
+    private let underlyingError: Error
+
+    init(error: Error) {
+        self.underlyingError = error
+    }
+
+    func prediction(
+        for stationId: UUID,
+        startingAt startDate: Date,
+        horizonHours: Int
+    ) throws -> SuperchargerPrediction {
+        throw underlyingError
+    }
+
+    func hourlyBuckets(
+        for stationId: UUID,
+        startingAt startDate: Date,
+        horizonHours: Int
+    ) throws -> [HourlyPriceBucket] {
+        throw underlyingError
+    }
+
+    func priceEstimate(
+        for stationId: UUID,
+        at date: Date
+    ) throws -> Double {
+        throw underlyingError
+    }
+}
+
+@MainActor
 final class SuperchargerPredictionViewModel: ObservableObject {
 
     // MARK: - Station metadata (no stub values)
@@ -46,8 +78,9 @@ final class SuperchargerPredictionViewModel: ObservableObject {
             do {
                 self.predictor = try SuperchargerPredictionEngine()
             } catch {
-                // If we can’t load the Core ML model, fail loudly in debug.
-                fatalError("Failed to initialize SuperchargerPredictionEngine: \(error)")
+                // Keep the app running if model init fails (missing/corrupt model on upgrade/fresh install).
+                self.predictor = UnavailableSuperchargerPredictor(error: error)
+                self.errorMessage = error.localizedDescription
             }
         }
     }

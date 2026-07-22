@@ -41,7 +41,7 @@ final class ExpenseListViewModel: ObservableObject {
             switch self {
             case .all:           return "All Sources"
             case .teslaOfficial: return "Tesla"
-            case .teslaFi:       return "TeslaFi"
+            case .teslaFi:       return "Imported"
             case .manual:        return "Manual"
             case .other:         return "Other"
             }
@@ -96,7 +96,7 @@ final class ExpenseListViewModel: ObservableObject {
     @Published var showOnlyEnergy: Bool = false
     @Published var sortMode: SortMode = .dateDesc
 
-    /// Filter by ChargingDataSource (All / Tesla / TeslaFi / Manual / Other)
+    /// Filter by ChargingDataSource (All / Tesla / Imported / Manual / Other)
     @Published var sourceFilter: SourceFilter = .all
 
     // MARK: - Outputs

@@ -1,14 +1,16 @@
 import SwiftUI
 
 /// A robust row for a single charging entry.
-/// It tries to read common fields from `ExpenseEntry` using reflection:
-/// - Date: "date", "timestamp", "time", "createdAt", "loggedAt"
-/// - kWh: "kWh", "energyKWh", "energy", "quantity", "amountKWh", "consumedKWh"
-/// - cost: "cost", "totalCost", "amount", "price", "spend"
-/// - location: "location", "site", "title", "name"
-/// - isFast: "isFastCharge", "fast", "isDCFC", or inferred from "chargerType"/"locationType"
+/// Uses reflection to read common fields from any ExpenseEntry-like type.
+///
+/// 🔧 FIX: primaryTitle previously returned the literal string "Charge" whenever
+/// a location was available — hiding the useful location name in the title and
+/// then redundantly showing it again in the subtitle, producing:
+///   Title: "Charge"  Subtitle: "· Supercharger Exit 12"
+/// Fixed: when a location is available, use it directly as the title. The
+/// subtitle then shows secondary details (charge type) instead of repeating it.
+///
 struct ChargeLogRowView: View {
-    /// We keep the underlying entry opaque so we don't depend on exact property names.
     private let backing: Any
 
     // MARK: - Designated init for app use
@@ -31,20 +33,12 @@ struct ChargeLogRowView: View {
                 .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(primaryTitle)
-                        .font(.headline)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-
-                    if let loc = location, !loc.isEmpty {
-                        Text(midDot + " " + loc)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                    }
-                }
+                // 🔧 FIX: primaryTitle now returns the location if available, so the
+                // title row carries meaningful content. The subtitle shows charge type.
+                Text(primaryTitle)
+                    .font(.headline)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
 
                 Text(dateFormatter.string(from: date))
                     .font(.footnote)
@@ -54,13 +48,10 @@ struct ChargeLogRowView: View {
             Spacer(minLength: 8)
 
             VStack(alignment: .trailing, spacing: 4) {
-                // Top number: kWh (required to show anything meaningful)
                 if let k = kWh {
                     Text(kWhString(k))
                         .font(.headline.monospacedDigit())
                 }
-
-                // Second line: cost or price/kWh if available
                 if let c = cost, c > 0 {
                     Text(currencyString(c))
                         .font(.subheadline.monospacedDigit())
@@ -84,8 +75,11 @@ struct ChargeLogRowView: View {
         isFast ? Image(systemName: "bolt.fill") : Image(systemName: "house.fill")
     }
 
+    /// 🔧 FIX: Was `if let loc = location, !loc.isEmpty { return "Charge" }`.
+    /// That discards the location string and produces a generic title.
+    /// Now: use the location if present, otherwise fall back to charge type label.
     private var primaryTitle: String {
-        if let loc = location, !loc.isEmpty { return "Charge" }
+        if let loc = location, !loc.isEmpty { return loc }
         return isFast ? "Fast charge" : "Home charge"
     }
 
@@ -93,7 +87,6 @@ struct ChargeLogRowView: View {
         var parts: [String] = []
         parts.append(primaryTitle)
         parts.append(dateFormatter.string(from: date))
-        if let loc = location, !loc.isEmpty { parts.append(loc) }
         if let k = kWh { parts.append(kWhString(k)) }
         if let c = cost, c > 0 { parts.append(currencyString(c)) }
         return parts.joined(separator: ", ")
@@ -106,7 +99,8 @@ struct ChargeLogRowView: View {
     }
 
     private var kWh: Double? {
-        extractDouble(["kWh", "energyKWh", "energy", "quantity", "amountKWh", "consumedKWh"])
+        extractDouble(["kWh", "energyKWh", "energy", "quantity", "amountKWh", "consumedKWh",
+                       "energyAddedKWh"])  // 🔧 also check energyAddedKWh (TeslaFiSession field name)
     }
 
     private var cost: Double? {
@@ -118,15 +112,12 @@ struct ChargeLogRowView: View {
     }
 
     private var isFast: Bool {
-        // Direct bool hits
         if let b = extractBool(["isFastCharge", "fast", "isDCFC"]) { return b }
-        // Infer from a string-typed charger/location type if present
         let inferKeys = ["chargerType", "locationType", "kind", "type"]
         if let s = extractString(inferKeys)?.lowercased() {
             if s.contains("fast") || s.contains("dcfc") || s.contains("super") { return true }
             if s.contains("home") || s.contains("level 1") || s.contains("level 2") { return false }
         }
-        // Heuristic: very high price/kWh is likely DCFC
         if let p = pricePerKWh, p >= 0.45 { return true }
         return false
     }
@@ -139,13 +130,11 @@ struct ChargeLogRowView: View {
     // MARK: - Formatting
 
     private func kWhString(_ kwh: Double) -> String {
-        // Use one decimal for typical EV values
         let rounded = (kwh * 10).rounded() / 10
         return "\(rounded.cleanOneDecimal) kWh"
     }
 
     private func currencyString(_ value: Double) -> String {
-        // NumberFormatter for wide OS compatibility
         let nf = NumberFormatter()
         nf.numberStyle = .currency
         return nf.string(from: NSNumber(value: value)) ?? String(format: "$%.2f", value)
@@ -158,8 +147,6 @@ struct ChargeLogRowView: View {
         return df
     }
 
-    private var midDot: String { "·" }
-
     // MARK: - Reflection helpers
 
     private func extractChild(named candidates: [String]) -> Any? {
@@ -170,7 +157,6 @@ struct ChargeLogRowView: View {
                 return unwrapOptional(child.value)
             }
         }
-        // Dig one level for structs/classes with stored models
         for child in m.children {
             let cm = Mirror(reflecting: child.value)
             for grand in cm.children {
@@ -215,7 +201,6 @@ struct ChargeLogRowView: View {
         guard let raw = extractChild(named: names) else { return nil }
         if let d = raw as? Date { return d }
         if let s = raw as? String {
-            // Try a couple common formats
             let f1 = ISO8601DateFormatter()
             if let d = f1.date(from: s) { return d }
             let f2 = DateFormatter()
@@ -230,9 +215,7 @@ struct ChargeLogRowView: View {
     private func unwrapOptional(_ any: Any) -> Any {
         let mirror = Mirror(reflecting: any)
         guard mirror.displayStyle == .optional else { return any }
-        if let child = mirror.children.first {
-            return child.value
-        }
+        if let child = mirror.children.first { return child.value }
         return NSNull()
     }
 
@@ -281,7 +264,7 @@ struct ChargeLogRowView_Previews: PreviewProvider {
     }
 }
 
-// MARK: - Small numeric convenience
+// MARK: - Numeric convenience
 
 private extension Double {
     var cleanOneDecimal: String {

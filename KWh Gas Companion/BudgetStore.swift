@@ -95,10 +95,7 @@ final class BudgetStore: ObservableObject {
     }
 
     // Persistence
-    private let fileURL: URL = {
-        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        return dir.appendingPathComponent("budget.plans.json")
-    }()
+    private let fileURL: URL = BudgetStore.makeFileURL()
 
     // Save control
     private var suppressSaves = false
@@ -117,6 +114,19 @@ final class BudgetStore: ObservableObject {
         d.dateDecodingStrategy = .iso8601
         return d
     }()
+
+    private nonisolated static func makeFileURL(fileManager: FileManager = .default) -> URL {
+        let baseDir =
+            fileManager.urls(for: .documentDirectory, in: .userDomainMask).first
+            ?? fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? fileManager.temporaryDirectory
+
+        if !fileManager.fileExists(atPath: baseDir.path) {
+            try? fileManager.createDirectory(at: baseDir, withIntermediateDirectories: true)
+        }
+
+        return baseDir.appendingPathComponent("budget.plans.json")
+    }
 
     init() {
         load()
@@ -191,6 +201,10 @@ final class BudgetStore: ObservableObject {
         plans[ym] = p
     }
 
+    func clearAllPlans() {
+        plans.removeAll()
+    }
+
     // MARK: - Suggestion logic (pure)
 
     /// Suggests a plan from the average of the previous 3 full months.
@@ -248,7 +262,7 @@ final class BudgetStore: ObservableObject {
         // Debounce a bit to coalesce multiple quick edits
         saveTask = Task { [weak self] in
             guard let self else { return }
-            try? await Task.sleep(nanoseconds: 250_000_000) // 0.25s
+            try? await Task.sleep(for: .milliseconds(250))
             await self.saveNow()
         }
     }
@@ -268,9 +282,10 @@ final class BudgetStore: ObservableObject {
 
     private func load() {
         suppressSaves = true
-        defer { suppressSaves = false }
-
+        // defer must live inside the Task body so it fires after the async
+        // disk read completes, not immediately after Task creation.
         Task { @MainActor in
+            defer { self.suppressSaves = false }
             if let data = await io.read(from: fileURL) {
                 do {
                     let decoded = try decoder.decode([String: BudgetPlan].self, from: data)
@@ -278,7 +293,6 @@ final class BudgetStore: ObservableObject {
                     for (k, v) in decoded {
                         if let ym = YearMonth(keyString: k) { map[ym] = v }
                     }
-                    // Assign once, suppressed from saving
                     self.plans = map
                 } catch {
                     self.plans = [:]

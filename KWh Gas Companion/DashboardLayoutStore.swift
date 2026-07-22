@@ -3,9 +3,12 @@ import SwiftUI
 enum DashboardCardKind: String, CaseIterable, Identifiable, Codable, Hashable {
     case greeting
     case actionCenter
+    case costOfCharging
+    case gasComparison
     case insights
     case savingsScore
     case weeklyForecast
+    case gridEmissions
     case weeklyHealth
     case schedulePlanner
     case priceWatchlist
@@ -20,9 +23,12 @@ enum DashboardCardKind: String, CaseIterable, Identifiable, Codable, Hashable {
         [
             .greeting,
             .actionCenter,
+            .costOfCharging,
+            .gasComparison,
             .insights,
             .savingsScore,
             .weeklyForecast,
+            .gridEmissions,
             .weeklyHealth,
             .schedulePlanner,
             .priceWatchlist,
@@ -43,6 +49,17 @@ final class DashboardLayoutStore: ObservableObject {
     }
 
     private static let defaultHidden: Set<DashboardCardKind> = [
+        .insights,
+        .weeklyForecast,
+        .gridEmissions,
+        .weeklyHealth,
+        .schedulePlanner,
+        .priceWatchlist,
+        .dataSources,
+        .savingsScore
+    ]
+
+    private static let previousDefaultHidden: Set<DashboardCardKind> = [
         .weeklyForecast,
         .weeklyHealth,
         .schedulePlanner,
@@ -68,14 +85,14 @@ final class DashboardLayoutStore: ObservableObject {
         if let data = defaults.data(forKey: Keys.order),
            let decoded = try? JSONDecoder().decode([DashboardCardKind].self, from: data),
            !decoded.isEmpty {
-            self.order = decoded
+            self.order = Self.migratedOrder(decoded)
         } else {
             self.order = DashboardCardKind.defaultOrder
         }
 
         if let data = defaults.data(forKey: Keys.hidden),
            let decoded = try? JSONDecoder().decode(Set<DashboardCardKind>.self, from: data) {
-            self.hidden = decoded
+            self.hidden = decoded == Self.previousDefaultHidden ? Self.defaultHidden : decoded
         } else {
             self.hidden = Self.defaultHidden
         }
@@ -90,6 +107,14 @@ final class DashboardLayoutStore: ObservableObject {
 
     var visibleOrder: [DashboardCardKind] {
         order.filter { !hidden.contains($0) }
+    }
+
+    var visibleCount: Int {
+        visibleOrder.count
+    }
+
+    var hiddenCount: Int {
+        hidden.count
     }
 
     func toggleHidden(_ kind: DashboardCardKind) {
@@ -110,6 +135,25 @@ final class DashboardLayoutStore: ObservableObject {
 
     func isCollapsed(_ kind: DashboardCardKind) -> Bool {
         collapsed.contains(kind)
+    }
+
+    func applyRecommendedLayout() {
+        order = DashboardCardKind.defaultOrder
+        hidden = Self.defaultHidden
+        collapsed = []
+    }
+
+    func showAllCards() {
+        order = DashboardCardKind.defaultOrder
+        hidden = []
+    }
+
+    private static func migratedOrder(_ decoded: [DashboardCardKind]) -> [DashboardCardKind] {
+        var migrated = decoded.filter { DashboardCardKind.allCases.contains($0) }
+        for kind in DashboardCardKind.defaultOrder where !migrated.contains(kind) {
+            migrated.append(kind)
+        }
+        return migrated
     }
 
     private func persistOrder() {

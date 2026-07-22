@@ -13,7 +13,7 @@ extension CalculatorKind {
         switch self {
 
         // Featured
-        case .cheapestChargerShift, .forecastDashboard, .forecastWeekly, .deepDepthShift, .chartsBudget, .teslaFiCSVImport,
+        case .cheapestChargerShift, .forecastDashboard, .forecastWeekly, .gridEmissionsForecast, .deepDepthShift, .chartsBudget,
              .superchargeInfoNearMe,
              .teslaEPCPartsCatalog,
              .superchargerLivePricePredictor, .savingsScore:
@@ -45,7 +45,7 @@ extension CalculatorKind {
              .dataQualityCenter,
              .dynamicSuperchargingExplainer, .chargingDataStudio,
              .chargingDataIntegrity, .chargingReconciliation,
-             .costPerKWhTrend, .priceWatchlist,
+             .caughtaKWH, .costPerKWhTrend, .priceWatchlist,
              .chargingEtiquette, .weeklyHealthReport,
              .sessionConfidence, .duplicateResolver, .bestValueChargers, .batteryHealthTimeline,
              .stationQualityScore, .chargeSpeedProfiler, .monthlyHeatmap, .shareableReports:
@@ -70,7 +70,7 @@ extension CalculatorKind {
              .productPlateScannerArchive, .unitConversion, .serviceInvoices, .tripLogger,
              .winterDrivingTechniques, .tireMaintenanceTracker, .diyServiceVault,
              .chargingSafetyChecklist, .emergencyPackChecklist,
-             .teslaServiceAlerts:
+             .teslaServiceAlerts, .altitudeCockpit, .weatherCockpit, .tripCockpit, .ticTacToe:
             return .vehicleTools
 
         // Maps
@@ -82,7 +82,8 @@ extension CalculatorKind {
             return .community
 
         // News & History
-        case .evNews, .evContent, .historyOfTeslaAndRivian, .materialsShift, .rightToRepair:
+        case .evNews, .evContent, .historyOfTeslaAndRivian, .materialsShift,
+             .rightToRepair, .lemonLawGuide, .nhtsaCrashReporting:
             return .newsAndHistory
 
         }
@@ -103,20 +104,24 @@ extension CalculatorKind {
             extra = "time compare charging vs gas fueling pump minutes hours stop duration"
         case .winterDrivingTechniques:
             extra = "winter snow ice cold driving tips traction braking regen preheat precondition tires chains defog black ice safe distance"
-        case .teslaFiCSVImport:
-            extra = "teslafi import csv sessions charging logs"
         case .nearMe:
             extra = "nearby map chargers supercharger stations location"
         case .superchargeInfoNearMe:
             extra = "supercharge.info community dataset map sites stalls open construction permit"
+        case .nhtsaCrashReporting:
+            extra = "nhtsa crash reporting standing general order sgo ads level 2 adas autonomous autopilot crash data federal investigation reporting limitations comparison caveats"
         case .teslaServiceAlerts:
             extra = "tesla service alerts warning code severity scanner ocr vision screenshot"
         case .dataQualityCenter:
             extra = "data quality duplicates outliers anomalies cleanup integrity spikes"
+        case .caughtaKWH:
+            extra = "caught kwh catch missing energy high rate suspicious charging rows cost per kwh anomaly cleanup outlier data quality"
         case .teslaEPCPartsCatalog:
             extra = "tesla epc parts catalog part number pn oem diagrams exploded view assembly"
         case .rightToRepair:
             extra = "right to repair repairability independent repair parts tools diagnostics software pairing rich rebuilds"
+        case .lemonLawGuide:
+            extra = "lemon law defective vehicle repair refund replacement ny new york ca california fl florida wa washington arbitration attorney consumer protection warranty qualifying repairs days out of service threshold buyback repurchase dealer manufacturer state rights"
         case .evContent:
             extra = "ev content youtube creators channels videos builds conversions mods reviews"
         case .discounts:
@@ -131,6 +136,8 @@ extension CalculatorKind {
             extra = "predict projection estimate model scenario planning"
         case .forecastWeekly:
             extra = "weekly forecast projection cost kwh trend"
+        case .gridEmissionsForecast:
+            extra = "grid emissions forecast watttime marginal emissions moer co2 clean charging green red carbon heavy flexible load laundry home battery project clean grid"
         case .winterRangeImpactPlanner:
             extra = "winter range impact planner temperature speed hvac"
         case .teslaVINDecoder, .rivianVINDecoder:
@@ -193,6 +200,16 @@ extension CalculatorKind {
             extra = "emergency pack checklist"
         case .teslaInvoiceScan:
             extra = "tesla invoice scan supercharger receipt pdf"
+        case .altitudeCockpit:
+            extra = "tes app altitude cockpit elevation profile mountain route grade height record"
+        case .weatherCockpit:
+            extra = "tes app weather forecast humidity wind temperature rain route"
+        case .tripCockpit:
+            extra = "tes app trip cockpit record route distance average speed energy stops"
+        case .ticTacToe:
+            extra = "tes app game tic tac toe cabin parked charging two player"
+        case .evVsCarComparison:
+            extra = "compare comparison gas fuel gasoline current total charging spend actual logged distance preset miles 1500 5000 15000 20000 25000 custom miles annual yearly weekly budget co2 cost per mile"
         case .tripCostEstimator:
             extra = "trip cost estimate distance efficiency rate"
         case .annualCostSimulator:

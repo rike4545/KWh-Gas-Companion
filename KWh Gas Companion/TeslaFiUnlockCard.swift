@@ -2,7 +2,7 @@
 //  TeslaFiUnlockCard.swift
 //  KWh Gas Companion
 //
-//  Reusable TeslaFi unlock UI ($0.99 one-time).
+//  Legacy TeslaFi entitlement card. TeslaFi import is now included.
 //
 
 import SwiftUI
@@ -35,13 +35,13 @@ struct TeslaFiUnlockCard: View {
                 } label: {
                     HStack(spacing: 6) {
                         if store.purchaseInFlight { ProgressView().scaleEffect(0.9) }
-                        Text(store.purchaseInFlight ? "Processing…" : "Unlock \(store.displayPrice)")
+                        Text(store.purchaseInFlight ? "Processing…" : store.displayPrice)
                     }
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(store.purchaseInFlight)
 
-                Button("Restore") { Task { await store.restore() } }
+                Button("Refresh") { Task { await store.restore() } }
                     .buttonStyle(.bordered)
                     .disabled(store.purchaseInFlight)
             }

@@ -266,6 +266,7 @@ struct RangeForecastView: View {
                 }
             }
             .frame(height: 240)
+            .kwhInteractiveDataViz()
         }
     }
 

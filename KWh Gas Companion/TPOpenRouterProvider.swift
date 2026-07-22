@@ -110,7 +110,7 @@ struct TPOpenChargeMapProvider: TPChargerProvider {
             let resp = try await MKLocalSearch(request: req).start()
             return resp.mapItems.compactMap { item in
                 guard let name = item.name else { return nil }
-                let c = item.placemark.coordinate
+                let c = item.compatCoordinate
                 let net = inferNetwork(fromName: name)
                 let id = "mk|\(name)|\(String(format: "%.5f", c.latitude))|\(String(format: "%.5f", c.longitude))"
 

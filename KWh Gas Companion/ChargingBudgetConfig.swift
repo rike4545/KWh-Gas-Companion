@@ -1,11 +1,3 @@
-//
-//  ChargingBudgetConfig.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 12/8/25.
-//
-
-
 //  ChargingBudgetGuardView.swift
 
 import SwiftUI

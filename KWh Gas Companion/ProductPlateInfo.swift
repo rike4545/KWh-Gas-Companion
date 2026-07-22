@@ -180,12 +180,18 @@ enum ProductPlateParser {
 
 @MainActor
 final class PlateScanArchive: ObservableObject {
-    @Published private(set) var scans: [ProductPlateInfo] = [] { didSet { save() } }
+    @Published private(set) var scans: [ProductPlateInfo] = [] {
+        didSet {
+            guard !isHydrating else { return }
+            save()
+        }
+    }
 
     private let url: URL = {
-        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let dir = URL.documentsDirectory
         return dir.appendingPathComponent("plate_scans.json")
     }()
+    private var isHydrating = true
 
     init() { load() }
 
@@ -214,7 +220,15 @@ final class PlateScanArchive: ObservableObject {
     }
 
     private func load() {
-        do { let data = try Data(contentsOf: url); let decoded = try JSONDecoder().decode([ProductPlateInfo].self, from: data); self.scans = decoded } catch { /* first run - ignore */ }
+        isHydrating = true
+        defer { isHydrating = false }
+        do {
+            let data = try Data(contentsOf: url)
+            let decoded = try JSONDecoder().decode([ProductPlateInfo].self, from: data)
+            self.scans = decoded
+        } catch {
+            /* first run - ignore */
+        }
     }
 }
 

@@ -1,3 +1,4 @@
 <resources>
-    <string name="app_name">My EV Companion</string>
+    <string name="app_name">KWh Gas Companion</string>
+    <string name="admob_app_id">ca-app-pub-9917450718827221~9383144613</string>
 </resources>

@@ -1,12 +1,3 @@
-//
-//  TripsAndChargingRoot.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 12/23/25.
-//
-
-
-//
 //  TabRoots.swift
 //  KWh Gas Companion
 //

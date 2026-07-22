@@ -1,12 +1,3 @@
-//
-//  SuperchargerStationDatabase.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 11/30/25.
-//
-
-
-//
 //  SuperchargerStationDatabase.swift
 //  My KWh Companion
 //

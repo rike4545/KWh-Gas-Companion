@@ -13,7 +13,7 @@ import Foundation
 
 // MARK: - Types
 
-public struct AIEvidence: Identifiable, Hashable {
+public struct AIEvidence: Identifiable, Hashable, Sendable {
     public let id = UUID()
     public let source: String      // e.g., "EntriesStore", "TeslaFiSessionStore"
     public let reference: String   // e.g., entry id / site name / date
@@ -84,6 +84,15 @@ fileprivate struct AIEntryLite: Hashable {
     var site: String?
 }
 
+fileprivate struct AISessionLite: Hashable {
+    var id: String
+    var startDate: Date
+    var endDate: Date?
+    var energyKWh: Double
+    var cost: Double?
+    var location: String?
+}
+
 fileprivate func extractEntries(_ anyEntries: [Any]) -> [AIEntryLite] {
     anyEntries.compactMap { e in
         let m = Mirror(reflecting: e)
@@ -109,6 +118,39 @@ fileprivate func extractEntries(_ anyEntries: [Any]) -> [AIEntryLite] {
         return out
     }
     .sorted { $0.date < $1.date }
+}
+
+fileprivate func extractSessions(_ anySessions: [Any]) -> [AISessionLite] {
+    anySessions.compactMap { s in
+        let m = Mirror(reflecting: s)
+
+        func val<T>(_ name: String, _ type: T.Type) -> T? {
+            for ch in m.children {
+                if ch.label?.lowercased() == name.lowercased() { return ch.value as? T }
+            }
+            return nil
+        }
+
+        guard let start = val("startDate", Date.self) ?? val("date", Date.self),
+              let energy = val("energyAddedKWh", Double.self) ?? val("kwh", Double.self) ?? val("energyKWh", Double.self)
+        else {
+            return nil
+        }
+
+        let id = val("id", UUID.self)?.uuidString
+            ?? val("id", String.self)
+            ?? ISO8601DateFormatter().string(from: start)
+
+        return AISessionLite(
+            id: id,
+            startDate: start,
+            endDate: val("endDate", Date.self),
+            energyKWh: energy,
+            cost: val("cost", Double.self) ?? val("amount", Double.self),
+            location: val("location", String.self) ?? val("siteName", String.self)
+        )
+    }
+    .sorted { $0.startDate < $1.startDate }
 }
 
 // MARK: - Tools
@@ -318,7 +360,8 @@ public struct SitesTool: AITool {
         }
 
         let top   = stats.sorted { $0.2 > $1.2 }.prefix(3)
-        let cheap = stats.sorted { $0.3 < $1.3 }.prefix(3)
+        // Exclude sites with no kWh data (pkwh==0 is a sentinel, not a real rate).
+        let cheap = stats.filter { $0.3 > 0 }.sorted { $0.3 < $1.3 }.prefix(3)
 
         var lines: [String] = []
         lines.append("Top spend sites:")
@@ -335,6 +378,107 @@ public struct SitesTool: AITool {
     }
 }
 
+public struct ChargingHabitsTool: AITool {
+    public let name = "ChargingHabits"
+    public init() {}
+
+    public func score(query: String) -> Double {
+        let q = query.lowercased()
+        if q.containsAny(["where does this owner charge", "charge most often", "charging habits", "where do i charge", "how do i charge"]) {
+            return 0.95
+        }
+        if q.contains("where") && q.contains("charg") { return 0.85 }
+        return 0.0
+    }
+
+    public func answer(query: String, ctx: AIContext) throws -> AIAnswer? {
+        let entries = extractEntries(ctx.loadEntries()).map { lite in
+            ExpenseEntry(
+                id: UUID(uuidString: lite.id) ?? UUID(),
+                date: lite.date,
+                amount: lite.cost ?? 0,
+                currencyCode: nil,
+                category: "Charging",
+                energyKWh: lite.energyKWh,
+                odometer: nil,
+                location: lite.site,
+                notes: nil,
+                vehicleName: nil,
+                stateOfCharge: nil,
+                chargeType: nil,
+                vehicleID: nil,
+                isBusiness: false,
+                vin: nil,
+                isEnergy: true,
+                charging: nil,
+                vatAmount: nil,
+                invoiceNumber: nil,
+                repeatRule: nil
+            )
+        }
+        let sessions = extractSessions(ctx.loadSessions()).map {
+            TeslaFiSession(
+                id: UUID(uuidString: $0.id) ?? UUID(),
+                startDate: $0.startDate,
+                endDate: $0.endDate ?? $0.startDate,
+                energyAddedKWh: $0.energyKWh,
+                cost: $0.cost,
+                location: $0.location
+            )
+        }
+
+        let insights = ChargingBehaviorInsights.build(entries: entries, teslaFiSessions: sessions)
+        guard insights.totalSessions > 0 else {
+            return AIAnswer(text: "I do not have enough charging history yet to tell where this owner charges most often.", confidence: 0.25, evidence: [], usedTools: [name])
+        }
+
+        return AIAnswer(
+            text: insights.whereAndHowSummary,
+            confidence: min(0.95, 0.45 + (Double(insights.totalSessions) / 40.0)),
+            evidence: insights.evidence,
+            usedTools: [name]
+        )
+    }
+}
+
+public struct BatteryCareTool: AITool {
+    public let name = "BatteryCare"
+    public init() {}
+
+    public func score(query: String) -> Double {
+        let q = query.lowercased()
+        if q.containsAny(["battery health", "long-term battery", "battery degradation", "affecting battery", "battery suggestions", "battery tips", "recommend"]) {
+            return 0.92
+        }
+        return 0.0
+    }
+
+    public func answer(query: String, ctx: AIContext) throws -> AIAnswer? {
+        let entries = ctx.loadEntries().compactMap { $0 as? ExpenseEntry }
+        let sessions = ctx.loadSessions().compactMap { $0 as? TeslaFiSession }
+        let insights = ChargingBehaviorInsights.build(entries: entries, teslaFiSessions: sessions)
+
+        guard insights.totalSessions > 0 else {
+            return AIAnswer(text: "I do not have enough charging history yet to estimate battery-health factors or suggestions.", confidence: 0.25, evidence: [], usedTools: [name])
+        }
+
+        let q = query.lowercased()
+        let text: String
+        if q.contains("suggest") || q.contains("recommend") || q.contains("what should i do") || q.contains("tips") {
+            text = insights.suggestionsSummary
+        } else {
+            text = insights.batteryHealthSummary + "\n\nConcrete suggestions:\n" + insights.suggestionsSummary
+        }
+
+        return AIAnswer(
+            text: text,
+            confidence: min(0.95, 0.45 + (Double(insights.totalSessions) / 40.0)),
+            evidence: insights.evidence,
+            usedTools: [name]
+        )
+    }
+}
+
 // Fallback tool — describes what the AI can/can't do locally
 public struct CapabilityTool: AITool {
     public let name = "Capabilities"
@@ -343,7 +487,7 @@ public struct CapabilityTool: AITool {
     public func score(query: String) -> Double { 0.2 } // low so others win first
 
     public func answer(query: String, ctx: AIContext) throws -> AIAnswer? {
-        let text = "I answer strictly from what the app has saved: entries, sessions, vehicles. Try: ‘forecast next month’, ‘find anomalies’, ‘cheapest sites’, or ‘most expensive month’."
+        let text = "I answer strictly from what the app has saved: entries, sessions, vehicles. Try: ‘where do I charge most often’, ‘what is affecting long-term battery health’, ‘forecast next month’, or ‘find anomalies’."
         return AIAnswer(text: text, confidence: 0.9, evidence: [], usedTools: [name])
     }
 }
@@ -360,7 +504,7 @@ public final class SparkAIEngine: ObservableObject {
     public init(settings: AISettings, context: AIContext, extraTools: [AITool] = []) {
         self.settings = settings
         self.ctx = context
-        var base: [AITool] = [ForecastTool(), TrendsTool(), AnomaliesTool(), SitesTool(), CapabilityTool()]
+        var base: [AITool] = [ChargingHabitsTool(), BatteryCareTool(), ForecastTool(), TrendsTool(), AnomaliesTool(), SitesTool(), CapabilityTool()]
         base.append(contentsOf: extraTools)
         self.tools = base
     }
@@ -434,7 +578,7 @@ public struct AIChatView: View {
                     AnswerCard(answer: ans, showConfidence: aiSettings.showConfidence)
                         .padding(.horizontal)
                 } else {
-                    Text("Ask something like: ‘forecast next month’, ‘most expensive month’, ‘find anomalies’, or ‘cheapest sites’.")
+                    Text("Ask something like: ‘where do I charge most often’, ‘what is affecting long-term battery health’, ‘forecast next month’, or ‘find anomalies’.")
                         .foregroundStyle(.secondary)
                         .padding()
                 }

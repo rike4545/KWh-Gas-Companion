@@ -1,12 +1,3 @@
-//
-//  redeclarations.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 12/18/25.
-//
-
-
-//
 //  TPTripPlannerEngine 2.swift
 //  KWh Gas Companion
 //

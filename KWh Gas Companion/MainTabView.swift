@@ -863,6 +863,44 @@ fileprivate struct MainTabChargingCenterScreen: View {
         )
     }
 
+    // MARK: Off-peak nudge
+
+    private struct OffPeakNudge {
+        let windowText: String
+        let savingsText: String?
+    }
+
+    /// Reads the Charging Planner's saved off-peak window and rates and, when the
+    /// user has configured cheaper hours, estimates the per-session savings from
+    /// this month's average charge size. Returns nil when nothing is configured.
+    private var offPeakNudge: OffPeakNudge? {
+        let d = UserDefaults.standard
+        let offPeakRate = d.double(forKey: "planner.offPeakRate")
+        let peakRate    = d.double(forKey: "planner.peakRate")
+        guard offPeakRate > 0, peakRate > offPeakRate else { return nil }
+
+        let start = d.integer(forKey: "planner.offPeakStart")
+        let end   = d.integer(forKey: "planner.offPeakEnd")
+        let windowText = "\(Self.hourLabel(start)) → \(Self.hourLabel(end))"
+
+        var savingsText: String? = nil
+        if snapshot.sessionCount > 0, snapshot.monthlyEnergyKWh > 0 {
+            let avgKWh  = snapshot.monthlyEnergyKWh / Double(snapshot.sessionCount)
+            let saving  = max(0, avgKWh * (peakRate - offPeakRate))
+            if saving > 0 {
+                let code = Locale.current.currency?.identifier ?? "USD"
+                savingsText = "Save ~\(saving.formatted(.currency(code: code))) per session vs peak"
+            }
+        }
+        return OffPeakNudge(windowText: windowText, savingsText: savingsText)
+    }
+
+    private static func hourLabel(_ hour: Int) -> String {
+        let h   = (hour % 24 + 24) % 24
+        let h12 = h % 12 == 0 ? 12 : h % 12
+        return "\(h12)\(h < 12 ? "AM" : "PM")"
+    }
+
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: theme.spacing + 10) {
@@ -909,7 +947,7 @@ fileprivate struct MainTabChargingCenterScreen: View {
                         LazyVGrid(columns: metricColumns, spacing: 10) {
                             MainTabMetricPlate(title: "This month", value: snapshot.monthlyEnergyText)
                             MainTabMetricPlate(title: "Avg rate", value: snapshot.avgRateText)
-                            MainTabMetricPlate(title: "Activity", value: snapshot.activitySummaryText)
+                            MainTabMetricPlate(title: "Home / Fast", value: snapshot.homeFastSplitText)
                         }
 
                         LazyVGrid(columns: quickTileColumns, spacing: 10) {
@@ -923,6 +961,17 @@ fileprivate struct MainTabChargingCenterScreen: View {
                             Divider().opacity(0.65)
                             MainTabRecentSessionRow(session: latest, accent: accent)
                         }
+                    }
+                }
+
+                if let nudge = offPeakNudge {
+                    MainTabSectionHeader("Save on charging")
+                    MainTabCard(theme: theme, surface: surface) {
+                        navRow(
+                            "Cheaper window \(nudge.windowText)",
+                            nudge.savingsText ?? "Shift charging into your off-peak hours to cut costs",
+                            "clock.badge.checkmark"
+                        ) { ChargingSchedulePlannerView().inlineNav("Charging Planner") }
                     }
                 }
 
@@ -1401,6 +1450,12 @@ fileprivate struct MainTabChargingSnapshot {
             return "\(sessionCount) this month"
         }
         return dataSourceLabel
+    }
+
+    /// Home vs fast-charge session split for this month, e.g. "6 / 2".
+    var homeFastSplitText: String {
+        guard sessionCount > 0 else { return "—" }
+        return "\(homeSessionCount) / \(fastSessionCount)"
     }
 
     var statusText: String {

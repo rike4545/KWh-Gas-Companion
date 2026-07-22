@@ -1,16 +1,6 @@
-//
 //  SparkyEngine.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 1/13/26.
-//
-
-
-//
-//  SparkyEngine.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 10/27/25
 //  Regenerated: actor-safe DI access, optional-bridging, cache, tunables
 //
 
@@ -92,12 +82,9 @@ public actor SparkyEngine {
             let cost: (SparkShiftEntry) -> Double = { entry in store.costOf(entry) ?? 0 }
             let price: (SparkShiftEntry) -> Double = { entry in store.pricePerKWhOf(entry) ?? 0 }
 
-            // Unwrap trip kind or fail loudly (replace fatalError with a project default if desired)
+            // Graceful fallback for legacy/malformed entries so summary can't crash app launch.
             let trip: (SparkShiftEntry) -> SparkTripKind = { entry in
-                if let k = store.tripKindOf(entry) ?? entry.kind {
-                    return k
-                }
-                fatalError("SparkTripKind missing for entry \(entry)")
+                store.tripKindOf(entry) ?? entry.kind ?? .uncategorized
             }
 
             let miles: (SparkShiftEntry) -> Double = { entry in store.milesOf(entry) ?? 0 }

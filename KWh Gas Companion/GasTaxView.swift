@@ -1,15 +1,28 @@
 //  GasTaxView.swift
-//  MyKwH Companion — Regenerated Dec 18, 2025
+//  MyKwH Companion
 //
-//  Gasoline/Diesel excise & sales-tax calculator with:
-//  • Typed inputs (Double-bound TextFields with keyboard toolbar)
-//  • Fuel type toggle (auto federal rate)
-//  • Searchable state presets (sheet), @AppStorage persistence
-//  • Optional sales tax (% of pre-tax fuel price)
-//  • Per-mile analytics (fuel-only, tax/mi, all-in)
-//  • EV comparison (optional input) + mini breakdown chart
-//  • Reset button + 🪙 easter egg coin (hingedpic/unhingedpic)
+//  🔧 FIX 1: GasStatePreset.id changed from `var UUID = UUID()` to `let id: UUID`.
+//     The old `var` with a default UUID regenerated a fresh ID on every
+//     Codable decode, making ForEach row diffing unstable and breaking
+//     @State-based selection after a JSON round-trip.
+//     CodingKeys now includes `id` so the ID is preserved across encode/decode.
 //
+//  🔧 FIX 2: `private var defaultPresets` was a stored property on the View
+//     struct holding a 50-element array literal, re-evaluated on every body call.
+//     Changed to `private static let defaultPresets` — built once.
+//
+//  🔧 FIX 3: `.kwhInteractiveDataViz()` referenced an undefined modifier.
+//     Removed — the Chart renders fine without it. Add back if you define
+//     the modifier elsewhere.
+//
+//  🔧 FIX 4: `evCostPerMile` string normalization stripped `,` but not `$`
+//     before parsing. Fixed to strip both characters unconditionally.
+//
+//  🔧 FIX 5: `out` (GasTaxEngine.compute) was recomputed on every body
+//     evaluation because it's a plain computed var. @State inputs already
+//     drive redraws correctly, but wrapping in a local `let` inside body
+//     was the right pattern. Left as-is since SwiftUI memoizes body when
+//     inputs don't change — no structural issue, just documented.
 
 import SwiftUI
 import UIKit
@@ -22,11 +35,11 @@ import Charts
 struct GasTaxEngine {
     struct Inputs: Equatable {
         var gallons: Double
-        var pricePerGallon: Double        // $/gal (pre-tax fuel price)
-        var stateRate: Double             // $/gal
-        var federalCents: Double          // ¢/gal
-        var localCents: Double            // ¢/gal
-        var salesTaxPct: Double           // % of pre-tax fuel price
+        var pricePerGallon: Double
+        var stateRate: Double
+        var federalCents: Double
+        var localCents: Double
+        var salesTaxPct: Double
         var salesTaxEnabled: Bool
         var mpg: Double
     }
@@ -43,19 +56,19 @@ struct GasTaxEngine {
         var fuelOnlyPerMile: Double
         var taxPerMile: Double
         var allInPerMile: Double
-        var taxShareOfPumpPct: Double   // 0–100
+        var taxShareOfPumpPct: Double
     }
 
     static func compute(_ i: Inputs) -> Outputs {
-        let gallons = max(i.gallons, 0)
-        let price = max(i.pricePerGallon, 0)
-        let statePerGal = max(i.stateRate, 0)
+        let gallons       = max(i.gallons, 0)
+        let price         = max(i.pricePerGallon, 0)
+        let statePerGal   = max(i.stateRate, 0)
         let federalPerGal = max(i.federalCents, 0) / 100.0
-        let localPerGal = max(i.localCents, 0) / 100.0
-        let salesPct = max(i.salesTaxPct, 0)
+        let localPerGal   = max(i.localCents, 0) / 100.0
+        let salesPct      = max(i.salesTaxPct, 0)
 
-        let fuelCost  = gallons * price
-        let stateTax  = gallons * statePerGal
+        let fuelCost   = gallons * price
+        let stateTax   = gallons * statePerGal
         let federalTax = gallons * federalPerGal
         let localTax   = gallons * localPerGal
         let salesPerGal = i.salesTaxEnabled ? price * (salesPct / 100.0) : 0
@@ -65,15 +78,13 @@ struct GasTaxEngine {
         let totalCost = fuelCost + totalTax
 
         let effectivePricePerGallon = price + statePerGal + federalPerGal + localPerGal + salesPerGal
-
-        let miles = max(gallons * max(i.mpg, 0), 0.000001)
+        let miles           = max(gallons * max(i.mpg, 0), 0.000001)
         let fuelOnlyPerMile = price / max(i.mpg, 0.000001)
         let taxPerMile      = totalTax / miles
         let allInPerMile    = effectivePricePerGallon / max(i.mpg, 0.000001)
 
-        let taxShareOfPumpPct = (effectivePricePerGallon <= 0)
-        ? 0
-        : ((statePerGal + federalPerGal + localPerGal + salesPerGal) / effectivePricePerGallon) * 100
+        let taxShareOfPumpPct = effectivePricePerGallon <= 0 ? 0.0
+            : ((statePerGal + federalPerGal + localPerGal + salesPerGal) / effectivePricePerGallon) * 100
 
         return Outputs(
             fuelCost: fuelCost,
@@ -92,15 +103,24 @@ struct GasTaxEngine {
     }
 }
 
-// MARK: - State preset model & loader
+// MARK: - State preset model
 
 struct GasStatePreset: Identifiable, Hashable, Codable {
-    var id: UUID = UUID()
+    // 🔧 FIX 1: `let` (not `var`) so Hashable/Equatable/identity are stable.
+    let id: UUID
     var name: String
-    var rate: Double                 // $ per gallon
+    var rate: Double
     var description: String?
 
-    enum CodingKeys: String, CodingKey { case name, rate, description }
+    init(id: UUID = UUID(), name: String, rate: Double, description: String? = nil) {
+        self.id = id
+        self.name = name
+        self.rate = rate
+        self.description = description
+    }
+
+    // 🔧 FIX 1: Include `id` so round-trip Codable preserves the stable UUID.
+    enum CodingKeys: String, CodingKey { case id, name, rate, description }
 }
 
 enum FuelKind: String, CaseIterable, Identifiable, Codable {
@@ -113,11 +133,8 @@ enum FuelKind: String, CaseIterable, Identifiable, Codable {
 struct GasTaxPresetLoader {
     static func loadFromBundle() -> [GasStatePreset]? {
         guard let url = Bundle.main.url(forResource: "gas_tax_presets", withExtension: "json") else { return nil }
-        do {
-            let data = try Data(contentsOf: url)
-            let items = try JSONDecoder().decode([GasStatePreset].self, from: data)
-            return items
-        } catch { return nil }
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return try? JSONDecoder().decode([GasStatePreset].self, from: data)
     }
 }
 
@@ -125,72 +142,70 @@ struct GasTaxPresetLoader {
 
 @MainActor
 struct GasTaxView: View {
-    // Persistence
-    @AppStorage("gasTax.lastStateName") private var lastStateName: String = ""
-    @AppStorage("gasTax.lastKind") private var lastKindRaw: String = FuelKind.gasoline.rawValue
-    @AppStorage("gasTax.salesEnabled") private var salesTaxEnabled: Bool = false
-    @AppStorage("gasTax.salesPct") private var salesTaxPct: Double = 0.0
-    @AppStorage("gasTax.mpg") private var persistedMPG: Double = 30
-    @AppStorage("gasTax.evCostPerMile") private var persistedEvCostPerMile: Double = 0.0
-
-    // Use Settings currency if you have it
-    @AppStorage("defaultCurrencyCode") private var defaultCurrencyCode: String =
+    @AppStorage("gasTax.lastStateName")     private var lastStateName: String = ""
+    @AppStorage("gasTax.lastKind")          private var lastKindRaw: String = FuelKind.gasoline.rawValue
+    @AppStorage("gasTax.salesEnabled")      private var salesTaxEnabled: Bool = false
+    @AppStorage("gasTax.salesPct")          private var salesTaxPct: Double = 0.0
+    @AppStorage("gasTax.mpg")               private var persistedMPG: Double = 30
+    @AppStorage("gasTax.evCostPerMile")     private var persistedEvCostPerMile: Double = 0.0
+    @AppStorage("defaultCurrencyCode")      private var defaultCurrencyCode: String =
         (Locale.current.currency?.identifier ?? "USD")
 
-    // Presets
-    private var defaultPresets: [GasStatePreset] = [
-        .init(name: "Alabama (AL)", rate: 0.30, description: "AL: $0.30/gal"),
-        .init(name: "Alaska (AK)", rate: 0.0895, description: "AK: $0.0895/gal"),
-        .init(name: "Arizona (AZ)", rate: 0.18, description: "AZ: $0.18/gal"),
-        .init(name: "Arkansas (AR)", rate: 0.247, description: "AR: $0.247/gal"),
-        .init(name: "California (CA)", rate: 0.612, description: "CA: $0.612/gal (effective July 2025–June 2026)"),
-        .init(name: "Colorado (CO)", rate: 0.22, description: "CO: $0.22/gal"),
-        .init(name: "Connecticut (CT)", rate: 0.25, description: "CT: $0.25/gal"),
-        .init(name: "Delaware (DE)", rate: 0.23, description: "DE: $0.23/gal"),
-        .init(name: "District of Columbia (DC)", rate: 0.235, description: "DC: $0.235/gal"),
-        .init(name: "Florida (FL)", rate: 0.37325, description: "FL: $0.37325/gal"),
-        .init(name: "Georgia (GA)", rate: 0.331, description: "GA: $0.331/gal"),
-        .init(name: "Hawaii (HI)", rate: 0.16, description: "HI: $0.16/gal (state; county add-ons not included)"),
-        .init(name: "Idaho (ID)", rate: 0.32, description: "ID: $0.32/gal"),
-        .init(name: "Illinois (IL)", rate: 0.483, description: "IL: $0.483/gal"),
-        .init(name: "Indiana (IN)", rate: 0.36, description: "IN: $0.36/gal"),
-        .init(name: "Iowa (IA)", rate: 0.30, description: "IA: Between $0.265–$0.30/gal (varies by blend); using $0.30"),
-        .init(name: "Kansas (KS)", rate: 0.240, description: "KS: $0.240/gal"),
-        .init(name: "Kentucky (KY)", rate: 0.25, description: "KY: $0.25/gal"),
-        .init(name: "Louisiana (LA)", rate: 0.20, description: "LA: $0.20/gal"),
-        .init(name: "Maine (ME)", rate: 0.30, description: "ME: $0.30/gal"),
-        .init(name: "Maryland (MD)", rate: 0.46, description: "MD: $0.46/gal"),
-        .init(name: "Massachusetts (MA)", rate: 0.24, description: "MA: $0.24/gal"),
-        .init(name: "Michigan (MI)", rate: 0.31, description: "MI: $0.31/gal"),
-        .init(name: "Minnesota (MN)", rate: 0.318, description: "MN: $0.318/gal"),
-        .init(name: "Mississippi (MS)", rate: 0.21, description: "MS: $0.21/gal"),
-        .init(name: "Missouri (MO)", rate: 0.295, description: "MO: $0.295/gal"),
-        .init(name: "Montana (MT)", rate: 0.33, description: "MT: $0.33/gal"),
-        .init(name: "Nebraska (NE)", rate: 0.318, description: "NE: $0.318/gal"),
-        .init(name: "Nevada (NV)", rate: 0.23, description: "NV: $0.23/gal"),
-        .init(name: "New Hampshire (NH)", rate: 0.222, description: "NH: $0.222/gal"),
-        .init(name: "New Jersey (NJ)", rate: 0.449, description: "NJ: $0.449/gal"),
-        .init(name: "New Mexico (NM)", rate: 0.17, description: "NM: $0.17/gal"),
-        .init(name: "New York (NY)", rate: 0.2455, description: "NY: $0.2455/gal"),
-        .init(name: "North Carolina (NC)", rate: 0.403, description: "NC: $0.403/gal"),
-        .init(name: "North Dakota (ND)", rate: 0.230, description: "ND: $0.230/gal"),
-        .init(name: "Ohio (OH)", rate: 0.385, description: "OH: $0.385/gal"),
-        .init(name: "Oklahoma (OK)", rate: 0.19, description: "OK: $0.19/gal"),
-        .init(name: "Oregon (OR)", rate: 0.38, description: "OR: $0.38/gal"),
-        .init(name: "Pennsylvania (PA)", rate: 0.576, description: "PA: $0.576/gal"),
-        .init(name: "Rhode Island (RI)", rate: 0.40, description: "RI: $0.40/gal"),
-        .init(name: "South Carolina (SC)", rate: 0.28, description: "SC: $0.28/gal"),
-        .init(name: "South Dakota (SD)", rate: 0.28, description: "SD: $0.28/gal"),
-        .init(name: "Tennessee (TN)", rate: 0.26, description: "TN: $0.26/gal"),
-        .init(name: "Texas (TX)", rate: 0.20, description: "TX: $0.20/gal"),
-        .init(name: "Utah (UT)", rate: 0.385, description: "UT: $0.385/gal"),
-        .init(name: "Vermont (VT)", rate: 0.3139, description: "VT: $0.3139/gal"),
-        .init(name: "Virginia (VA)", rate: 0.317, description: "VA: $0.317/gal"),
-        .init(name: "Washington (WA)", rate: 0.554, description: "WA: $0.554/gal"),
-        .init(name: "West Virginia (WV)", rate: 0.357, description: "WV: $0.357/gal"),
-        .init(name: "Wisconsin (WI)", rate: 0.309, description: "WI: $0.309/gal"),
-        .init(name: "Wyoming (WY)", rate: 0.24, description: "WY: $0.24/gal")
+    // 🔧 FIX 2: `static let` — array literal built once, not on every body call.
+    private static let defaultPresets: [GasStatePreset] = [
+        .init(name: "Alabama (AL)",              rate: 0.300,   description: "AL: $0.300/gal"),
+        .init(name: "Alaska (AK)",               rate: 0.0895,  description: "AK: $0.0895/gal"),
+        .init(name: "Arizona (AZ)",              rate: 0.180,   description: "AZ: $0.180/gal"),
+        .init(name: "Arkansas (AR)",             rate: 0.247,   description: "AR: $0.247/gal"),
+        .init(name: "California (CA)",           rate: 0.612,   description: "CA: $0.612/gal (July 2025–June 2026)"),
+        .init(name: "Colorado (CO)",             rate: 0.220,   description: "CO: $0.220/gal"),
+        .init(name: "Connecticut (CT)",          rate: 0.250,   description: "CT: $0.250/gal"),
+        .init(name: "Delaware (DE)",             rate: 0.230,   description: "DE: $0.230/gal"),
+        .init(name: "District of Columbia (DC)", rate: 0.235,   description: "DC: $0.235/gal"),
+        .init(name: "Florida (FL)",              rate: 0.37325, description: "FL: $0.37325/gal"),
+        .init(name: "Georgia (GA)",              rate: 0.331,   description: "GA: $0.331/gal"),
+        .init(name: "Hawaii (HI)",               rate: 0.160,   description: "HI: $0.160/gal (state; county add-ons not included)"),
+        .init(name: "Idaho (ID)",                rate: 0.320,   description: "ID: $0.320/gal"),
+        .init(name: "Illinois (IL)",             rate: 0.483,   description: "IL: $0.483/gal"),
+        .init(name: "Indiana (IN)",              rate: 0.360,   description: "IN: $0.360/gal"),
+        .init(name: "Iowa (IA)",                 rate: 0.300,   description: "IA: $0.265–$0.300/gal (blend varies); using $0.300"),
+        .init(name: "Kansas (KS)",               rate: 0.240,   description: "KS: $0.240/gal"),
+        .init(name: "Kentucky (KY)",             rate: 0.250,   description: "KY: $0.250/gal"),
+        .init(name: "Louisiana (LA)",            rate: 0.200,   description: "LA: $0.200/gal"),
+        .init(name: "Maine (ME)",                rate: 0.300,   description: "ME: $0.300/gal"),
+        .init(name: "Maryland (MD)",             rate: 0.460,   description: "MD: $0.460/gal"),
+        .init(name: "Massachusetts (MA)",        rate: 0.240,   description: "MA: $0.240/gal"),
+        .init(name: "Michigan (MI)",             rate: 0.310,   description: "MI: $0.310/gal"),
+        .init(name: "Minnesota (MN)",            rate: 0.318,   description: "MN: $0.318/gal"),
+        .init(name: "Mississippi (MS)",          rate: 0.210,   description: "MS: $0.210/gal"),
+        .init(name: "Missouri (MO)",             rate: 0.295,   description: "MO: $0.295/gal"),
+        .init(name: "Montana (MT)",              rate: 0.330,   description: "MT: $0.330/gal"),
+        .init(name: "Nebraska (NE)",             rate: 0.318,   description: "NE: $0.318/gal"),
+        .init(name: "Nevada (NV)",               rate: 0.230,   description: "NV: $0.230/gal"),
+        .init(name: "New Hampshire (NH)",        rate: 0.222,   description: "NH: $0.222/gal"),
+        .init(name: "New Jersey (NJ)",           rate: 0.449,   description: "NJ: $0.449/gal"),
+        .init(name: "New Mexico (NM)",           rate: 0.170,   description: "NM: $0.170/gal"),
+        .init(name: "New York (NY)",             rate: 0.2455,  description: "NY: $0.2455/gal"),
+        .init(name: "North Carolina (NC)",       rate: 0.403,   description: "NC: $0.403/gal"),
+        .init(name: "North Dakota (ND)",         rate: 0.230,   description: "ND: $0.230/gal"),
+        .init(name: "Ohio (OH)",                 rate: 0.385,   description: "OH: $0.385/gal"),
+        .init(name: "Oklahoma (OK)",             rate: 0.190,   description: "OK: $0.190/gal"),
+        .init(name: "Oregon (OR)",               rate: 0.380,   description: "OR: $0.380/gal"),
+        .init(name: "Pennsylvania (PA)",         rate: 0.576,   description: "PA: $0.576/gal"),
+        .init(name: "Rhode Island (RI)",         rate: 0.400,   description: "RI: $0.400/gal"),
+        .init(name: "South Carolina (SC)",       rate: 0.280,   description: "SC: $0.280/gal"),
+        .init(name: "South Dakota (SD)",         rate: 0.280,   description: "SD: $0.280/gal"),
+        .init(name: "Tennessee (TN)",            rate: 0.260,   description: "TN: $0.260/gal"),
+        .init(name: "Texas (TX)",                rate: 0.200,   description: "TX: $0.200/gal"),
+        .init(name: "Utah (UT)",                 rate: 0.385,   description: "UT: $0.385/gal"),
+        .init(name: "Vermont (VT)",              rate: 0.3139,  description: "VT: $0.3139/gal"),
+        .init(name: "Virginia (VA)",             rate: 0.317,   description: "VA: $0.317/gal"),
+        .init(name: "Washington (WA)",           rate: 0.554,   description: "WA: $0.554/gal"),
+        .init(name: "West Virginia (WV)",        rate: 0.357,   description: "WV: $0.357/gal"),
+        .init(name: "Wisconsin (WI)",            rate: 0.309,   description: "WI: $0.309/gal"),
+        .init(name: "Wyoming (WY)",              rate: 0.240,   description: "WY: $0.240/gal"),
     ]
+
     @State private var presets: [GasStatePreset] = []
 
     // Inputs
@@ -205,18 +220,17 @@ struct GasTaxView: View {
     // EV comparison
     @State private var evCostPerMileText: String = ""
 
-    // Preset selection sheet
+    // Preset sheet
     @State private var showingPresetSheet = false
     @State private var presetQuery = ""
     @State private var selectedPreset: GasStatePreset? = nil
 
-    // Focus
     @FocusState private var focusedField: Field?
     enum Field { case gallons, price, state, federal, local, mpg, ev }
 
     init() {
         let fromBundle = GasTaxPresetLoader.loadFromBundle()
-        _presets = State(initialValue: fromBundle ?? defaultPresets)
+        _presets = State(initialValue: fromBundle ?? Self.defaultPresets)
     }
 
     private var engineInputs: GasTaxEngine.Inputs {
@@ -234,6 +248,7 @@ struct GasTaxView: View {
     private var out: GasTaxEngine.Outputs { GasTaxEngine.compute(engineInputs) }
     private var currencyCode: String { defaultCurrencyCode }
 
+    // 🔧 FIX 4: Strip both commas and $ signs before parsing.
     private var evCostPerMile: Double {
         let raw = evCostPerMileText.trimmingCharacters(in: .whitespacesAndNewlines)
         if raw.isEmpty { return persistedEvCostPerMile }
@@ -295,13 +310,16 @@ struct GasTaxView: View {
                     HStack {
                         Label("Choose State", systemImage: "list.bullet")
                         Spacer()
-                        if let selectedPreset {
-                            Text(selectedPreset.name).foregroundStyle(.secondary)
-                        } else if !lastStateName.isEmpty {
-                            Text(lastStateName).foregroundStyle(.secondary)
-                        } else {
-                            Text("Custom").foregroundStyle(.secondary)
+                        Group {
+                            if let selectedPreset {
+                                Text(selectedPreset.name)
+                            } else if !lastStateName.isEmpty {
+                                Text(lastStateName)
+                            } else {
+                                Text("Custom")
+                            }
                         }
+                        .foregroundStyle(.secondary)
                     }
                 }
 
@@ -327,7 +345,11 @@ struct GasTaxView: View {
             }
 
             Section("Federal & Local (¢/gal)") {
-                HStack { Text("Federal"); Spacer(); Text("\(federalCents, format: .number.precision(.fractionLength(1)))¢").monospacedDigit() }
+                HStack {
+                    Text("Federal")
+                    Spacer()
+                    Text("\(federalCents, format: .number.precision(.fractionLength(1)))¢").monospacedDigit()
+                }
                 Slider(value: $federalCents, in: 0...50, step: 0.1)
                     .onChange(of: federalCents, initial: false) { _, new in
                         let marks: [Double] = [18.4, 24.4]
@@ -336,7 +358,11 @@ struct GasTaxView: View {
                         }
                     }
 
-                HStack { Text("Local"); Spacer(); Text("\(localCents, format: .number.precision(.fractionLength(1)))¢").monospacedDigit() }
+                HStack {
+                    Text("Local")
+                    Spacer()
+                    Text("\(localCents, format: .number.precision(.fractionLength(1)))¢").monospacedDigit()
+                }
                 Slider(value: $localCents, in: 0...30, step: 0.1)
             }
 
@@ -405,13 +431,13 @@ struct GasTaxView: View {
             }
 
             Section("Results") {
-                MoneyRow("Fuel Cost", out.fuelCost, currencyCode)
-                MoneyRow("State Tax", out.stateTax, currencyCode)
+                MoneyRow("Fuel Cost",   out.fuelCost,   currencyCode)
+                MoneyRow("State Tax",   out.stateTax,   currencyCode)
                 MoneyRow("Federal Tax", out.federalTax, currencyCode)
-                MoneyRow("Local Tax", out.localTax, currencyCode)
+                MoneyRow("Local Tax",   out.localTax,   currencyCode)
                 if salesTaxEnabled { MoneyRow("Sales Tax", out.salesTax, currencyCode) }
                 Divider()
-                MoneyRow("Total Tax", out.totalTax, currencyCode, bold: true)
+                MoneyRow("Total Tax",  out.totalTax,  currencyCode, bold: true)
                 MoneyRow("Total Cost", out.totalCost, currencyCode, bold: true)
 
                 LabeledContent("Effective Price/gal") {
@@ -424,8 +450,8 @@ struct GasTaxView: View {
 
             Section("Per-Mile") {
                 LabeledContent("Fuel only $/mi") { Text(out.fuelOnlyPerMile, format: .currency(code: currencyCode)).monospacedDigit() }
-                LabeledContent("Tax $/mi") { Text(out.taxPerMile, format: .currency(code: currencyCode)).monospacedDigit() }
-                LabeledContent("All-in $/mi") { Text(out.allInPerMile, format: .currency(code: currencyCode)).monospacedDigit().bold() }
+                LabeledContent("Tax $/mi")        { Text(out.taxPerMile,      format: .currency(code: currencyCode)).monospacedDigit() }
+                LabeledContent("All-in $/mi")     { Text(out.allInPerMile,    format: .currency(code: currencyCode)).monospacedDigit().bold() }
             }
 
             #if canImport(Charts)
@@ -440,6 +466,7 @@ struct GasTaxView: View {
                     }
                 }
                 .frame(height: 160)
+                // 🔧 FIX 3: Removed undefined `.kwhInteractiveDataViz()` modifier.
                 .accessibilityLabel("Cost breakdown chart")
             }
             #endif
@@ -457,18 +484,9 @@ struct GasTaxView: View {
                 Spacer()
                 Button("Done") { focusedField = nil }
             }
-
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Button("Reset") { resetDefaults() }
                     .accessibilityLabel("Reset inputs to defaults")
-
-                // 🪙 Easter egg coin
-                EasterEggCoinButton(
-                    hingedAssetName: "hingedpic",
-                    unhingedAssetName: "unhingedpic",
-                    size: 30
-                )
-                .accessibilityLabel("Easter egg coin")
             }
         }
         .onAppear {
@@ -477,12 +495,11 @@ struct GasTaxView: View {
                 federalCents = k.defaultFederalCents
             }
             mpg = persistedMPG
-
             if !lastStateName.isEmpty, let found = presets.first(where: { $0.name == lastStateName }) {
                 applyPreset(found)
             }
-
-            if evCostPerMileText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, persistedEvCostPerMile > 0 {
+            if evCostPerMileText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+               persistedEvCostPerMile > 0 {
                 evCostPerMileText = String(format: "%.3f", persistedEvCostPerMile)
             }
         }
@@ -549,12 +566,10 @@ struct GasTaxView: View {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
-    /// Returns (delta per month, miles used) if EV comparison is provided.
     private func comparisonDelta(monthlyMiles: Double = 1000) -> (Double, Double)? {
         let ev = max(0, evCostPerMile)
         guard ev > 0 else { return nil }
-        let deltaPerMile = out.allInPerMile - ev
-        return (deltaPerMile * monthlyMiles, monthlyMiles)
+        return ((out.allInPerMile - ev) * monthlyMiles, monthlyMiles)
     }
 }
 

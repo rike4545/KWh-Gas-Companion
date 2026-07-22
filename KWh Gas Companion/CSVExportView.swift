@@ -63,9 +63,12 @@ struct CSVExportView: View {
 
     private enum ExportError: LocalizedError {
         case encodingFailed
+        case documentsUnavailable
+
         var errorDescription: String? {
             switch self {
             case .encodingFailed: return "Failed to encode CSV using UTF-8."
+            case .documentsUnavailable: return "Could not access on-device storage for export."
             }
         }
     }
@@ -117,8 +120,14 @@ struct CSVExportView: View {
             throw ExportError.encodingFailed
         }
 
-        let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("kwh_export_\(Int(Date().timeIntervalSince1970)).csv")
+        let base = try? FileManager.default.url(
+            for: .documentDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )
+        guard let base else { throw ExportError.documentsUnavailable }
+        let url = base.appendingPathComponent("kwh_export_\(Int(Date().timeIntervalSince1970)).csv")
 
         try dataOut.write(to: url, options: Data.WritingOptions.atomic)
         return url

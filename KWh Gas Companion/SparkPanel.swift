@@ -266,7 +266,6 @@ public struct SparkPanel: View {
         }
     }
 
-
     // MARK: - Assistant helpers
 
     private func assistantPresentation(report: SparkReport, response: SparkAssistantResponse) -> (String, [Evidence], ChartData?) {
@@ -866,6 +865,7 @@ fileprivate struct ChartView: View {
                     .frame(height: 200)
                     .chartXAxis { AxisMarks() }
                     .chartYAxis { AxisMarks() }
+                    .kwhInteractiveDataViz()
                     .accessibilityLabel(cd.type == .line ? "Line chart" : "Bar chart")
                     .accessibilityValue("\(items.count) data points")
                 }

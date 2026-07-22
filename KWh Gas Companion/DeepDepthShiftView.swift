@@ -362,6 +362,7 @@ public struct DeepDepthShiftView: View {
                         }
                     }
                     .frame(height: 190)
+                    .kwhInteractiveDataViz()
 
                     Text(trendMode == .cost && hasAnyCost
                          ? "Line = cost per day (only days with known cost)."

@@ -28,7 +28,10 @@ final class TeslaFiSessionStore: ObservableObject {
     // MARK: - RAW sessions (persisted)
 
     @Published private(set) var sessions: [TeslaFiSession] = [] {
-        didSet { persistAsync() }
+        didSet {
+            guard !isHydrating else { return }
+            persistAsync()
+        }
     }
 
     // MARK: - Canonical + integrity (derived)
@@ -50,6 +53,7 @@ final class TeslaFiSessionStore: ObservableObject {
 
     private let sessionsFileURL: URL
     private let blocksFileURL: URL
+    private var isHydrating = true
 
     private let encoder: JSONEncoder = {
         let enc = JSONEncoder()
@@ -70,8 +74,10 @@ final class TeslaFiSessionStore: ObservableObject {
 
     init(fileURL: URL? = nil) {
         let fm = FileManager.default
-        let base = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? fm.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let base =
+            fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? fm.urls(for: .documentDirectory, in: .userDomainMask).first
+            ?? fm.temporaryDirectory
 
         if !fm.fileExists(atPath: base.path) {
             try? fm.createDirectory(at: base, withIntermediateDirectories: true)
@@ -410,8 +416,8 @@ final class TeslaFiSessionStore: ObservableObject {
         if raw.isEmpty {
             issues.append(.init(
                 severity: .info,
-                title: "No TeslaFi sessions yet",
-                detail: "Import a TeslaFi CSV to see charging analytics."
+                title: "No imported sessions yet",
+                detail: "Import charging history CSV data to see charging analytics."
             ))
         }
 
@@ -481,9 +487,11 @@ final class TeslaFiSessionStore: ObservableObject {
             }()
 
             await MainActor.run {
+                self.isHydrating = true
                 self.sessions = Self.deduplicated(from: sessionsDecoded)
                 self.doNotMergePairs = Set(blocksDecoded)
                 self.rebuildCanonicalSessions()
+                self.isHydrating = false
             }
         }
     }

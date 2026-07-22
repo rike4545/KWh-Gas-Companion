@@ -667,12 +667,12 @@ public struct NearMeView: View {
                         req.region = region
                         let resp = try await MKLocalSearch(request: req).start()
                         return resp.mapItems.compactMap { item in
-                            guard let coord = item.placemark.location?.coordinate else { return nil }
+                            let coord = item.compatCoordinate
                             return NMSite(
                                 name: item.name ?? prov.title,
                                 provider: nmGuessProvider(from: item.name, fallback: prov),
                                 coordinate: coord,
-                                subtitle: item.placemark.title,
+                                subtitle: item.compatFullAddress,
                                 url: item.url
                             )
                         }
@@ -744,8 +744,7 @@ public struct NearMeView: View {
     }
 
     private func openInMaps(_ site: NMSite) {
-        let placemark = MKPlacemark(coordinate: site.coordinate)
-        let item = MKMapItem(placemark: placemark)
+        let item = MKMapItem(placemark: MKPlacemark(coordinate: site.coordinate))
         item.name = site.name
         item.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving])
     }

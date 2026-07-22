@@ -2,9 +2,7 @@
 //  EnergyMix 2.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 8/7/25.
 //
-
 
 // EnergyMix.swift
 // My KWh Companion

@@ -2,9 +2,7 @@
 //  EtiquetteTip.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 1/21/26.
 //
-
 
 import Foundation
 import SwiftUI

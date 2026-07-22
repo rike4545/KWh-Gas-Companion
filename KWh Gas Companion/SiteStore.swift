@@ -225,20 +225,22 @@ final class SiteStore: ObservableObject {
         let response = try await MKLocalSearch(request: request).start()
 
         let mapped: [EVSite] = response.mapItems.compactMap { item in
-            guard let loc = item.placemark.location else { return nil }
+            guard let loc = item.compatLocation else { return nil }
+            let coordinate = item.compatCoordinate
+            let addressLine = item.compatShortAddress ?? item.compatFullAddress
+            let regionName = item.compatStateName
             return EVSite(
-                id: "apple-\(item.placemark.coordinate.latitude)-\(item.placemark.coordinate.longitude)",
+                id: "apple-\(coordinate.latitude)-\(coordinate.longitude)",
                 title: item.name ?? "EV Charger",
-                coordinate: item.placemark.coordinate,
+                coordinate: coordinate,
                 source: .apple,
                 status: .unknown,
                 stalls: nil,
                 powerKW: nil,
-                addressLine: [item.placemark.subThoroughfare, item.placemark.thoroughfare]
-                    .compactMap { $0 }.joined(separator: " ").nilIfEmpty,
-                city: item.placemark.locality,
-                state: item.placemark.administrativeArea,
-                country: item.placemark.isoCountryCode,
+                addressLine: addressLine,
+                city: item.compatCityName,
+                state: regionName,
+                country: item.compatCountryCode,
                 url: item.url,
                 distanceMeters: loc.distance(from: CLLocation(latitude: center.latitude, longitude: center.longitude))
             )

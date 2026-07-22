@@ -136,7 +136,7 @@ struct DataQualityCenterView: View {
             } else {
                 ForEach(summary.duplicates.prefix(4)) { dup in
                     issueRow(
-                        title: dup.entry.location ?? "Entry vs TeslaFi",
+                        title: dup.entry.location ?? "Entry vs imported session",
                         subtitle: "Δ \(String(format: "%.1f", dup.kwhDelta)) kWh • \(Int(dup.minutesApart)) min apart",
                         trailing: dup.entry.amount.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD"))
                     )

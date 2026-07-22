@@ -2,65 +2,36 @@
 //  PaywallView.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 9/4/25.
 //
 
-
 import SwiftUI
-import StoreKit
 
 struct PaywallView: View {
-    @StateObject private var proStore = TeslaMateProStore.shared
+    @StateObject private var proStore = DirectConnectionAccessStore.shared
 
     var body: some View {
         VStack(spacing: 16) {
-            Text("Unlock TeslaMate Client")
+            Text("Direct Connection")
                 .font(.largeTitle).bold()
 
             VStack(alignment: .leading, spacing: 8) {
-                Label("Direct TeslaMate connection (no middleman)", systemImage: "lock.shield")
+                Label("Direct dashboard connection (no relay)", systemImage: "server.rack")
                 Label("Dashboards, activities, and charging stats", systemImage: "chart.line.uptrend.xyaxis")
                 Label("Geofence-based charging costs", systemImage: "mappin.and.ellipse")
                 Label("Widgets + Live Activities", systemImage: "rectangle.stack.badge.clock")
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            if let product = proStore.product {
-                Button {
-                    Task {
-                        await proStore.purchasePro()
-                    }
-                } label: {
-                    HStack(spacing: 8) {
-                        if proStore.purchaseInFlight {
-                            ProgressView().scaleEffect(0.9)
-                        }
-                        Text(proStore.purchaseInFlight
-                             ? "Processing…"
-                             : "Subscribe for \(product.displayPrice)/month")
-                    }
-                    .frame(maxWidth: .infinity)
-                }
+            Button("Continue") { Task { await proStore.load() } }
                 .buttonStyle(.borderedProminent)
-                .disabled(proStore.purchaseInFlight)
-            } else {
-                ProgressView("Loading…")
-            }
 
-            Button("Restore Purchases") { Task { await proStore.restore() } }
+            Button("Refresh Access") { Task { await proStore.restore() } }
                 .buttonStyle(.plain)
                 .padding(.top, 4)
 
-            Text("No trial. \(proStore.displayPrice)/month, auto‑renewing. Cancel anytime in Settings.")
+            Text("Connection access is included.")
                 .font(.footnote).foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-
-            if let error = proStore.lastError, !error.isEmpty {
-                Text(error)
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-                    .multilineTextAlignment(.center)
-            }
         }
         .padding()
         .task { await proStore.load() }

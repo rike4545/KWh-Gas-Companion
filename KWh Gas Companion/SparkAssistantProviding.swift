@@ -1,12 +1,3 @@
-//
-//  SparkAssistantProviding.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 1/13/26.
-//
-
-
-//
 //  SparkAssistantProviding.swift
 //  My EV Companion — Spark
 //

@@ -19,8 +19,8 @@ import BackgroundTasks
 public enum KWh: Sendable {
 
     // MARK: Identifiers (should also be listed in Info.plist → BGTaskSchedulerPermittedIdentifiers)
-    public static var backgroundRefreshIdentifier: String    = "com.your.bundle.refresh"
-    public static var backgroundProcessingIdentifier: String = "com.your.bundle.processing"
+    public static var backgroundRefreshIdentifier: String    = defaultBackgroundIdentifier(suffix: "refresh")
+    public static var backgroundProcessingIdentifier: String = defaultBackgroundIdentifier(suffix: "processing")
 
     // MARK: MetricKit
 
@@ -243,4 +243,9 @@ private func _loadBGIdentifiersFromPlistIfPresent_DEBUG() {
     if ids.indices.contains(0) { KWh.backgroundRefreshIdentifier = ids[0] }
     if ids.indices.contains(1) { KWh.backgroundProcessingIdentifier = ids[1] }
     #endif
+}
+
+private func defaultBackgroundIdentifier(suffix: String) -> String {
+    let base = Bundle.main.bundleIdentifier ?? "Me.KWh-Gas-Companion"
+    return "\(base).\(suffix)"
 }

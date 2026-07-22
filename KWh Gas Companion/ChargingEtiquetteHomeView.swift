@@ -1,12 +1,3 @@
-//
-//  MEVEtiquetteTip.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 1/21/26.
-//
-
-
-//
 //  ChargingEtiquetteHomeView.swift
 //  KWh Gas Companion / My EV Companion
 //

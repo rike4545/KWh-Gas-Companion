@@ -2,9 +2,7 @@
 //  UnifiedVINDecoderView.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 7/13/25.
 //
-
 
 // UnifiedVINDecoderView.swift
 // MyKwH Companion

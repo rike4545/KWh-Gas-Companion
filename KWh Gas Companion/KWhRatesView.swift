@@ -2,7 +2,6 @@
 //  KWhRatesView.swift
 //  MyKwH Companion
 //
-//  Created by Bryan on 7/15/25.
 //
 
 import SwiftUI

@@ -317,6 +317,7 @@ struct FastVsHomeImpactView: View {
                 }
                 .chartYAxis { AxisMarks(position: .leading) }
                 .frame(height: 220)
+                .kwhInteractiveDataViz()
                 .accessibilityLabel("Average price comparison chart")
             }
             #else
@@ -349,6 +350,7 @@ struct FastVsHomeImpactView: View {
                 }
                 .chartYAxis { AxisMarks(position: .leading) }
                 .frame(height: 290)
+                .kwhInteractiveDataViz()
                 .accessibilityLabel("Monthly stacked kilowatt-hour chart")
             }
             #else

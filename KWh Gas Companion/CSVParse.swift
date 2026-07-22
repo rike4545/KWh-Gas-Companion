@@ -2,9 +2,7 @@
 //  CSVParse 2.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 8/8/25.
 //
-
 
 // ===================== CSVParsingUtils.swift =====================
 import Foundation

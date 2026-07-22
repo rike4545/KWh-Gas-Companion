@@ -2,9 +2,7 @@
 //  TeslaStatusTile.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 8/2/25.
 //
-
 
 // MARK: - TeslaStatusTile.swift
 import SwiftUI

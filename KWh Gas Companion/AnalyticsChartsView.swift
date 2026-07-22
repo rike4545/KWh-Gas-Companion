@@ -86,6 +86,7 @@ struct AnalyticsChartsView: View {
                 }
                 .frame(minHeight: 280)
                 .chartYAxisLabel(metric == .energy ? "kWh" : currencyCode)
+                .kwhInteractiveDataViz()
 
                 // Totals footer
                 HStack {

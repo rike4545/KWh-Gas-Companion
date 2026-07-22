@@ -2,9 +2,7 @@
 //  ActivityView.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 8/11/25.
 //
-
 
 // ActivityView.swift
 // KWh Gas Companion

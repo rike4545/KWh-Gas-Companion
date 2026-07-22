@@ -53,16 +53,20 @@ extension TeslaFiSessionStore {
         existing: [TeslaFiSession] = []
     ) throws -> ([TeslaFiSession], TFIImportReport) {
 
-        guard let text = String(data: data, encoding: .utf8)
-            ?? String(data: data, encoding: .ascii) else {
+        guard let text = decodedTeslaFiCSVText(from: data) else {
             throw TFIImportError.unreadableText
         }
 
         let rows = TFICSV.rows(from: text)
-        guard let header = rows.first else {
+        let nonEmptyRows = rows.filter { row in
+            row.contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        }
+
+        guard let rawHeader = nonEmptyRows.first else {
             throw TFIImportError.empty
         }
-        let body = Array(rows.dropFirst())
+        let header = rawHeader.map(TFICSV.stripByteOrderMark(from:))
+        let body = Array(nonEmptyRows.dropFirst())
         let headerCount = header.count
 
         // Normalize every row to the header length (pads or trims),
@@ -318,6 +322,19 @@ fileprivate enum TFICSV {
         out.append(cur)
         return out
     }
+
+    static func stripByteOrderMark(from value: String) -> String {
+        guard value.first == "\u{FEFF}" else { return value }
+        return String(value.dropFirst())
+    }
+}
+
+fileprivate func decodedTeslaFiCSVText(from data: Data) -> String? {
+    String(data: data, encoding: .utf8)
+        ?? String(data: data, encoding: .utf16)
+        ?? String(data: data, encoding: .utf16LittleEndian)
+        ?? String(data: data, encoding: .utf16BigEndian)
+        ?? String(data: data, encoding: .ascii)
 }
 
 // MARK: - Header mapping

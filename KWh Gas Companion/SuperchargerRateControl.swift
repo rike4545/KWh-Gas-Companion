@@ -2,9 +2,7 @@
 //  SuperchargerRateControl.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 8/9/25.
 //
-
 
 import SwiftUI
 

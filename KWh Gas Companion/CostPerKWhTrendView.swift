@@ -1,11 +1,3 @@
-//
-//  CostPerKWhTrendView 2.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 8/14/25.
-//
-
-
 //  CostPerKWhTrendView.swift
 //  KWh Gas Companion
 //
@@ -184,6 +176,7 @@ struct CostPerKWhTrendView: View {
                 }
             }
             .frame(height: 260)
+            .kwhInteractiveDataViz()
         }
     }
 

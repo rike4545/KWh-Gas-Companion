@@ -16,10 +16,10 @@ public struct TripSegment: Identifiable, Equatable, Codable {
     // MARK: - Aggregates
 
     /// Minimum odometer reading found in `trips`
-    public var startOdometer: Double? { trips.compactMap { $0.odometer }.min() }
+    public var startOdometer: Double? { trips.first?.startOdometer ?? trips.compactMap { $0.odometer }.min() }
 
     /// Maximum odometer reading found in `trips`
-    public var endOdometer: Double? { trips.compactMap { $0.odometer }.max() }
+    public var endOdometer: Double? { trips.last?.endOdometer ?? trips.compactMap { $0.odometer }.max() }
 
     /// Distance computed as `endOdometer - startOdometer` when both exist and non-negative
     public var distance: Double? {
@@ -34,7 +34,7 @@ public struct TripSegment: Identifiable, Equatable, Codable {
 
     /// Distinct non-empty locations, alphabetized
     public var locations: [String] {
-        Array(Set(trips.compactMap { $0.location?.trimmingCharacters(in: .whitespacesAndNewlines) }
+        Array(Set(trips.compactMap { ($0.location ?? $0.endLocation)?.trimmingCharacters(in: .whitespacesAndNewlines) }
                         .filter { !$0.isEmpty }))
             .sorted()
     }

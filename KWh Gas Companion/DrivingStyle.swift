@@ -2,9 +2,7 @@
 //  DrivingStyle 2.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 8/7/25.
 //
-
 
 // DrivingStyle.swift
 // My KWh Companion

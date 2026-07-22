@@ -1,11 +1,3 @@
-//
-//  TeslaSCOfficialPriceRecord.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 1/2/26.
-//
-
-//
 //  TeslaOfficialSuperchargerPricingShift.swift
 //  KWh Gas Companion
 //
@@ -23,6 +15,8 @@
 
 import SwiftUI
 import Foundation
+import CoreLocation
+import MapKit
 
 #if canImport(UIKit)
 import UIKit
@@ -39,6 +33,8 @@ public struct TeslaSCOfficialPriceRecord: Identifiable, Codable, Hashable, Senda
     public var title: String                  // e.g. "Florence, SC" or "Orangeburg, NY"
     public var siteName: String?              // e.g. "Magnolia Mall"
     public var addressLines: [String]         // street + city/state/zip (best-effort)
+    public var latitude: Double?
+    public var longitude: Double?
 
     public var stallCount: Int?
     public var maxKW: Int?
@@ -59,6 +55,8 @@ public struct TeslaSCOfficialPriceRecord: Identifiable, Codable, Hashable, Senda
         title: String,
         siteName: String?,
         addressLines: [String],
+        latitude: Double?,
+        longitude: Double?,
         stallCount: Int?,
         maxKW: Int?,
         pricingTeslaLabel: String?,
@@ -73,6 +71,8 @@ public struct TeslaSCOfficialPriceRecord: Identifiable, Codable, Hashable, Senda
         self.title = title
         self.siteName = siteName
         self.addressLines = addressLines
+        self.latitude = latitude
+        self.longitude = longitude
         self.stallCount = stallCount
         self.maxKW = maxKW
         self.pricingTeslaLabel = pricingTeslaLabel
@@ -125,6 +125,7 @@ public final class TeslaOfficialSuperchargerPricingStore: ObservableObject {
     @Published public private(set) var syncStatus: TeslaSCOfficialSyncStatus = .init()
 
     private var syncTask: Task<Void, Never>?
+    private var activeSyncID: UUID?
 
     // Disk persistence
     private let filename = "TeslaOfficialSuperchargerPricing.v1.json"
@@ -167,8 +168,10 @@ public final class TeslaOfficialSuperchargerPricingStore: ObservableObject {
     public func cancelSync() {
         syncTask?.cancel()
         syncTask = nil
+        activeSyncID = nil
         syncStatus.phase = .cancelled
         syncStatus.current = nil
+        syncStatus.errorMessage = nil
     }
 
     /// Sync ALL US states (heavy). Recommended to run manually.
@@ -179,6 +182,8 @@ public final class TeslaOfficialSuperchargerPricingStore: ObservableObject {
     /// Sync a subset of states (recommended).
     public func sync(states: [String], maxConcurrency: Int = 4) {
         cancelSync()
+        let syncID = UUID()
+        activeSyncID = syncID
 
         syncStatus = TeslaSCOfficialSyncStatus(
             phase: .fetchingStatePages,
@@ -188,15 +193,17 @@ public final class TeslaOfficialSuperchargerPricingStore: ObservableObject {
             errorMessage: nil
         )
 
-        syncTask = Task {
+        syncTask = Task { [weak self] in
+            guard let self else { return }
             do {
                 try Task.checkCancellation()
 
-                let stationURLs = try await fetchAllStationURLs(states: states)
+                let stationURLs = try await fetchAllStationURLs(states: states, syncID: syncID)
 
                 try Task.checkCancellation()
 
                 await MainActor.run {
+                    guard self.isActiveSync(syncID) else { return }
                     self.syncStatus.phase = .fetchingStationPages
                     self.syncStatus.total = stationURLs.count
                     self.syncStatus.completed = 0
@@ -206,31 +213,44 @@ public final class TeslaOfficialSuperchargerPricingStore: ObservableObject {
 
                 try await fetchStationPagesAndUpsert(
                     stationURLs: stationURLs,
-                    maxConcurrency: max(1, min(12, maxConcurrency))
+                    maxConcurrency: max(1, min(12, maxConcurrency)),
+                    syncID: syncID
                 )
 
                 try Task.checkCancellation()
 
                 await MainActor.run {
+                    guard self.isActiveSync(syncID) else { return }
                     self.syncStatus.phase = .persisting
                     self.syncStatus.current = "Saving…"
                 }
                 saveToDisk()
 
                 await MainActor.run {
+                    guard self.isActiveSync(syncID) else { return }
                     self.syncStatus.phase = .done
                     self.syncStatus.current = nil
+                    self.activeSyncID = nil
+                    self.syncTask = nil
                 }
             } catch is CancellationError {
                 await MainActor.run {
-                    self.syncStatus.phase = .cancelled
-                    self.syncStatus.current = nil
+                    self.finishCancellation(syncID: syncID)
                 }
             } catch {
+                if Self.isCancellationLikeError(error) {
+                    await MainActor.run {
+                        self.finishCancellation(syncID: syncID)
+                    }
+                    return
+                }
                 await MainActor.run {
+                    guard self.isActiveSync(syncID) else { return }
                     self.syncStatus.phase = .failed
                     self.syncStatus.errorMessage = String(describing: error)
                     self.syncStatus.current = nil
+                    self.activeSyncID = nil
+                    self.syncTask = nil
                 }
             }
         }
@@ -238,8 +258,9 @@ public final class TeslaOfficialSuperchargerPricingStore: ObservableObject {
 
     // MARK: - Internals: Fetch state pages -> station URLs
 
-    private func fetchAllStationURLs(states: [String]) async throws -> [String] {
+    private func fetchAllStationURLs(states: [String], syncID: UUID) async throws -> [String] {
         await MainActor.run {
+            guard self.isActiveSync(syncID) else { return }
             self.syncStatus.phase = .fetchingStatePages
             self.syncStatus.total = states.count
             self.syncStatus.completed = 0
@@ -252,6 +273,7 @@ public final class TeslaOfficialSuperchargerPricingStore: ObservableObject {
             try Task.checkCancellation()
 
             await MainActor.run {
+                guard self.isActiveSync(syncID) else { return }
                 self.syncStatus.current = "State: \(state)"
                 self.syncStatus.completed = i
             }
@@ -265,6 +287,7 @@ public final class TeslaOfficialSuperchargerPricingStore: ObservableObject {
             }
 
             await MainActor.run {
+                guard self.isActiveSync(syncID) else { return }
                 self.syncStatus.completed = i + 1
             }
         }
@@ -283,7 +306,7 @@ public final class TeslaOfficialSuperchargerPricingStore: ObservableObject {
         }
     }
 
-    private func fetchStationPagesAndUpsert(stationURLs: [String], maxConcurrency: Int) async throws {
+    private func fetchStationPagesAndUpsert(stationURLs: [String], maxConcurrency: Int, syncID: UUID) async throws {
         let queue = StationQueue(stationURLs)
 
         try await withThrowingTaskGroup(of: Void.self) { group in
@@ -300,6 +323,7 @@ public final class TeslaOfficialSuperchargerPricingStore: ObservableObject {
                         let record = Self.parseStationPage(html: html, stationURL: url)
 
                         await MainActor.run {
+                            guard self.isActiveSync(syncID) else { return }
                             self.upsert(record)
                             self.syncStatus.completed += 1
                             self.syncStatus.current = record.title
@@ -369,6 +393,32 @@ public final class TeslaOfficialSuperchargerPricingStore: ObservableObject {
             print("TeslaOfficialSuperchargerPricingStore save error: \(error)")
             #endif
         }
+    }
+
+    private func isActiveSync(_ syncID: UUID) -> Bool {
+        activeSyncID == syncID
+    }
+
+    private func finishCancellation(syncID: UUID) {
+        guard isActiveSync(syncID) else { return }
+        syncStatus.phase = .cancelled
+        syncStatus.current = nil
+        syncStatus.errorMessage = nil
+        activeSyncID = nil
+        syncTask = nil
+    }
+
+    private nonisolated static func isCancellationLikeError(_ error: Error) -> Bool {
+        if error is CancellationError {
+            return true
+        }
+
+        if let urlError = error as? URLError, urlError.code == .cancelled {
+            return true
+        }
+
+        let nsError = error as NSError
+        return nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled
     }
 
     public func clearAll() {
@@ -559,6 +609,8 @@ public final class TeslaOfficialSuperchargerPricingStore: ObservableObject {
             title: title,
             siteName: siteName,
             addressLines: address,
+            latitude: extractCoordinate(in: html, keys: ["latitude", "lat"]),
+            longitude: extractCoordinate(in: html, keys: ["longitude", "lng", "lon"]),
             stallCount: stallCount,
             maxKW: maxKW,
             pricingTeslaLabel: teslaLabel,
@@ -608,6 +660,22 @@ public final class TeslaOfficialSuperchargerPricingStore: ObservableObject {
         return (label, out.isEmpty ? nil : out)
     }
 
+    private nonisolated static func extractCoordinate(in html: String, keys: [String]) -> Double? {
+        for key in keys {
+            let pattern = #"""# + key + #""\s*:\s*(-?[0-9]+(?:\.[0-9]+)?)"#
+            let re = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive])
+            let ns = html as NSString
+            let range = NSRange(location: 0, length: ns.length)
+            guard let match = re?.firstMatch(in: html, options: [], range: range),
+                  match.numberOfRanges >= 2 else { continue }
+            let raw = ns.substring(with: match.range(at: 1))
+            if let value = Double(raw) {
+                return value
+            }
+        }
+        return nil
+    }
+
     private nonisolated static func extractKwhPrices(from text: String) -> [Double] {
         guard !text.isEmpty else { return [] }
 
@@ -649,7 +717,7 @@ public final class TeslaOfficialSuperchargerPricingStore: ObservableObject {
 
     // MARK: - US state list (stable)
 
-    public static let usStatesAndDC: [String] = [
+    public nonisolated static let usStatesAndDC: [String] = [
         "Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut","Delaware",
         "District Of Columbia",
         "Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa","Kansas","Kentucky","Louisiana",
@@ -675,17 +743,86 @@ fileprivate extension Array {
 public struct TeslaOfficialSuperchargerPricingShiftView: View {
 
     @EnvironmentObject private var store: TeslaOfficialSuperchargerPricingStore
+    @StateObject private var locationProvider = SuperchargerLocationProvider()
 
     @State private var query: String = ""
     @State private var selectedStates: Set<String> = ["New York"]
     @State private var showStatePicker = false
+    @State private var stateFilter: String = "All States"
+    @State private var sort: Sort = .lowestPrice
 
     public init() {}
 
+    private enum Sort: String, CaseIterable, Identifiable {
+        case lowestPrice
+        case title
+        case newest
+        case mostPower
+        case nearest
+
+        var id: String { rawValue }
+
+        var label: String {
+            switch self {
+            case .lowestPrice: return "Lowest Price"
+            case .title: return "Name"
+            case .newest: return "Newest"
+            case .mostPower: return "kW"
+            case .nearest: return "Near Me"
+            }
+        }
+    }
+
+    private var distanceUnit: DistanceUnit {
+        let raw = UserDefaults.standard.string(forKey: "settings.distanceUnit")
+        return raw.flatMap(DistanceUnit.init(rawValue:)) ?? .defaultForDevice
+    }
+
+    private var availableStates: [String] {
+        let states = Set(store.records.compactMap(\.derivedState))
+        return ["All States"] + states.sorted()
+    }
+
     private var filtered: [TeslaSCOfficialPriceRecord] {
-        store.search(query).sorted { a, b in
-            if a.title != b.title { return a.title < b.title }
+        let searched = store.search(query)
+        let stateScoped = searched.filter { record in
+            stateFilter == "All States" || record.derivedState == stateFilter
+        }
+
+        return stateScoped.sorted(by: sortComparator)
+    }
+
+    private var summary: (total: Int, priced: Int, lowest: Double?, avg: Double?) {
+        let priced = filtered.compactMap(\.bestTeslaPrice)
+        let avg = priced.isEmpty ? nil : priced.reduce(0, +) / Double(priced.count)
+        return (filtered.count, priced.count, priced.min(), avg)
+    }
+
+    private func sortComparator(_ a: TeslaSCOfficialPriceRecord, _ b: TeslaSCOfficialPriceRecord) -> Bool {
+        switch sort {
+        case .lowestPrice:
+            let ap = a.bestTeslaPrice ?? .greatestFiniteMagnitude
+            let bp = b.bestTeslaPrice ?? .greatestFiniteMagnitude
+            if ap != bp { return ap < bp }
+            return a.title.localizedCaseInsensitiveCompare(b.title) == .orderedAscending
+        case .title:
+            if a.title.caseInsensitiveCompare(b.title) != .orderedSame {
+                return a.title.localizedCaseInsensitiveCompare(b.title) == .orderedAscending
+            }
             return a.stationId < b.stationId
+        case .newest:
+            if a.lastFetched != b.lastFetched { return a.lastFetched > b.lastFetched }
+            return a.title.localizedCaseInsensitiveCompare(b.title) == .orderedAscending
+        case .mostPower:
+            let ak = a.maxKW ?? 0
+            let bk = b.maxKW ?? 0
+            if ak != bk { return ak > bk }
+            return (a.bestTeslaPrice ?? .greatestFiniteMagnitude) < (b.bestTeslaPrice ?? .greatestFiniteMagnitude)
+        case .nearest:
+            let ad = a.distance(from: locationProvider.lastLocation) ?? .greatestFiniteMagnitude
+            let bd = b.distance(from: locationProvider.lastLocation) ?? .greatestFiniteMagnitude
+            if ad != bd { return ad < bd }
+            return (a.bestTeslaPrice ?? .greatestFiniteMagnitude) < (b.bestTeslaPrice ?? .greatestFiniteMagnitude)
         }
     }
 
@@ -699,6 +836,42 @@ public struct TeslaOfficialSuperchargerPricingShiftView: View {
                     Text("Fetches Tesla’s public FindUs pages and stores station pricing locally for reuse across the app.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+
+                    summaryCards
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Picker("Sort", selection: $sort) {
+                            ForEach(Sort.allCases) { option in
+                                Text(option.label).tag(option)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(availableStates, id: \.self) { state in
+                                    Button {
+                                        stateFilter = state
+                                    } label: {
+                                        Text(state)
+                                            .font(.caption.weight(.semibold))
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 7)
+                                            .background(
+                                                Capsule()
+                                                    .fill(stateFilter == state ? Color.accentColor.opacity(0.18) : Color.secondary.opacity(0.10))
+                                            )
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .padding(.vertical, 2)
+                        }
+
+                        if sort == .nearest {
+                            locatorStatus
+                        }
+                    }
 
                     if store.syncStatus.isSyncing {
                         ProgressView(value: store.syncStatus.progress) {
@@ -763,7 +936,7 @@ public struct TeslaOfficialSuperchargerPricingShiftView: View {
                                 HStack {
                                     Text(r.title).font(.headline)
                                     Spacer()
-                                    if let best = r.pricingTeslaPrices.min() {
+                                    if let best = r.bestTeslaPrice {
                                         Text(String(format: "$%.2f/kWh", best))
                                             .font(.subheadline.weight(.semibold))
                                     } else {
@@ -788,6 +961,9 @@ public struct TeslaOfficialSuperchargerPricingShiftView: View {
                                 }
 
                                 HStack(spacing: 10) {
+                                    if let dist = r.distance(from: locationProvider.lastLocation) {
+                                        Text(Units.formatDistance(meters: dist, unit: distanceUnit))
+                                    }
                                     if let stalls = r.stallCount {
                                         Text("\(stalls) stalls")
                                     }
@@ -798,8 +974,38 @@ public struct TeslaOfficialSuperchargerPricingShiftView: View {
                                 }
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+
+                                if !r.pricingTeslaPrices.isEmpty {
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        HStack(spacing: 6) {
+                                            ForEach(r.pricingTeslaPrices, id: \.self) { price in
+                                                Text(String(format: "$%.2f", price))
+                                                    .font(.caption.weight(.semibold))
+                                                    .padding(.horizontal, 8)
+                                                    .padding(.vertical, 5)
+                                                    .background(Capsule().fill(Color.accentColor.opacity(0.12)))
+                                            }
+                                        }
+                                        .padding(.top, 2)
+                                    }
+                                }
                             }
                             .padding(.vertical, 4)
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            if let mapURL = r.mapsURL {
+                                Link(destination: mapURL) {
+                                    Label("Maps", systemImage: "map")
+                                }
+                                .tint(.blue)
+                            }
+
+                            if let teslaURL = URL(string: r.stationURL) {
+                                Link(destination: teslaURL) {
+                                    Label("Tesla", systemImage: "safari")
+                                }
+                                .tint(.red)
+                            }
                         }
                     }
                 }
@@ -815,6 +1021,13 @@ public struct TeslaOfficialSuperchargerPricingShiftView: View {
         }
         .navigationTitle("Tesla Pricing")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            if locationProvider.authorizationStatus == .notDetermined {
+                locationProvider.requestPermission()
+            } else if locationProvider.authorizationStatus == .authorizedAlways || locationProvider.authorizationStatus == .authorizedWhenInUse {
+                locationProvider.start()
+            }
+        }
         .sheet(isPresented: $showStatePicker) {
             NavigationStack {
                 List {
@@ -844,6 +1057,54 @@ public struct TeslaOfficialSuperchargerPricingShiftView: View {
             }
         }
     }
+
+    private var summaryCards: some View {
+        HStack(spacing: 10) {
+            summaryCard(title: "Stations", value: "\(summary.total)", subtitle: stateFilter == "All States" ? "saved" : stateFilter)
+            summaryCard(title: "Priced", value: "\(summary.priced)", subtitle: "with Tesla rates")
+            summaryCard(title: "Best", value: summary.lowest.map { String(format: "$%.2f", $0) } ?? "—", subtitle: "lowest found")
+            summaryCard(title: "Average", value: summary.avg.map { String(format: "$%.2f", $0) } ?? "—", subtitle: "Tesla price")
+        }
+    }
+
+    private func summaryCard(title: String, value: String, subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.headline.weight(.semibold))
+            Text(subtitle)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var locatorStatus: some View {
+        switch locationProvider.authorizationStatus {
+        case .authorizedAlways, .authorizedWhenInUse:
+            if let locationProvider = locationProvider.lastLocation {
+                Text("Using your location near \(locationProvider.coordinate.latitude, specifier: "%.2f"), \(locationProvider.coordinate.longitude, specifier: "%.2f") to sort stations.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("Waiting for a nearby fix so stations can be sorted by distance.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        case .notDetermined:
+            Button("Enable location for nearest sorting") {
+                locationProvider.requestPermission()
+            }
+            .font(.caption.weight(.semibold))
+        default:
+            Text("Location access is off, so nearby sorting will place unknown distances last.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
 }
 
 fileprivate struct TeslaOfficialPricingDetail: View {
@@ -861,6 +1122,19 @@ fileprivate struct TeslaOfficialPricingDetail: View {
                     }
                 }
                 .padding(.vertical, 4)
+            }
+
+            Section("Actions") {
+                if let teslaURL = URL(string: record.stationURL) {
+                    Link(destination: teslaURL) {
+                        Label("Open Tesla FindUs Page", systemImage: "safari")
+                    }
+                }
+                if let mapsURL = record.mapsURL {
+                    Link(destination: mapsURL) {
+                        Label("Open in Maps", systemImage: "map")
+                    }
+                }
             }
 
             Section("Capacity") {
@@ -881,9 +1155,18 @@ fileprivate struct TeslaOfficialPricingDetail: View {
                     .foregroundStyle(.secondary)
 
                 if !record.pricingTeslaPrices.isEmpty {
-                    Text("Detected $/kWh: " + record.pricingTeslaPrices.map { String(format: "$%.2f", $0) }.joined(separator: ", "))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(record.pricingTeslaPrices, id: \.self) { price in
+                                Text(String(format: "$%.2f/kWh", price))
+                                    .font(.footnote.weight(.semibold))
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background(Capsule().fill(Color.accentColor.opacity(0.12)))
+                            }
+                        }
+                        .padding(.vertical, 2)
+                    }
                 }
             }
 
@@ -911,5 +1194,123 @@ fileprivate struct TeslaOfficialPricingDetail: View {
         }
         .navigationTitle("Details")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private extension TeslaSCOfficialPriceRecord {
+    var bestTeslaPrice: Double? {
+        pricingTeslaPrices.min()
+    }
+
+    var derivedState: String? {
+        if let exact = exactAddressState {
+            return exact
+        }
+
+        let blobs = [title, siteName ?? "", addressLines.joined(separator: ", ")]
+        for blob in blobs {
+            if let match = Self.matchState(in: blob) {
+                return match
+            }
+        }
+        return nil
+    }
+
+    private var exactAddressState: String? {
+        for line in addressLines.reversed() {
+            if let state = Self.extractStateFromAddressLine(line) {
+                return state
+            }
+        }
+        return nil
+    }
+
+    var coordinate: CLLocationCoordinate2D? {
+        guard let latitude, let longitude else { return nil }
+        return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+    }
+
+    func distance(from location: CLLocation?) -> CLLocationDistance? {
+        guard let location, let coordinate else { return nil }
+        return location.distance(from: CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude))
+    }
+
+    var mapsURL: URL? {
+        if let coordinate {
+            var comps = URLComponents(string: "http://maps.apple.com/")!
+            comps.queryItems = [
+                .init(name: "ll", value: "\(coordinate.latitude),\(coordinate.longitude)"),
+                .init(name: "q", value: title)
+            ]
+            return comps.url
+        }
+
+        let address = addressLines.joined(separator: ", ")
+        guard !address.isEmpty else { return nil }
+        var comps = URLComponents(string: "http://maps.apple.com/")!
+        comps.queryItems = [
+            .init(name: "q", value: "\(title), \(address)")
+        ]
+        return comps.url
+    }
+
+    private static func matchState(in text: String) -> String? {
+        let normalized = text.lowercased()
+        for state in TeslaOfficialSuperchargerPricingStore.usStatesAndDC {
+            if normalized.contains(state.lowercased()) {
+                return state
+            }
+        }
+
+        let abbreviations: [String: String] = [
+            "AL":"Alabama","AK":"Alaska","AZ":"Arizona","AR":"Arkansas","CA":"California","CO":"Colorado","CT":"Connecticut","DE":"Delaware",
+            "DC":"District Of Columbia","FL":"Florida","GA":"Georgia","HI":"Hawaii","ID":"Idaho","IL":"Illinois","IN":"Indiana","IA":"Iowa",
+            "KS":"Kansas","KY":"Kentucky","LA":"Louisiana","ME":"Maine","MD":"Maryland","MA":"Massachusetts","MI":"Michigan","MN":"Minnesota",
+            "MS":"Mississippi","MO":"Missouri","MT":"Montana","NE":"Nebraska","NV":"Nevada","NH":"New Hampshire","NJ":"New Jersey","NM":"New Mexico",
+            "NY":"New York","NC":"North Carolina","ND":"North Dakota","OH":"Ohio","OK":"Oklahoma","OR":"Oregon","PA":"Pennsylvania","RI":"Rhode Island",
+            "SC":"South Carolina","SD":"South Dakota","TN":"Tennessee","TX":"Texas","UT":"Utah","VT":"Vermont","VA":"Virginia","WA":"Washington",
+            "WV":"West Virginia","WI":"Wisconsin","WY":"Wyoming"
+        ]
+
+        let upper = text.uppercased()
+        for (abbr, state) in abbreviations {
+            if upper.contains(", \(abbr)") || upper.hasSuffix(" \(abbr)") || upper.contains(" \(abbr) ") {
+                return state
+            }
+        }
+        return nil
+    }
+
+    private static func extractStateFromAddressLine(_ line: String) -> String? {
+        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        if let fullName = TeslaOfficialSuperchargerPricingStore.usStatesAndDC.first(where: {
+            trimmed.localizedCaseInsensitiveContains($0)
+        }) {
+            return fullName
+        }
+
+        let abbreviations: [String: String] = [
+            "AL":"Alabama","AK":"Alaska","AZ":"Arizona","AR":"Arkansas","CA":"California","CO":"Colorado","CT":"Connecticut","DE":"Delaware",
+            "DC":"District Of Columbia","FL":"Florida","GA":"Georgia","HI":"Hawaii","ID":"Idaho","IL":"Illinois","IN":"Indiana","IA":"Iowa",
+            "KS":"Kansas","KY":"Kentucky","LA":"Louisiana","ME":"Maine","MD":"Maryland","MA":"Massachusetts","MI":"Michigan","MN":"Minnesota",
+            "MS":"Mississippi","MO":"Missouri","MT":"Montana","NE":"Nebraska","NV":"Nevada","NH":"New Hampshire","NJ":"New Jersey","NM":"New Mexico",
+            "NY":"New York","NC":"North Carolina","ND":"North Dakota","OH":"Ohio","OK":"Oklahoma","OR":"Oregon","PA":"Pennsylvania","RI":"Rhode Island",
+            "SC":"South Carolina","SD":"South Dakota","TN":"Tennessee","TX":"Texas","UT":"Utah","VT":"Vermont","VA":"Virginia","WA":"Washington",
+            "WV":"West Virginia","WI":"Wisconsin","WY":"Wyoming"
+        ]
+
+        let pattern = #",\s*([A-Z]{2})(?:\s+\d{5}(?:-\d{4})?)?$"#
+        let ns = trimmed.uppercased() as NSString
+        let range = NSRange(location: 0, length: ns.length)
+        if let re = try? NSRegularExpression(pattern: pattern),
+           let match = re.firstMatch(in: ns as String, options: [], range: range),
+           match.numberOfRanges >= 2 {
+            let abbr = ns.substring(with: match.range(at: 1))
+            return abbreviations[abbr]
+        }
+
+        return nil
     }
 }

@@ -1,12 +1,3 @@
-//
-//  ChargingLedgerItem.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 12/17/25.
-//
-
-
-//
 //  ChargingReconciliationEngine.swift
 //  KWh Gas Companion
 //

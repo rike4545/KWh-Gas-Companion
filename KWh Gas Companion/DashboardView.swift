@@ -51,6 +51,11 @@ struct DashboardView: View {
     @AppStorage("budget_insurance")          private var budgetInsurance: Double = 0
     @AppStorage("budget_misc")              private var budgetMisc: Double = 0
 
+    // Shared with GasToKWhConverterView so the dashboard card reflects the
+    // user's last-entered gas price / MPG.
+    @AppStorage("gasToKwh.lastGasPrice")     private var persistedGasPrice: Double = 0
+    @AppStorage("gasToKwh.lastMPG")          private var persistedMPG: Double = 30
+
     // MARK: UI state
 
     @State private var showingBudgetEditor = false
@@ -83,6 +88,9 @@ struct DashboardView: View {
     private var cachedTrackedEnergyMonths:    Int             { snapshot.trackedEnergyMonths }
     private var cachedLatestCharge:           DashboardLatestChargeSnapshot? { snapshot.latestCharge }
     private var cachedTripInsights:           TripInsightsSnapshot { snapshot.tripInsights }
+    private var cachedPrevMonthSpent:         Double           { snapshot.previousMonthSpentTotal }
+    private var cachedPrevMonthEnergyKWh:     Double           { snapshot.previousMonthEnergyKWh }
+    private var cachedMonthEnergyCost:        Double           { snapshot.monthEnergyCost }
 
     // MARK: Theme helpers
 
@@ -145,13 +153,6 @@ struct DashboardView: View {
         return nf
     }()
 
-    private static let dateTimeFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateStyle = .short
-        f.timeStyle = .short
-        return f
-    }()
-
     // MARK: - body
 
     var body: some View {
@@ -172,24 +173,31 @@ struct DashboardView: View {
                             .padding(.horizontal, spec.horizontalPadding)
                     }
 
-                    // 3 · Month-at-a-glance stat tiles.
-                    sectionLabel("This month")
-                        .padding(.horizontal, spec.horizontalPadding)
-                    monthStatTiles
-                        .padding(.horizontal, spec.horizontalPadding)
+                    if hasAnyData {
+                        // 3 · Month-at-a-glance stat tiles.
+                        sectionLabel("This month")
+                            .padding(.horizontal, spec.horizontalPadding)
+                        monthStatTiles
+                            .padding(.horizontal, spec.horizontalPadding)
 
-                    // 4 · User-ordered card grid.
-                    LazyVGrid(columns: spec.columns, spacing: 10) {
-                        ForEach(layout.visibleOrder, id: \.self) { kind in
-                            let cardSpec = cardSpec(for: kind)
-                            cardSpec.view
-                                .modifier(CardPolish())
-                                .gridCellColumns(cardSpec.columns)
+                        // 4 · User-ordered card grid.
+                        LazyVGrid(columns: spec.columns, spacing: 10) {
+                            ForEach(layout.visibleOrder, id: \.self) { kind in
+                                let cardSpec = cardSpec(for: kind)
+                                cardSpec.view
+                                    .modifier(CardPolish())
+                                    .gridCellColumns(cardSpec.columns)
+                            }
                         }
+                        .padding(.horizontal, spec.horizontalPadding)
+                        .frame(maxWidth: spec.maxWidth)
+                        .frame(maxWidth: .infinity)
+                    } else {
+                        // 3′ · First-run onboarding replaces the empty grid.
+                        onboardingCard
+                            .modifier(CardPolish())
+                            .padding(.horizontal, spec.horizontalPadding)
                     }
-                    .padding(.horizontal, spec.horizontalPadding)
-                    .frame(maxWidth: spec.maxWidth)
-                    .frame(maxWidth: .infinity)
 
                     // 5 · Quick-action grid – always visible at the bottom.
                     sectionLabel("Quick actions")
@@ -208,6 +216,7 @@ struct DashboardView: View {
         }
         .contentMargins(.top, 6, for: .scrollContent)
         .scrollIndicators(.hidden)
+        .refreshable { recomputeSnapshots() }
         .navigationTitle("Dashboard")
         .navigationBarTitleDisplayMode(.inline)
         .background(dashboardBackground)
@@ -271,6 +280,12 @@ struct DashboardView: View {
             + cachedDataQualityIssueCount
     }
 
+    /// True once the user has any logged entry or imported session. Drives the
+    /// first-run onboarding card versus the full dashboard.
+    private var hasAnyData: Bool {
+        !entriesStore.entries.isEmpty || !teslaFiStore.sessions.isEmpty
+    }
+
     // MARK: Budget helpers
 
     private var totalCategoryBudget: Double {
@@ -299,24 +314,6 @@ struct DashboardView: View {
     private var projectedMonthlySpend: Double? {
         guard effectiveSpentTotal > 0 else { return nil }
         return (effectiveSpentTotal / Double(daysElapsed)) * Double(daysInMonth)
-    }
-
-    private var monthSnapshotText: String {
-        if cachedMonthEnergyKWh > 0 {
-            return "\(formatNumber(cachedMonthEnergyKWh, digits: 1)) kWh"
-        }
-        let sessionCount = max(cachedEntriesThisMonth.count, cachedTeslaFiThisMonth.count)
-        return sessionCount > 0 ? "\(sessionCount) sessions" : "No activity yet"
-    }
-
-    private var budgetStatusLine: String {
-        guard effectiveBudgetTotal > 0 else { return "No monthly budget set yet" }
-        let delta = effectiveBudgetTotal - effectiveSpentTotal
-        if delta >= 0 {
-            return "\(formatCurrency(delta, currency: defaultCurrencyCode)) remaining"
-        } else {
-            return "\(formatCurrency(abs(delta), currency: defaultCurrencyCode)) over budget"
-        }
     }
 
     // MARK: - Layout spec
@@ -558,38 +555,6 @@ struct DashboardView: View {
         }
     }
 
-    private func heroStatTileRow() -> some View {
-        HStack(spacing: 8) {
-            heroTile(
-                title: "Energy",
-                value: cachedMonthEnergyKWh > 0
-                    ? "\(formatNumber(cachedMonthEnergyKWh, digits: 1)) kWh"
-                    : "—",
-                systemImage: "bolt.fill",
-                tint: appearance.accentColor
-            )
-            heroTile(
-                title: "Cost",
-                value: formatCurrency(cachedSpending.totalBuckets, currency: defaultCurrencyCode),
-                systemImage: "creditcard.fill",
-                tint: .teal
-            )
-            heroTile(
-                title: "$/kWh",
-                value: cachedAvgCostPerKWh
-                    .map { formatCurrency($0, currency: defaultCurrencyCode) } ?? "—",
-                systemImage: "gauge.medium",
-                tint: .purple
-            )
-            heroTile(
-                title: "Sessions",
-                value: "\(cachedEntriesThisMonth.count + cachedTeslaFiThisMonth.count)",
-                systemImage: "list.bullet",
-                tint: .orange
-            )
-        }
-    }
-
     private func heroSubtitle(latestCharge: DashboardLatestChargeSnapshot?) -> String {
         guard let charge = latestCharge else { return "No recent sessions" }
         let hours = Calendar.current.dateComponents([.hour], from: charge.date, to: Date()).hour ?? 0
@@ -642,45 +607,18 @@ struct DashboardView: View {
                 Text(soc > 0 ? "\(Int(soc.rounded()))%" : "—")
                     .font(.system(size: 18, weight: .semibold, design: .rounded))
                     .monospacedDigit()
-                Text("SOC")
-                    .font(.system(size: 9, weight: .medium))
+                Text(soc > 0 ? "LAST SOC" : "SOC")
+                    .font(.system(size: 8, weight: .semibold))
                     .foregroundStyle(.secondary)
+                    .tracking(0.4)
             }
         }
         .frame(width: 80, height: 80)
-    }
-
-    private func heroTile(
-        title: String,
-        value: String,
-        systemImage: String,
-        tint: Color
-    ) -> some View {
-        VStack(spacing: 5) {
-            Image(systemName: systemImage)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(tint)
-            Text(title)
-                .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-            Text(value)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-                .monospacedDigit()
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 76)
-        .padding(.horizontal, 4)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(tint.opacity(scheme == .dark ? 0.10 : 0.07))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(tint.opacity(0.20), lineWidth: 0.5)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            soc > 0
+                ? "\(Int(soc.rounded())) percent state of charge at last session"
+                : "No state of charge data"
         )
     }
 
@@ -744,6 +682,38 @@ struct DashboardView: View {
             )
     }
 
+    // MARK: - Month-over-month trends
+
+    /// Neutral (gray) energy delta vs the previous calendar month.
+    private var energyMoMTrend: TrendInfo? {
+        guard cachedPrevMonthEnergyKWh > 0, cachedMonthEnergyKWh > 0 else { return nil }
+        let delta = cachedMonthEnergyKWh - cachedPrevMonthEnergyKWh
+        let pct   = delta / cachedPrevMonthEnergyKWh * 100
+        guard abs(pct) >= 1 else {
+            return TrendInfo(text: "About the same as last month", color: .gray, icon: "equal")
+        }
+        let up = delta >= 0
+        return TrendInfo(
+            text:  "\(up ? "+" : "")\(formatNumber(pct, digits: 0))% vs last month",
+            color: .gray,
+            icon:  up ? "arrow.up.right" : "arrow.down.right"
+        )
+    }
+
+    /// Spend delta vs the previous month — up is bad (red), down is good (green).
+    /// Shown on the Total-spent tile only when no budget context is available.
+    private var spentMoMTrend: TrendInfo? {
+        guard cachedPrevMonthSpent > 0, effectiveSpentTotal > 0 else { return nil }
+        let delta = effectiveSpentTotal - cachedPrevMonthSpent
+        let pct   = delta / cachedPrevMonthSpent * 100
+        let up    = delta >= 0
+        return TrendInfo(
+            text:  "\(up ? "+" : "")\(formatNumber(pct, digits: 0))% vs last month",
+            color: up ? .red : .green,
+            icon:  up ? "arrow.up.right" : "arrow.down.right"
+        )
+    }
+
     // MARK: - Month stat tiles
 
     private var monthStatTiles: some View {
@@ -758,59 +728,81 @@ struct DashboardView: View {
             ],
             spacing: 8
         ) {
-            statTile(
-                label: "Total spent",
-                value: formatCurrency(spent, currency: defaultCurrencyCode),
-                sub:   budget > 0
-                    ? "of \(formatCurrency(budget, currency: defaultCurrencyCode)) budget"
-                    : "No budget set",
-                trend: remaining.map { r in
-                    r >= 0
+            statTileLink(destination: expenseLogView) {
+                statTile(
+                    label: "Total spent",
+                    value: formatCurrency(spent, currency: defaultCurrencyCode),
+                    sub:   budget > 0
+                        ? "of \(formatCurrency(budget, currency: defaultCurrencyCode)) budget"
+                        : "No budget set",
+                    trend: remaining.map { r in
+                        r >= 0
+                            ? TrendInfo(
+                                text:  "\(formatCurrency(r, currency: defaultCurrencyCode)) left",
+                                color: .green,
+                                icon:  "checkmark.circle.fill")
+                            : TrendInfo(
+                                text:  "Over by \(formatCurrency(abs(r), currency: defaultCurrencyCode))",
+                                color: .red,
+                                icon:  "exclamationmark.circle.fill")
+                    } ?? spentMoMTrend
+                )
+            }
+
+            statTileLink(destination: HomeVsPublicSplitView()) {
+                statTile(
+                    label: "Supercharging",
+                    value: formatCurrency(cachedSpending.superchargingTotal, currency: defaultCurrencyCode),
+                    sub:   budgetSupercharging > 0
+                        ? "of \(formatCurrency(budgetSupercharging, currency: defaultCurrencyCode)) budget"
+                        : "\(cachedEntriesThisMonth.count) entries",
+                    trend: nil
+                )
+            }
+
+            statTileLink(destination: WeeklyChargingForecastView()) {
+                statTile(
+                    label: "Energy charged",
+                    value: cachedMonthEnergyKWh > 0
+                        ? "\(formatNumber(cachedMonthEnergyKWh, digits: 1)) kWh"
+                        : "—",
+                    sub: cachedAvgCostPerKWh
+                        .map { "avg \(formatCurrency($0, currency: defaultCurrencyCode))/kWh" }
+                        ?? "No cost data",
+                    trend: energyMoMTrend
+                )
+            }
+
+            statTileLink(
+                destination: ForecastDashboardView(months: min(max(cachedTrackedEnergyMonths, 3), 12))
+            ) {
+                statTile(
+                    label: "Tracked months",
+                    value: "\(cachedTrackedEnergyMonths)",
+                    sub: cachedTrackedEnergyMonths >= 3
+                        ? "Forecast ready"
+                        : "\(max(0, 3 - cachedTrackedEnergyMonths)) more to forecast",
+                    trend: cachedTrackedEnergyMonths >= 3
                         ? TrendInfo(
-                            text:  "\(formatCurrency(r, currency: defaultCurrencyCode)) left",
+                            text:  "Forecast ready",
                             color: .green,
-                            icon:  "checkmark.circle.fill")
-                        : TrendInfo(
-                            text:  "Over by \(formatCurrency(abs(r), currency: defaultCurrencyCode))",
-                            color: .red,
-                            icon:  "exclamationmark.circle.fill")
-                }
-            )
-
-            statTile(
-                label: "Supercharging",
-                value: formatCurrency(cachedSpending.superchargingTotal, currency: defaultCurrencyCode),
-                sub:   budgetSupercharging > 0
-                    ? "of \(formatCurrency(budgetSupercharging, currency: defaultCurrencyCode)) budget"
-                    : "\(cachedEntriesThisMonth.count) entries",
-                trend: nil
-            )
-
-            statTile(
-                label: "Energy charged",
-                value: cachedMonthEnergyKWh > 0
-                    ? "\(formatNumber(cachedMonthEnergyKWh, digits: 1)) kWh"
-                    : "—",
-                sub: cachedAvgCostPerKWh
-                    .map { "avg \(formatCurrency($0, currency: defaultCurrencyCode))/kWh" }
-                    ?? "No cost data",
-                trend: nil
-            )
-
-            statTile(
-                label: "Tracked months",
-                value: "\(cachedTrackedEnergyMonths)",
-                sub: cachedTrackedEnergyMonths >= 3
-                    ? "Forecast ready"
-                    : "\(max(0, 3 - cachedTrackedEnergyMonths)) more to forecast",
-                trend: cachedTrackedEnergyMonths >= 3
-                    ? TrendInfo(
-                        text:  "Forecast ready",
-                        color: .green,
-                        icon:  "chart.line.uptrend.xyaxis")
-                    : nil
-            )
+                            icon:  "chart.line.uptrend.xyaxis")
+                        : nil
+                )
+            }
         }
+    }
+
+    /// Wraps a stat tile in a navigation link while keeping the tile's flat
+    /// appearance (no chevron, no button chrome).
+    private func statTileLink<Destination: View, Label: View>(
+        destination: Destination,
+        @ViewBuilder label: () -> Label
+    ) -> some View {
+        NavigationLink(destination: destination) {
+            label()
+        }
+        .buttonStyle(.plain)
     }
 
     private struct TrendInfo {
@@ -932,6 +924,8 @@ struct DashboardView: View {
         switch kind {
         case .greeting:          return makeCardSpec(EmptyView(),            columns: 1) // rendered separately
         case .actionCenter:      return makeCardSpec(actionCenterCard,       columns: 1)
+        case .costOfCharging:    return makeCardSpec(costOfChargingCard,     columns: 1)
+        case .gasComparison:     return makeCardSpec(gasComparisonCard,      columns: 1)
         case .insights:          return makeCardSpec(insightsCard,           columns: 1)
         case .savingsScore:      return makeCardSpec(savingsScoreCard,       columns: 1)
         case .weeklyForecast:    return makeCardSpec(weeklyForecastCard,     columns: 1)
@@ -1001,6 +995,44 @@ struct DashboardView: View {
             isCollapsed:      layout.isCollapsed(.recentActivity)
         ) {
             collapseButton(for: .recentActivity)
+        }
+    }
+
+    // MARK: - Onboarding (first run)
+
+    private var onboardingCard: some View {
+        themedCard {
+            VStack(alignment: .leading, spacing: 14) {
+                Label("Welcome to My EV Companion", systemImage: "sparkles")
+                    .font(.headline)
+                Text("Set up your dashboard in a few quick steps — you'll start seeing costs, energy, and forecasts right away.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                actionLink(destination: VehicleProfileListView()) {
+                    actionRow(
+                        title:      "Add your vehicle",
+                        subtitle:   "Personalize range, SOC, and stats",
+                        systemImage: "car.2.fill"
+                    )
+                }
+                themedDivider(opacity: 0.16)
+                actionLink(destination: ChargingImportHubView()) {
+                    actionRow(
+                        title:      "Import charging history",
+                        subtitle:   "Bring in Tesla or CSV sessions",
+                        systemImage: "square.and.arrow.down"
+                    )
+                }
+                themedDivider(opacity: 0.16)
+                actionLink(destination: expenseLogView) {
+                    actionRow(
+                        title:      "Log your first session",
+                        subtitle:   "Track energy and cost by hand",
+                        systemImage: "plus.circle"
+                    )
+                }
+            }
         }
     }
 
@@ -1264,6 +1296,117 @@ struct DashboardView: View {
     }
 
     // MARK: - Content cards
+
+    /// Weekly + monthly charging cost at a glance, with a week-over-week delta
+    /// and a link to the full weekly rollup.
+    private var costOfChargingCard: some View {
+        let weekly = WeeklyCostRollup.compute(
+            entries:  entriesStore.energyEntries(),
+            sessions: teslaFiStore.sessions
+        )
+        let wowDelta = weekly.thisWeekCost - weekly.lastWeekCost
+        return themedCard {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Label("Cost of Charging", systemImage: "creditcard.circle").font(.headline)
+                    Spacer()
+                    collapseButton(for: .costOfCharging)
+                }
+
+                if !layout.isCollapsed(.costOfCharging) {
+                    twoStatRow(
+                        title1: "This week",
+                        value1: formatCurrency(weekly.thisWeekCost, currency: defaultCurrencyCode),
+                        title2: "This month",
+                        value2: formatCurrency(cachedMonthEnergyCost, currency: defaultCurrencyCode)
+                    )
+                    twoStatRow(
+                        title1: "Week energy",
+                        value1: "\(formatNumber(weekly.thisWeekKWh, digits: 1)) kWh",
+                        title2: "Month energy",
+                        value2: cachedMonthEnergyKWh > 0
+                            ? "\(formatNumber(cachedMonthEnergyKWh, digits: 1)) kWh"
+                            : "—"
+                    )
+
+                    if weekly.lastWeekCost > 0 {
+                        let up = wowDelta >= 0
+                        Label(
+                            "\(up ? "+" : "")\(formatCurrency(wowDelta, currency: defaultCurrencyCode)) vs last week",
+                            systemImage: up ? "arrow.up.right" : "arrow.down.right"
+                        )
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(up ? .red : .green)
+                    }
+
+                    actionLink(destination: WeeklyCostRollupView()) {
+                        actionRow(
+                            title:      "Weekly cost rollup",
+                            subtitle:   "Week-over-week trend and alerts",
+                            systemImage: "arrow.right.circle"
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /// Compares a gallon of gasoline (as energy) against the user's average
+    /// charging $/kWh. Uses the gas price shared with the Gas → kWh converter.
+    private var gasComparisonCard: some View {
+        let kWhPerGallon = 33.7
+        let gasPerKWh: Double? = persistedGasPrice > 0 ? persistedGasPrice / kWhPerGallon : nil
+        let evPerKWh = cachedAvgCostPerKWh
+        return themedCard {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Label("Gas vs Electric", systemImage: "fuelpump").font(.headline)
+                    Spacer()
+                    collapseButton(for: .gasComparison)
+                }
+
+                if !layout.isCollapsed(.gasComparison) {
+                    if let gasPerKWh {
+                        twoStatRow(
+                            title1: "Gas energy",
+                            value1: "\(formatCurrency(gasPerKWh, currency: defaultCurrencyCode))/kWh",
+                            title2: "Your EV avg",
+                            value2: evPerKWh.map { "\(formatCurrency($0, currency: defaultCurrencyCode))/kWh" } ?? "—"
+                        )
+                        Text("Based on \(formatCurrency(persistedGasPrice, currency: defaultCurrencyCode))/gal ÷ \(formatNumber(kWhPerGallon, digits: 1)) kWh.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+
+                        if let evPerKWh, evPerKWh > 0, gasPerKWh > 0 {
+                            let diff  = gasPerKWh - evPerKWh
+                            let pct   = abs(diff / evPerKWh * 100)
+                            let evCheaper = diff > 0
+                            Label(
+                                evCheaper
+                                    ? "Charging is \(formatNumber(pct, digits: 0))% cheaper than gas energy"
+                                    : "Charging is \(formatNumber(pct, digits: 0))% pricier than gas energy",
+                                systemImage: evCheaper ? "checkmark.circle.fill" : "exclamationmark.circle.fill"
+                            )
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(evCheaper ? .green : .orange)
+                        }
+                    } else {
+                        Text("Add a gas price to compare a gallon of gas against your charging cost per kWh.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    actionLink(destination: DashboardGasToKWhConverterHost()) {
+                        actionRow(
+                            title:      persistedGasPrice > 0 ? "Open Gas → kWh converter" : "Set your gas price",
+                            subtitle:   "Compare a gallon of gas to your $/kWh",
+                            systemImage: "arrow.right.circle"
+                        )
+                    }
+                }
+            }
+        }
+    }
 
     private var insightsCard: some View {
         themedCard {
@@ -1715,10 +1858,6 @@ struct DashboardView: View {
         let nf = Self.decimalFormatter
         nf.maximumFractionDigits = digits
         return nf.string(from: NSNumber(value: value)) ?? "\(value)"
-    }
-
-    private func dateTime(_ date: Date) -> String {
-        Self.dateTimeFormatter.string(from: date)
     }
 
     // MARK: - Budget sheet

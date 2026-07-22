@@ -1,12 +1,3 @@
-//
-//  EnergyEventStore.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 12/17/25.
-//
-
-
-//
 //  EnergyEventStore.swift
 //  My KWh Companion
 //

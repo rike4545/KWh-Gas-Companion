@@ -1,11 +1,3 @@
-//
-//  KWhServices.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 11/2/25.
-//
-
-
 //  KWhServices.swift
 //  My KWh Companion
 //  MetricKit + BackgroundTasks wrappers (compile-safe, Swift 6)

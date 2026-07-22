@@ -5,7 +5,7 @@
 //  • Groups by Year + Quarter (Q1–Q4)
 //  • Shows YTD totals and per-quarter: Business total, Energy (biz), Non-Energy (biz), VAT, Entries
 //  • Copy-to-Clipboard CSV per quarter
-//  • Tesla-style glass cards; local card shells avoid cross-file deps
+//  • Glass cards; local card shells avoid cross-file deps
 
 import SwiftUI
 

@@ -2,9 +2,7 @@
 //  TileButton.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 8/11/25.
 //
-
 
 // TileButton.swift
 import SwiftUI

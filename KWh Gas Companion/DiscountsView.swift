@@ -50,8 +50,34 @@ private func normalizedURL(_ raw: String) -> URL? {
     let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !trimmed.isEmpty else { return nil }
 
-    if let u = URL(string: trimmed), u.scheme != nil { return u }
-    return URL(string: "https://\(trimmed)")
+    if let u = URL(string: trimmed), u.scheme != nil { return u.removingAdClickIDs() }
+    return URL(string: "https://\(trimmed)")?.removingAdClickIDs()
+}
+
+private let blockedAdClickQueryNames: Set<String> = [
+    "gclid",
+    "msclkid",
+    "gbraid",
+    "wbraid",
+    "yclid",
+    "fbclid"
+]
+
+private extension URL {
+    func removingAdClickIDs() -> URL {
+        guard var components = URLComponents(url: self, resolvingAgainstBaseURL: false),
+              let queryItems = components.queryItems else {
+            return self
+        }
+
+        let filteredItems = queryItems.filter {
+            !blockedAdClickQueryNames.contains($0.name.lowercased())
+        }
+        guard filteredItems.count != queryItems.count else { return self }
+
+        components.queryItems = filteredItems.isEmpty ? nil : filteredItems
+        return components.url ?? self
+    }
 }
 
 // MARK: - View
@@ -85,54 +111,20 @@ struct DiscountsView: View {
             }
         }
 
-        // Referrals / misc discounts
-        add("Misc Discounts", "linktr.ee/teslafi", .referrals, "link")
-
-        // Accessories / Shops
+        // BEGIN SHARED DISCOUNT LINKS
+        add("Misc Discounts", "https://linktr.ee/teslafi", .referrals, "link")
+        add("Comfrt Discount", "https://comfrt.com/KLAIRE11", .referrals, "link")
         add("Accessories – EV Base", "https://www.evbase.com?sca_ref=9481743.pPgJrlY92f", .accessories, "shippingbox")
         add("One Free Month of Starlink", "https://starlink.com/residential?referral=RC-4509047-46429-69", .accessories, "shippingbox")
-        add(
-            "Accessories – Lectron EV Adapters",
-            "https://www.awin1.com/cread.php?awinmid=91891&awinaffid=2625306",
-            .accessories,
-            "shippingbox"
-        )
-        add(
-            "Accessories – Aftermarket (T Sportline)",
-            "https://tsportline.com?sca_ref=9830647.pqBEvt1iTi8Kekf&utm_source=uppa&utm_medium=0&utm_campaign=0",
-            .accessories,
-            "shippingbox"
-        )
-        add(
-            "Accessories – DIY Wrap Club (TESBROS)",
-            "https://www.diywrapclub.com/SFP6WB4X",
-            .accessories,
-            "shippingbox"
-        )
-        add(
-            "Accessories – EVDance",
-            "https://www.awin1.com/cread.php?awinmid=67740&awinaffid=2625306",
-            .accessories,
-            "shippingbox"
-        )
-        add(
-            "Accessories – Oedro Parts",
-            "https://www.awin1.com/cread.php?awinmid=28349&awinaffid=2625306",
-            .accessories,
-            "shippingbox"
-        )
-        add(
-            "Save $2000 off a Tesla",
-            "https://www.tesla.com/referral/bryan627261",
-            .accessories,
-            "shippingbox"
-        )
-        add(
-            "Amazon: Up to $30 OFF Tesla floor liners | 3W Floormats",
-            "https://amzn.to/4r4Pp7q",
-            .accessories,
-            "shippingbox"
-        )
+        add("Accessories – Lectron EV Adapters", "https://www.awin1.com/cread.php?awinmid=91891&awinaffid=2625306", .accessories, "shippingbox")
+        add("Accessories – Aftermarket (T Sportline)", "https://tsportline.com?sca_ref=9830647.pqBEvt1iTi8Kekf&utm_source=uppa&utm_medium=0&utm_campaign=0", .accessories, "shippingbox")
+        add("Accessories – Unplugged Performance", "https://unpluggedperformance.com/?_br=bryan69F1", .accessories, "shippingbox")
+        add("Accessories – DIY Wrap Club (TESBROS)", "https://www.diywrapclub.com/SFP6WB4X", .accessories, "shippingbox")
+        add("Accessories – EVDance", "https://www.awin1.com/cread.php?awinmid=67740&awinaffid=2625306", .accessories, "shippingbox")
+        add("Accessories – Oedro Parts", "https://www.awin1.com/cread.php?awinmid=28349&awinaffid=2625306", .accessories, "shippingbox")
+        add("Save $2000 off a Tesla", "https://www.tesla.com/referral/bryan627261", .accessories, "shippingbox")
+        add("Amazon: Up to $30 OFF Tesla floor liners | 3W Floormats", "https://amzn.to/4r4Pp7q", .accessories, "shippingbox")
+        // END SHARED DISCOUNT LINKS
 
         return items
     }()
@@ -474,10 +466,7 @@ private struct DiscountsSafariView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> SFSafariViewController {
         let config = SFSafariViewController.Configuration()
         config.entersReaderIfAvailable = true
-        let vc = SFSafariViewController(url: url, configuration: config)
-        vc.preferredBarTintColor = nil
-        vc.preferredControlTintColor = nil
-        return vc
+        return SFSafariViewController(url: url, configuration: config)
     }
 
     func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {}

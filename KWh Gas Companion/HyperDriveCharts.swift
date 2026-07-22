@@ -115,6 +115,7 @@ public extension HyperDriveCharts {
                     .symbolSize(15)
                 }
             }
+            .kwhInteractiveDataViz()
             .ifLet(yDomain) { view, domain in
                 view.chartYScale(domain: domain)
             }
@@ -204,6 +205,7 @@ public extension HyperDriveCharts {
                     .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
                 }
             }
+            .kwhInteractiveDataViz()
             .ifLet(yDomain) { view, domain in
                 view.chartYScale(domain: domain)
             }
@@ -273,6 +275,7 @@ public extension HyperDriveCharts {
                     }
                 }
             }
+            .kwhInteractiveDataViz()
             .ifLet(yDomain) { view, domain in
                 view.chartYScale(domain: domain)
             }
@@ -337,6 +340,7 @@ public extension HyperDriveCharts {
                     )
                     .foregroundStyle(by: .value("Category", s.category))
                 }
+                .kwhInteractiveChartSurface()
 
                 if let title = centerTitle {
                     VStack(spacing: 2) {
@@ -422,6 +426,7 @@ public extension HyperDriveCharts {
                     .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 5]))
                 }
             }
+            .kwhInteractiveDataViz()
             .ifLet(yDomain) { view, domain in
                 view.chartYScale(domain: domain)
             }

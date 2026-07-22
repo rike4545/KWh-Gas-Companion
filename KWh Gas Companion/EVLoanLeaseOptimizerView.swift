@@ -110,6 +110,7 @@ public struct EVLoanLeaseOptimizerView: View {
                 LineMark(x: .value("Month", $0.m), y: .value("Est. Value", $0.v))
             }
             .frame(height: 200)
+            .kwhInteractiveDataViz()
         }
     }
 

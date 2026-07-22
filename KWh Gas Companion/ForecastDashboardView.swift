@@ -329,6 +329,7 @@ struct ForecastDashboardView: View {
             }
             .chartYAxis { AxisMarks(position: .leading) }
             .frame(height: 260)
+            .kwhInteractiveDataViz()
             .accessibilityLabel(metric == .cost ? "Monthly cost chart with forecast" : "Monthly kilowatt-hour chart with forecast")
         }
     }

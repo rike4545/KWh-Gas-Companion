@@ -194,6 +194,7 @@ public struct CarbonImpactDashboardView: View {
                     "EV": .primary,
                     "ICE": .secondary
                 ])
+                .kwhInteractiveDataViz()
                 .accessibilityLabel("Emissions by month chart")
             }
         }

@@ -2,9 +2,7 @@
 //  extension.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 9/11/25.
 //
-
 
 // ExpenseCategory.swift
 // Add these helpers to your enum

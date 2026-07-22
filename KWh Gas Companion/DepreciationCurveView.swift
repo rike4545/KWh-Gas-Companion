@@ -120,6 +120,7 @@ struct DepreciationCurveView: View {
         .chartXAxisLabel("Date")
         .chartYAxisLabel("Value")
         .frame(height: 240)
+        .kwhInteractiveDataViz()
         #else
         // Fallback: simple list of points if Charts is not available
         VStack(alignment: .leading, spacing: 8) {

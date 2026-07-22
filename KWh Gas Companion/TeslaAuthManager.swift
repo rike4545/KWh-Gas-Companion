@@ -2,9 +2,7 @@
 //  TeslaAuthManager.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 9/4/25.
 //
-
 
 import AuthenticationServices
 import CryptoKit
@@ -36,11 +34,13 @@ final class TeslaAuthManager: NSObject, ObservableObject {
 
     func startOAuth() async throws {
         if authEndpoint == nil || tokenEndpoint == nil { try await loadDiscovery() }
+        guard let authEndpoint else { return }
+        guard let callbackScheme = URL(string: redirectURI)?.scheme else { return }
 
         codeVerifier = Self.randomURLSafeString(64)
         let challenge = Self.codeChallengeS256(codeVerifier)
 
-        var comps = URLComponents(url: authEndpoint!, resolvingAgainstBaseURL: false)!
+        guard var comps = URLComponents(url: authEndpoint, resolvingAgainstBaseURL: false) else { return }
         comps.queryItems = [
             .init(name: "response_type", value: "code"),
             .init(name: "client_id", value: clientID),
@@ -50,10 +50,11 @@ final class TeslaAuthManager: NSObject, ObservableObject {
             .init(name: "code_challenge", value: challenge),
             .init(name: "code_challenge_method", value: "S256")
         ]
+        guard let authURL = comps.url else { return }
 
         currentSession = ASWebAuthenticationSession(
-            url: comps.url!,
-            callbackURLScheme: URL(string: redirectURI)!.scheme
+            url: authURL,
+            callbackURLScheme: callbackScheme
         ) { [weak self] callbackURL, error in
             guard let self, let url = callbackURL, error == nil else { return }
             Task { try? await self.exchangeCode(url: url) }

@@ -2,9 +2,7 @@
 //  TeslaSiteSummary.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 10/30/25.
 //
-
 
 // TeslaSitesService.swift
 // My KWh Companion

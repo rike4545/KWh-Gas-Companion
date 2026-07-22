@@ -964,7 +964,7 @@ enum Geocoder {
         req.region = region
         do {
             let resp = try await MKLocalSearch(request: req).start()
-            if let c = resp.mapItems.first?.placemark.location?.coordinate { return c }
+            if let c = resp.mapItems.first?.compatCoordinate { return c }
         } catch { }
         return nil
     }
@@ -1048,8 +1048,8 @@ struct PlaceSearchField: View {
         let req = MKLocalSearch.Request(completion: completion)
         Task {
             let search = MKLocalSearch(request: req)
-            if let item = try? await search.start().mapItems.first,
-               let coord = item.placemark.location?.coordinate {
+            if let item = try? await search.start().mapItems.first {
+                let coord = item.compatCoordinate
                 await MainActor.run {
                     applyingSelection = true
                     text = item.name ?? completion.title

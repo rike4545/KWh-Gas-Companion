@@ -1,12 +1,3 @@
-//
-//  AddVehicleView.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 12/24/25.
-//
-
-
-//
 //  AddVehicleView.swift
 //  KWh Gas Companion
 //

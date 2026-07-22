@@ -2,12 +2,17 @@
 //  VehicleProfileView.swift
 //  KWh Gas Companion
 //
-//  Vehicle editor
-//  - End user can set VIN + Plate/Marker
-//  - Photo rules:
-//      * Custom photo (stored on-device) ALWAYS wins
-//      * Otherwise Tesla/Rivian get an automatic bundled image (based on model)
-//  - UI tokens: uses AppThemeSpec for surfaces + separators, and AppAppearance for accent
+//  🔧 CRASH FIX: `.environment(\.editMode, .constant(...))` applied to a Form
+//     causes a crash on iOS 16/17. Form wraps a List internally and the injected
+//     editMode conflicts with the List's own internal edit-mode tracking, leading
+//     to a "Multiple environments with the same key" assertion failure.
+//     Fix: apply editMode only to the specific gallery ForEach section, not the
+//     entire Form. Restructured to use `.environment(\.editMode)` on just the
+//     gallery rows inside the Section, not on the Form itself.
+//
+//  🔧 FIX: bindText(String?) setter stored untrimmed `$0` instead of `t`.
+//     `t.isEmpty ? nil : $0` preserved leading/trailing whitespace in saved data.
+//     Corrected to `t.isEmpty ? nil : t`.
 //
 //  Swift 6 • iOS 17+
 //
@@ -60,6 +65,9 @@ struct VehicleProfileView: View {
     #endif
 
     var body: some View {
+        // 🔧 CRASH FIX: .environment(\.editMode) removed from Form.
+        // Applying it to Form crashes iOS 16/17 (assertion failure in List internals).
+        // editMode is now applied only to the gallery ForEach inside gallerySection.
         Form {
             photoSection
             gallerySection
@@ -74,15 +82,16 @@ struct VehicleProfileView: View {
         .navigationTitle("Vehicle")
         .navigationBarTitleDisplayMode(.inline)
         .tint(appearance.accentColor)
-        .environment(\.editMode, .constant(galleryReorderMode ? .active : .inactive))
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") { save() }
                     .disabled(!canSave)
             }
         }
-        .onAppear { load() }
-        .task { await loadGallery() }
+        .task(id: profileID) {
+            load()
+            await loadGallery()
+        }
         .onChange(of: galleryPickerItems) { _, newValue in
             guard !newValue.isEmpty else { return }
             Task { await importGalleryPhotos() }
@@ -106,7 +115,6 @@ struct VehicleProfileView: View {
                     Text(draft.displayName)
                         .font(.headline)
                         .lineLimit(1)
-
                     #if canImport(UIKit)
                     Text(photoSourceLabel)
                         .font(.footnote)
@@ -117,7 +125,6 @@ struct VehicleProfileView: View {
                         .foregroundStyle(.secondary)
                     #endif
                 }
-
                 Spacer()
             }
 
@@ -128,80 +135,69 @@ struct VehicleProfileView: View {
         }
     }
 
+    // Gallery section is split into three separate vars so no single
+    // @ViewBuilder closure contains more than one structural branch.
+    // Swift's type checker times out when a Section/ForEach closure
+    // combines if/else + ternary modifiers + #if blocks simultaneously.
     private var gallerySection: some View {
-        Section("Gallery") {
-            if galleryItems.isEmpty {
-                Text("No photos yet. Add a few to personalize this vehicle.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            } else {
-                Button(galleryReorderMode ? "Done Reordering" : "Reorder Photos") {
-                    galleryReorderMode.toggle()
-                }
-                .font(.footnote.weight(.semibold))
+        Section("Gallery") { galleryEmptyOrList }
+    }
 
-                ForEach(galleryItems) { item in
-                    HStack(spacing: 12) {
-                        #if canImport(UIKit)
-                        Image(uiImage: item.image)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 56, height: 44)
-                            .clipped()
-                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        #else
-                        VehicleEditorAvatarFallback(theme: theme, accent: appearance.accentColor)
-                            .frame(width: 56, height: 44)
-                        #endif
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(item.id.uuidString.prefix(8))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-
-                            if draft.coverPhotoId == item.id {
-                                Text("Cover photo")
-                                    .font(.caption2.weight(.semibold))
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-
-                        Spacer()
-
-                        Button {
-                            draft.coverPhotoId = item.id
-                        } label: {
-                            Text("Set Cover")
-                                .font(.caption.weight(.semibold))
-                        }
-                        .buttonStyle(.bordered)
-
-                        Button(role: .destructive) {
-                            Task { await deleteGalleryPhoto(id: item.id) }
-                        } label: {
-                            Image(systemName: "trash")
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .onMove(perform: moveGalleryItems)
-            }
+    @ViewBuilder
+    private var galleryEmptyOrList: some View {
+        if galleryItems.isEmpty {
+            Text("No photos yet. Add a few to personalize this vehicle.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        } else {
+            galleryReorderButton
+            galleryList
         }
+    }
+
+    private var galleryReorderButton: some View {
+        Button(galleryReorderMode ? "Done Reordering" : "Reorder Photos") {
+            galleryReorderMode.toggle()
+        }
+        .font(.footnote.weight(.semibold))
+    }
+
+    @ViewBuilder
+    private var galleryList: some View {
+        if galleryReorderMode {
+            ForEach(galleryItems, id: \.id) { item in
+                galleryItemRow(item)
+            }
+            .onMove(perform: moveGalleryItems)
+            .environment(\.editMode, .constant(.active))
+        } else {
+            ForEach(galleryItems, id: \.id) { item in
+                galleryItemRow(item)
+            }
+            .environment(\.editMode, .constant(.inactive))
+        }
+    }
+
+    private func galleryItemRow(_ item: VehicleGalleryItem) -> some View {
+        GalleryItemRow(
+            item: item,
+            isCover: draft.coverPhotoId == item.id,
+            theme: theme,
+            accent: appearance.accentColor,
+            onSetCover: { draft.coverPhotoId = item.id },
+            onDelete: { Task { await deleteGalleryPhoto(id: item.id) } }
+        )
     }
 
     private var basicsSection: some View {
         Section("Basics") {
             TextField("Name (e.g., Model 3)", text: bindText(\.name))
-
             TextField("Make", text: bindText(\.make))
                 .textInputAutocapitalization(.words)
-
             TextField("Model", text: bindText(\.model))
                 .textInputAutocapitalization(.words)
-
             TextField("Year (optional)", text: bindYear(\.year))
                 .keyboardType(.numberPad)
-
             Toggle("This is an EV", isOn: bindBool(\.isEV))
         }
     }
@@ -215,7 +211,6 @@ struct VehicleProfileView: View {
                     let cleaned = normalizeVIN(newValue)
                     if cleaned != newValue { draft.vin = cleaned }
                 }
-
             TextField("Plate / Marker Number", text: bindText(\.plateOrMarker))
                 .textInputAutocapitalization(.characters)
                 .autocorrectionDisabled(true)
@@ -227,18 +222,17 @@ struct VehicleProfileView: View {
             TextField("Plate State", text: bindText(\.plateState))
                 .textInputAutocapitalization(.characters)
                 .autocorrectionDisabled(true)
-
             TextField("Plate Style (optional)", text: bindText(\.plateStyle))
                 .textInputAutocapitalization(.words)
-
             Toggle("Track registration expiry", isOn: $registrationExpiryEnabled)
                 .onChange(of: registrationExpiryEnabled) { _, newValue in
-                    if newValue == false { draft.registrationExpires = nil }
-                    if newValue == true, draft.registrationExpires == nil {
-                        draft.registrationExpires = Calendar.current.date(byAdding: .year, value: 1, to: Date())
+                    if !newValue { draft.registrationExpires = nil }
+                    if newValue, draft.registrationExpires == nil {
+                        draft.registrationExpires = Calendar.current.date(
+                            byAdding: .year, value: 1, to: Date()
+                        )
                     }
                 }
-
             if registrationExpiryEnabled {
                 DatePicker(
                     "Registration expires",
@@ -253,13 +247,10 @@ struct VehicleProfileView: View {
         Section("Appearance") {
             TextField("Color (e.g., Midnight Silver)", text: bindText(\.colorName))
                 .textInputAutocapitalization(.words)
-
             TextField("Trim (e.g., Performance)", text: bindText(\.trim))
                 .textInputAutocapitalization(.words)
-
             TextField("Badge (optional)", text: bindText(\.badge))
                 .textInputAutocapitalization(.words)
-
             ColorPicker("Accent Color", selection: bindAccentColor())
         }
     }
@@ -271,19 +262,16 @@ struct VehicleProfileView: View {
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
             }
-
             LabeledContent("Efficiency (Wh/mi)") {
                 TextField("e.g., 260", text: bindDouble(\.efficiencyWhPerMile, digits: 0))
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
             }
-
             LabeledContent("Est. Range (mi)") {
                 TextField("optional", text: bindDouble(\.estimatedRangeMiles, digits: 0))
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
             }
-
             LabeledContent("Odometer (mi)") {
                 TextField("optional", text: bindDouble(\.odometerMiles, digits: 0))
                     .keyboardType(.decimalPad)
@@ -307,7 +295,6 @@ struct VehicleProfileView: View {
             } label: {
                 Label("Set as Current Vehicle", systemImage: "checkmark.seal.fill")
             }
-
             if isCurrentlySelected {
                 Text("This vehicle is currently selected.")
                     .font(.footnote)
@@ -319,8 +306,7 @@ struct VehicleProfileView: View {
     // MARK: - Validation
 
     private var canSave: Bool {
-        // keep permissive: a user can save a draft with make/model blank, but try to avoid empty profiles
-        let makeOk = !draft.make.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let makeOk  = !draft.make.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let modelOk = !draft.model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         return makeOk || modelOk || !draft.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
@@ -342,17 +328,14 @@ struct VehicleProfileView: View {
 
     private func save() {
         draft.updatedAt = Date()
-
         if let idx = profileStore.vehicles.firstIndex(where: { $0.id == draft.id }) {
             profileStore.vehicles[idx] = draft
         } else {
             profileStore.vehicles.append(draft)
         }
-
         profileStore.vehicles.sort {
             $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
         }
-
         if setSelected { setAsCurrentVehicle() }
         dismiss()
     }
@@ -365,21 +348,21 @@ struct VehicleProfileView: View {
 
     private func loadGallery() async {
         #if canImport(UIKit)
-        if draft.galleryPhotoIds.isEmpty, let legacy = await VehicleImageStore.load(id: draft.id) {
+        if draft.galleryPhotoIds.isEmpty,
+           let legacy = await VehicleImageStore.load(id: draft.id) {
             let newId = UUID()
             do {
                 try await VehicleImageStore.save(legacy, vehicleId: draft.id, photoId: newId)
                 await VehicleImageStore.delete(id: draft.id)
                 draft.galleryPhotoIds = [newId]
                 draft.coverPhotoId = newId
-            } catch {
-                // ignore migration error
-            }
+            } catch { /* migration error — ignore */ }
         }
-
         var loaded: [VehicleGalleryItem] = []
         for id in draft.galleryPhotoIds {
-            if let img = await VehicleImageStore.load(vehicleId: draft.id, photoId: id) {
+            if let img = await VehicleImageStore.loadThumbnail(
+                vehicleId: draft.id, photoId: id, maxPixel: 240
+            ) {
                 loaded.append(VehicleGalleryItem(id: id, image: img))
             }
         }
@@ -391,7 +374,6 @@ struct VehicleProfileView: View {
         #if canImport(UIKit)
         let items = galleryPickerItems
         galleryPickerItems = []
-
         for item in items {
             do {
                 if let data = try await item.loadTransferable(type: Data.self),
@@ -400,11 +382,12 @@ struct VehicleProfileView: View {
                     try await VehicleImageStore.save(img, vehicleId: draft.id, photoId: id)
                     draft.galleryPhotoIds.append(id)
                     if draft.coverPhotoId == nil { draft.coverPhotoId = id }
-                    galleryItems.append(VehicleGalleryItem(id: id, image: img))
+                    let thumb = await VehicleImageStore.loadThumbnail(
+                        vehicleId: draft.id, photoId: id, maxPixel: 240
+                    ) ?? img
+                    galleryItems.append(VehicleGalleryItem(id: id, image: thumb))
                 }
-            } catch {
-                // ignore bad items
-            }
+            } catch { /* ignore bad items */ }
         }
         #endif
     }
@@ -428,9 +411,11 @@ struct VehicleProfileView: View {
     // MARK: - Utilities
 
     private func normalizeVIN(_ input: String) -> String {
-        let upper = input.uppercased()
-        let filtered = upper.filter { $0.isASCII && ($0.isLetter || $0.isNumber) }
-        return String(filtered.prefix(17))
+        String(
+            input.uppercased()
+                .filter { $0.isASCII && ($0.isLetter || $0.isNumber) }
+                .prefix(17)
+        )
     }
 
     private func bindText(_ keyPath: WritableKeyPath<VehicleProfile, String>) -> Binding<String> {
@@ -445,7 +430,8 @@ struct VehicleProfileView: View {
             get: { draft[keyPath: keyPath] ?? "" },
             set: {
                 let t = $0.trimmingCharacters(in: .whitespacesAndNewlines)
-                draft[keyPath: keyPath] = t.isEmpty ? nil : $0
+                // 🔧 FIX: was `t.isEmpty ? nil : $0` — stored untrimmed value.
+                draft[keyPath: keyPath] = t.isEmpty ? nil : t
             }
         )
     }
@@ -460,9 +446,7 @@ struct VehicleProfileView: View {
             set: { newValue in
                 let t = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
                 if t.isEmpty { draft[keyPath: keyPath] = nil; return }
-                if let y = Int(t), y > 1900, y < 2200 {
-                    draft[keyPath: keyPath] = y
-                }
+                if let y = Int(t), y > 1900, y < 2200 { draft[keyPath: keyPath] = y }
             }
         )
     }
@@ -476,8 +460,7 @@ struct VehicleProfileView: View {
             set: { s in
                 let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
                 if t.isEmpty { draft[keyPath: keyPath] = nil; return }
-                let normalized = t.replacingOccurrences(of: ",", with: ".")
-                draft[keyPath: keyPath] = Double(normalized)
+                draft[keyPath: keyPath] = Double(t.replacingOccurrences(of: ",", with: "."))
             }
         )
     }
@@ -500,17 +483,102 @@ struct VehicleProfileView: View {
     private func bindAccentColor() -> Binding<Color> {
         Binding(
             get: {
-                if let hex = draft.accentHex, let color = Color(hex: hex) { return color }
+                if let hex = draft.accentHex, let color = Color.fromHex(hex) { return color }
                 return appearance.accentColor
             },
             set: { newValue in
-                if let hex = newValue.toHex() {
-                    draft.accentHex = hex
-                }
+                if let hex = newValue.toHex() { draft.accentHex = hex }
             }
         )
     }
 }
+
+// MARK: - Gallery item row (isolated struct so type checker has no parent state to resolve)
+
+#if canImport(UIKit)
+private struct GalleryItemRow: View {
+    let item: VehicleGalleryItem
+    let isCover: Bool
+    let theme: any AppThemeSpec
+    let accent: Color
+    let onSetCover: () -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(uiImage: item.image)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 56, height: 44)
+                .clipped()
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.id.uuidString.prefix(8))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if isCover {
+                    Text("Cover photo")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer()
+
+            Button(action: onSetCover) {
+                Text("Set Cover").font(.caption.weight(.semibold))
+            }
+            .buttonStyle(.bordered)
+
+            Button(role: .destructive, action: onDelete) {
+                Image(systemName: "trash")
+            }
+            .buttonStyle(.plain)
+        }
+    }
+}
+#else
+private struct GalleryItemRow: View {
+    let item: VehicleGalleryItem
+    let isCover: Bool
+    let theme: any AppThemeSpec
+    let accent: Color
+    let onSetCover: () -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.secondary.opacity(0.12))
+                .frame(width: 56, height: 44)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.id.uuidString.prefix(8))
+                    .font(.caption).foregroundStyle(.secondary)
+                if isCover {
+                    Text("Cover photo")
+                        .font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer()
+
+            Button(action: onSetCover) {
+                Text("Set Cover").font(.caption.weight(.semibold))
+            }
+            .buttonStyle(.bordered)
+
+            Button(role: .destructive, action: onDelete) {
+                Image(systemName: "trash")
+            }
+            .buttonStyle(.plain)
+        }
+    }
+}
+#endif
+
+// MARK: - Gallery item model
 
 #if canImport(UIKit)
 private struct VehicleGalleryItem: Identifiable {
@@ -528,9 +596,7 @@ private struct VehicleEditorAvatar: View {
     var body: some View {
         ZStack {
             if let uiImage {
-                Image(uiImage: uiImage)
-                    .resizable()
-                    .scaledToFill()
+                Image(uiImage: uiImage).resizable().scaledToFill()
             } else {
                 VehicleEditorAvatarFallback(theme: theme, accent: accent)
             }

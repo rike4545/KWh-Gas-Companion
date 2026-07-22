@@ -2,9 +2,7 @@
 //  DecodersHubView.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 8/11/25.
 //
-
 
 // DecodersHubView.swift
 import SwiftUI
@@ -27,10 +25,22 @@ struct DecodersHubView: View {
             } header: {
                 Text("VIN Tools")
             }
+
+            Section {
+                NavigationLink {
+                    TeslaServiceAlertScannerView()
+                } label: {
+                    Label("Tesla Service Alerts", systemImage: "exclamationmark.bubble")
+                }
+            } header: {
+                Text("Error Plan English DeCoder")
+            } footer: {
+                Text("Photo scan Tesla alert screenshots, then translate common firmware codes into severity, impact, and owner action.")
+            }
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.automatic)
-        .navigationTitle("VIN Decoders")
+        .navigationTitle("Decoders")
     }
 }
 
