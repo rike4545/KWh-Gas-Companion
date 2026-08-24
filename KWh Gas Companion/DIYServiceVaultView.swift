@@ -221,6 +221,18 @@ struct DIYServiceEntryEditor: View {
 
     let onSave: (DIYServiceEntry) -> Void
 
+    init(
+        prefillTitle: String = "",
+        prefillNotes: String = "",
+        prefillTags: [String] = [],
+        onSave: @escaping (DIYServiceEntry) -> Void
+    ) {
+        _title = State(initialValue: prefillTitle)
+        _notes = State(initialValue: prefillNotes)
+        _tagsText = State(initialValue: prefillTags.joined(separator: ", "))
+        self.onSave = onSave
+    }
+
     var body: some View {
         NavigationStack {
             Form {

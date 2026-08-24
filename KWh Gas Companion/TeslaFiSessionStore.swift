@@ -55,6 +55,10 @@ final class TeslaFiSessionStore: ObservableObject {
     private let blocksFileURL: URL
     private var isHydrating = true
 
+    /// Set when a mutation needs to reach disk; cleared once the save is
+    /// scheduled. See `persistAsync()`.
+    private var hasPendingSave = false
+
     private let encoder: JSONEncoder = {
         let enc = JSONEncoder()
         enc.dateEncodingStrategy = .iso8601
@@ -438,14 +442,36 @@ final class TeslaFiSessionStore: ObservableObject {
 
     // MARK: - Disk I/O
 
+    /// Schedules a save, coalescing every mutation made in the current run-loop
+    /// turn into a single encode + write.
+    ///
+    /// PERF: same bug as `EntriesStore.persistAsync()` — this encoded the whole
+    /// `sessions` array synchronously inside `sessions.didSet`. Any loop that
+    /// mutates sessions element-by-element therefore paid a full re-encode per
+    /// element; `applyEstimatedCost(ratePerKWh:onlySince:)` writes
+    /// `sessions[i].cost` for every uncosted session, so applying a rate across
+    /// a few thousand imported TeslaFi sessions froze the main thread outright.
+    /// Now a burst collapses into one save, and the encode itself runs on
+    /// `writeQueue` instead of the main thread.
     private func persistAsync() {
-        let data: Data
-        do { data = try encoder.encode(sessions) }
-        catch { return }
+        guard !hasPendingSave else { return }
+        hasPendingSave = true
 
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.hasPendingSave = false
+            self.flushSessionsToDisk(self.sessions)
+        }
+    }
+
+    private func flushSessionsToDisk(_ snapshot: [TeslaFiSession]) {
         let url = sessionsFileURL
         writeQueue.async {
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .iso8601
+
             do {
+                let data = try encoder.encode(snapshot)
                 var options: Data.WritingOptions = [.atomic]
                 #if os(iOS)
                 options.insert(.completeFileProtection)

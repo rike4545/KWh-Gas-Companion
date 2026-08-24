@@ -568,6 +568,8 @@ public struct CalculatorsDashboardView: View {
 
         case .csvChargingWizard: CSVChargingWizardView()
         case .csvExport: CSVExportView()
+        case .deliveryTracker: TeslaDeliveryTrackerView()
+        case .deliveryChecklist: DeliveryChecklistView()
         case .deepDepthShift: DeepDepthShiftView()
         case .doGoodDonationShift: DoGoodDonationShiftView()
         case .dynamicSuperchargingExplainer: DynamicSuperchargingExplainerView()
@@ -592,6 +594,8 @@ public struct CalculatorsDashboardView: View {
         case .homeVsPublicSplit: HomeVsPublicSplitView()
         case .incentives: IncentivesView()
         case .kWhRates: KWhRatesView()
+        case .libreNav: LibreNavView()
+        case .routeDiscovery: RouteDiscoveryView()
         case .leaseMileage: LeaseMileageView()
         case .mpgeCalculator: MPGeCalculatorView()
         case .materialsShift: EVMaterialsShiftView()
@@ -635,6 +639,7 @@ public struct CalculatorsDashboardView: View {
         case .chargeSpeedProfiler: ChargeSpeedProfilerView()
         case .tireMaintenanceTracker: TireMaintenanceTrackerView()
         case .diyServiceVault: DIYServiceVaultView()
+        case .maintenanceGuides: MaintenanceGuidesView()
         case .netCostPerMile: NetCostPerMileView()
         case .monthlyHeatmap: MonthlyHeatmapView()
         case .shareableReports: ShareableReportsView()
@@ -1017,8 +1022,9 @@ fileprivate let calcDashVisibleKinds: [CalculatorKind] = CalculatorKind.allCases
 
 fileprivate let calcDashEverydayKinds: [CalculatorKind] = [
     .cheapestChargerShift, .superchargerLivePricePredictor, .evVsCarComparison,
-    .chargingEtiquette, .winterDrivingTechniques, .superchargeInfoNearMe,
+    .chargingEtiquette, .maintenanceGuides, .winterDrivingTechniques, .superchargeInfoNearMe,
     .teslaServiceAlerts, .teslaEPCPartsCatalog, .rightToRepair, .lemonLawGuide,
+    .deliveryTracker, .deliveryChecklist,
     .forecastDashboard, .gridEmissionsForecast, .chartsBudget, .gasToKWhConverter,
     .evChargingVsGasTime, .unitConversion, .tripPlanner, .tripLogger
 ]
@@ -1094,36 +1100,27 @@ fileprivate struct CalcDashSparkPanelHost: View {
 fileprivate struct CalcDashBusinessDeductionReportDestination: View {
     @EnvironmentObject private var entriesStore: EntriesStore
 
+    // PERF: `dateOf` / `amountOf` used to resolve their values through
+    // `Mirror(reflecting:)`, walking every stored property of `ExpenseEntry`
+    // and lowercasing each label. `BusinessDeductionReportView.filteredSorted`
+    // calls `dateOf` twice per *sort comparison*, so a report over N entries
+    // performed O(N log N) reflections — ~44,000 Mirror walks for 2,000
+    // entries, each allocating ~25 lowercased strings. And `filteredSorted` is
+    // a computed property re-evaluated by the total, the eligible total and the
+    // list section on every body pass. That is a hard freeze on open and on
+    // every filter/sort toggle.
+    //
+    // `ExpenseEntry` has concrete `date` and `amount` properties — the same
+    // ones the rest of the app reads — so these are direct accesses now.
+    // (Same class of bug as FIX 2 in GasToKWhConverterView.swift.)
     var body: some View {
         BusinessDeductionReportView(
             items: entriesStore.entries,
-            dateOf: { bestDate($0) },
-            amountOf: { bestAmount($0) }
+            dateOf: { $0.date },
+            amountOf: { $0.amount }
         )
         .navigationTitle("Business Report")
         .navigationBarTitleDisplayMode(.inline)
-    }
-
-    private func bestDate(_ e: ExpenseEntry) -> Date {
-        if let d: Date = read(e, ["date", "timestamp"]) { return d }
-        if let s: String = read(e, ["dateString", "timestampString"]) {
-            let f = ISO8601DateFormatter()
-            if let d = f.date(from: s) { return d }
-        }
-        return .distantPast
-    }
-
-    private func bestAmount(_ e: ExpenseEntry) -> Double {
-        if let v: Double = read(e, ["amount", "cost", "value", "total"]) { return v }
-        return 0
-    }
-
-    private func read<T>(_ e: ExpenseEntry, _ labels: [String]) -> T? {
-        for child in Mirror(reflecting: e).children {
-            guard let label = child.label?.lowercased() else { continue }
-            if labels.contains(where: { $0.lowercased() == label }) { return child.value as? T }
-        }
-        return nil
     }
 }
 

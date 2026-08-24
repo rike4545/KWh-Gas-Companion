@@ -298,7 +298,7 @@ struct CSVChargingWizardView: View {
         switch step {
         case .select: step = .map
         case .map:    step = .options
-        case .options:startImport()
+        case .options: Task { await startImport() }
         case .import: dismiss()
         }
     }
@@ -406,7 +406,25 @@ struct CSVChargingWizardView: View {
 
     // MARK: - Import
 
-    private func startImport() {
+    /// Imports the parsed rows.
+    ///
+    /// PERF: this used to be a synchronous loop that called
+    /// `entriesStore.addOrReplace(_:)` once per row. Three things went wrong:
+    ///
+    ///  1. Every one of those calls re-encoded the *entire* entries array to
+    ///     JSON on the main thread (see `EntriesStore.persistAsync()`), so a
+    ///     3,000-row import spent ~23 s of solid main-thread time — measured,
+    ///     on a desktop CPU. On device it is far worse. That is the freeze.
+    ///  2. `addOrReplace` linear-scans for an existing id, so the loop was also
+    ///     O(n²) in its own right.
+    ///  3. The loop never returned to the run loop, so the progress bar it
+    ///     writes to could not draw. The UI sat at 0 % and then jumped to done
+    ///     — the import looked hung even while it was working.
+    ///
+    /// Now rows are built into a local array, progress is published in
+    /// throttled steps with a real suspension point so the bar animates, and
+    /// the store is mutated exactly once at the end via `upsertMany(_:)`.
+    private func startImport() async {
         step = .import
         isImporting = true
         imported = 0
@@ -427,6 +445,17 @@ struct CSVChargingWizardView: View {
         )
 
         let total = rows.count
+        // Publish progress every ~1 % rather than once per row; 3,000 rows
+        // meant 3,000 `@State` writes and as many view invalidations.
+        let progressStride = max(1, total / 100)
+
+        var built: [ExpenseEntry] = []
+        built.reserveCapacity(total)
+        var newIDs: [UUID] = []
+        newIDs.reserveCapacity(total)
+        var importedCount = 0
+        var skippedCount = 0
+
         for (idx, row) in rows.enumerated() {
             if let entry = buildEntry(
                 from: row,
@@ -435,19 +464,35 @@ struct CSVChargingWizardView: View {
             ) {
                 let key = entry.dedupeKey()
                 if dedupeEnabled && seen.contains(key) {
-                    skipped += 1
+                    skippedCount += 1
                 } else {
-                    entriesStore.addOrReplace(entry)
-                    imported += 1
+                    built.append(entry)
+                    importedCount += 1
                     seen.insert(key)
-                    importedIDs.append(entry.id)
+                    newIDs.append(entry.id)
                 }
             } else {
-                skipped += 1
+                skippedCount += 1
             }
-            progress = Double(idx + 1) / Double(max(total, 1))
+
+            if idx % progressStride == 0 || idx == total - 1 {
+                imported = importedCount
+                skipped = skippedCount
+                progress = Double(idx + 1) / Double(max(total, 1))
+                // Hand the main actor back so SwiftUI can commit a frame —
+                // this is what makes the progress bar actually move.
+                await Task.yield()
+            }
         }
 
+        imported = importedCount
+        skipped = skippedCount
+        importedIDs = newIDs
+
+        // Single store mutation: one change notification, one save.
+        entriesStore.upsertMany(built)
+
+        progress = 1
         missingKWhCount = computeMissingKWhCount()
         isImporting = false
         if imported > 0 { presentSuccessToast() }

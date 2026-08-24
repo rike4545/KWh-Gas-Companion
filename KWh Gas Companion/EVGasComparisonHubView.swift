@@ -1,5 +1,96 @@
 import SwiftUI
 
+// MARK: - Derived data snapshot
+//
+// PERF: Previously every one of `totalChargingCost`, `totalChargingKWh` and
+// `loggedMiles` was a computed property that walked (and, for `loggedMiles`,
+// *sorted*) the entire `entriesStore.entries` array. Those fed
+// `effectiveEVTotalPerMile`, which `scenario(for:)` called once per scenario
+// row — and `scenarioRows` was re-evaluated inside the `ForEach` body for the
+// `scenarioRows.count` check, so the whole thing was recomputed once per row.
+//
+// Net effect: ~45 full filter+compactMap+sort passes over every logged entry
+// on *each* SwiftUI body evaluation, and body was re-evaluated on every
+// keystroke in the input fields (each `@AppStorage` write invalidates it).
+// With a few thousand entries that is a multi-second main-thread stall — the
+// freeze users saw while typing a gas price into the comparison.
+//
+// Now: one O(n) pass per body evaluation, computed once and threaded through
+// the cards as plain values. No sort, no repeated `category.lowercased()`.
+
+private struct EVGasDataSnapshot {
+    var totalChargingCost: Double = 0
+    var totalChargingKWh: Double?
+    var loggedMiles: Double?
+
+    /// Charging spend per logged mile, when odometer coverage allows it.
+    var dataDerivedEVEnergyPerMile: Double? {
+        guard let loggedMiles, loggedMiles > 0 else { return nil }
+        return totalChargingCost / loggedMiles
+    }
+
+    /// Single linear pass: energy totals and odometer min/max at once.
+    /// Replaces `filter` + `compactMap` + `sorted()` with O(n) and no
+    /// intermediate array allocations.
+    static func make(from entries: [ExpenseEntry]) -> EVGasDataSnapshot {
+        var cost = 0.0
+        var kWh = 0.0
+        var sawKWh = false
+        var minOdometer: Double?
+        var maxOdometer: Double?
+
+        for entry in entries {
+            if let odometer = entry.odometer {
+                if minOdometer == nil || odometer < minOdometer! { minOdometer = odometer }
+                if maxOdometer == nil || odometer > maxOdometer! { maxOdometer = odometer }
+            }
+
+            guard entry.isEnergyEffective else { continue }
+            cost += max(0, entry.amount)
+            if let added = entry.energyAddedKWh {
+                kWh += added
+                sawKWh = true
+            }
+        }
+
+        var snapshot = EVGasDataSnapshot()
+        snapshot.totalChargingCost = cost
+        snapshot.totalChargingKWh = sawKWh ? kWh : nil
+        if let low = minOdometer, let high = maxOdometer, high > low {
+            snapshot.loggedMiles = high - low
+        }
+        return snapshot
+    }
+}
+
+/// Everything the cards need, resolved exactly once per body evaluation.
+private struct EVGasModel {
+    let snapshot: EVGasDataSnapshot
+    let evTotalPerMile: Double
+    let iceTotalPerMile: Double
+
+    var loggedMiles: Double? { snapshot.loggedMiles }
+    var dataDerivedEVEnergyPerMile: Double? { snapshot.dataDerivedEVEnergyPerMile }
+    var totalChargingCost: Double { snapshot.totalChargingCost }
+
+    func scenario(for miles: Double) -> ScenarioComparison {
+        let clippedMiles = max(0, miles)
+        let ev = clippedMiles * evTotalPerMile
+        let gas = clippedMiles * iceTotalPerMile
+        return ScenarioComparison(
+            miles: clippedMiles,
+            evTotalCost: ev,
+            gasTotalCost: gas,
+            savings: gas - ev
+        )
+    }
+
+    var loggedRangeComparison: ScenarioComparison? {
+        guard let miles = loggedMiles, miles > 0 else { return nil }
+        return scenario(for: miles)
+    }
+}
+
 @MainActor
 struct EVGasComparisonHubView: View {
     @Environment(\.appThemeBox) private var themeBox
@@ -18,49 +109,8 @@ struct EVGasComparisonHubView: View {
     private var theme: any AppThemeSpec { themeBox.base }
     private var currencyCode: String { Locale.current.currency?.identifier ?? "USD" }
 
-    private var energyEntries: [ExpenseEntry] {
-        entriesStore.entries.filter { $0.isEnergyEffective }
-    }
-
-    private var totalChargingCost: Double {
-        energyEntries.reduce(0.0) { $0 + max(0, $1.amount) }
-    }
-
-    private var totalChargingKWh: Double? {
-        let kWh = energyEntries.compactMap(\.energyAddedKWh)
-        guard !kWh.isEmpty else { return nil }
-        return kWh.reduce(0, +)
-    }
-
-    private var loggedMiles: Double? {
-        let odometers = entriesStore.entries.compactMap(\.odometer).sorted()
-        guard let first = odometers.first, let last = odometers.last, last > first else { return nil }
-        return last - first
-    }
-
-    private var dataDerivedEVEnergyPerMile: Double? {
-        guard let miles = loggedMiles, miles > 0 else { return nil }
-        return totalChargingCost / miles
-    }
-
-    private var dataDerivedEVKWhPerMile: Double? {
-        guard let miles = loggedMiles, miles > 0, let totalChargingKWh, totalChargingKWh > 0 else { return nil }
-        return totalChargingKWh / miles
-    }
-
     private var assumedEVEnergyPerMile: Double {
         max(0, electricityRate) * max(0, kWhPer100Miles) / 100.0
-    }
-
-    private var effectiveEVEnergyPerMile: Double {
-        if preferDataWhenAvailable, let value = dataDerivedEVEnergyPerMile {
-            return max(0, value)
-        }
-        return assumedEVEnergyPerMile
-    }
-
-    private var effectiveEVTotalPerMile: Double {
-        effectiveEVEnergyPerMile + max(0, evMaintPerMile)
     }
 
     private var effectiveICEPerMile: Double {
@@ -68,25 +118,41 @@ struct EVGasComparisonHubView: View {
         return max(0, gasPricePerGallon) / iceMPG + max(0, iceMaintPerMile)
     }
 
-    private var loggedRangeComparison: ScenarioComparison? {
-        guard let miles = loggedMiles, miles > 0 else { return nil }
-        return scenario(for: miles)
+    /// Builds the whole derived model in one pass. Called once per body.
+    private func makeModel() -> EVGasModel {
+        let snapshot = EVGasDataSnapshot.make(from: entriesStore.entries)
+
+        let evEnergyPerMile: Double
+        if preferDataWhenAvailable, let derived = snapshot.dataDerivedEVEnergyPerMile {
+            evEnergyPerMile = max(0, derived)
+        } else {
+            evEnergyPerMile = assumedEVEnergyPerMile
+        }
+
+        return EVGasModel(
+            snapshot: snapshot,
+            evTotalPerMile: evEnergyPerMile + max(0, evMaintPerMile),
+            iceTotalPerMile: effectiveICEPerMile
+        )
     }
 
-    private var scenarioRows: [ScenarioComparison] {
+    private func scenarioRows(_ model: EVGasModel) -> [ScenarioComparison] {
         let merged = presetMiles + [customMiles]
         let unique = Array(Set(merged.filter { $0 > 0 })).sorted()
-        return unique.map(scenario(for:))
+        return unique.map(model.scenario(for:))
     }
 
     var body: some View {
+        // PERF: resolved once, then handed to each card as a value.
+        let model = makeModel()
+
         ScrollView {
             LazyVStack(alignment: .leading, spacing: theme.spacing) {
                 headerCard
-                inputsCard
-                dataSnapshotCard
-                scenarioTableCard
-                annualizedCard
+                inputsCard(model)
+                dataSnapshotCard(model)
+                scenarioTableCard(model)
+                annualizedCard(model)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 20)
@@ -109,7 +175,7 @@ struct EVGasComparisonHubView: View {
         .themedCard(prominent: true)
     }
 
-    private var inputsCard: some View {
+    private func inputsCard(_ model: EVGasModel) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Inputs")
                 .font(.headline)
@@ -125,8 +191,8 @@ struct EVGasComparisonHubView: View {
             Toggle("Prefer saved charging data when available", isOn: $preferDataWhenAvailable)
                 .font(.footnote)
 
-            if let dataDerivedEVEnergyPerMile {
-                Text("Saved data currently implies about \(currency(dataDerivedEVEnergyPerMile))/mi in charging energy.")
+            if let derived = model.dataDerivedEVEnergyPerMile {
+                Text("Saved data currently implies about \(currency(derived))/mi in charging energy.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } else {
@@ -138,19 +204,19 @@ struct EVGasComparisonHubView: View {
         .themedCard()
     }
 
-    private var dataSnapshotCard: some View {
+    private func dataSnapshotCard(_ model: EVGasModel) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Current charging total")
                 .font(.headline)
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 10)], spacing: 10) {
-                metric("Charging spend", currency(totalChargingCost))
-                metric("Logged miles", loggedMiles.map { number($0, 0) + " mi" } ?? "Need odometer data")
-                metric("EV total $/mi", currency(effectiveEVTotalPerMile))
-                metric("Gas total $/mi", currency(effectiveICEPerMile))
+                metric("Charging spend", currency(model.totalChargingCost))
+                metric("Logged miles", model.loggedMiles.map { number($0, 0) + " mi" } ?? "Need odometer data")
+                metric("EV total $/mi", currency(model.evTotalPerMile))
+                metric("Gas total $/mi", currency(model.iceTotalPerMile))
             }
 
-            if let comparison = loggedRangeComparison {
+            if let comparison = model.loggedRangeComparison {
                 Divider().opacity(0.2)
                 Text("Using your logged distance of \(number(comparison.miles, 0)) miles, gas would be about \(currency(comparison.gasTotalCost)) at current assumptions versus EV total cost of \(currency(comparison.evTotalCost)).")
                     .font(.subheadline)
@@ -169,17 +235,21 @@ struct EVGasComparisonHubView: View {
         .themedCard()
     }
 
-    private var scenarioTableCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
+    private func scenarioTableCard(_ model: EVGasModel) -> some View {
+        // PERF: computed once here instead of once per rendered row.
+        let rows = scenarioRows(model)
+        let lastIndex = rows.count - 1
+
+        return VStack(alignment: .leading, spacing: 12) {
             Text("Mileage scenarios")
                 .font(.headline)
 
             VStack(spacing: 0) {
                 scenarioHeaderRow
-                ForEach(Array(scenarioRows.enumerated()), id: \.element.id) { index, row in
+                ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
                     Divider().opacity(0.15)
                     scenarioRow(row, highlight: row.miles == customMiles)
-                    if index == scenarioRows.count - 1 {
+                    if index == lastIndex {
                         Divider().opacity(0.15)
                     }
                 }
@@ -196,8 +266,8 @@ struct EVGasComparisonHubView: View {
         .themedCard()
     }
 
-    private var annualizedCard: some View {
-        let annual = scenario(for: 12000)
+    private func annualizedCard(_ model: EVGasModel) -> some View {
+        let annual = model.scenario(for: 12000)
         return VStack(alignment: .leading, spacing: 10) {
             Text("Annualized reference")
                 .font(.headline)
@@ -281,18 +351,6 @@ struct EVGasComparisonHubView: View {
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(theme.pillTint.opacity(0.2))
-        )
-    }
-
-    private func scenario(for miles: Double) -> ScenarioComparison {
-        let clippedMiles = max(0, miles)
-        let ev = clippedMiles * effectiveEVTotalPerMile
-        let gas = clippedMiles * effectiveICEPerMile
-        return ScenarioComparison(
-            miles: clippedMiles,
-            evTotalCost: ev,
-            gasTotalCost: gas,
-            savings: gas - ev
         )
     }
 

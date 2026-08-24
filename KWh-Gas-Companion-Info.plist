@@ -10,7 +10,7 @@
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-9917450718827221~5801754188</string>
 	<key>NSCameraUsageDescription</key>
-	<string>We use the camera to scan your vehicle product plate.</string>
+	<string>We use the camera to scan your vehicle product plate and to photograph issues you find during a delivery inspection.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Needed to calculate your charging station proximity and range estimates; nearby stations.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

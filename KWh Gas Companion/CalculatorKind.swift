@@ -38,6 +38,8 @@ public enum CalculatorKind: String, CaseIterable, Identifiable, Hashable, Sendab
 
     // D
     case dataQualityCenter
+    case deliveryTracker
+    case deliveryChecklist
     case deepDepthShift
     case discounts
     case evContent
@@ -63,6 +65,10 @@ public enum CalculatorKind: String, CaseIterable, Identifiable, Hashable, Sendab
     case garage
     case gridEmissionsForecast
 
+    // L
+    case libreNav
+    case routeDiscovery
+
     // H
     case historyOfTeslaAndRivian
     case homeVsPublicSplit
@@ -78,6 +84,7 @@ public enum CalculatorKind: String, CaseIterable, Identifiable, Hashable, Sendab
     case lemonLawGuide
 
     // M
+    case maintenanceGuides
     case mpgeCalculator
     case materialsShift
     case muscleCarShowdown
@@ -200,6 +207,8 @@ public enum CalculatorKind: String, CaseIterable, Identifiable, Hashable, Sendab
         case .csvChargingWizard:           return "CSV Charging Wizard"
         case .csvExport:                   return "CSV Export"
 
+        case .deliveryTracker:             return "Tesla Delivery Tracker"
+        case .deliveryChecklist:           return "Delivery Day Checklist"
         case .deepDepthShift:              return "Deep Analytics"
         case .dataQualityCenter:           return "Data Quality Center"
         case .doGoodDonationShift:         return "Shifting Do Good"
@@ -233,6 +242,7 @@ public enum CalculatorKind: String, CaseIterable, Identifiable, Hashable, Sendab
         case .leaseMileage:                return "Lease Mileage Overage"
         case .lemonLawGuide:              return "Lemon Law Guide"
 
+        case .maintenanceGuides:           return "DIY & Maintenance Guides"
         case .mpgeCalculator:              return "MPGe Calculator"
         case .materialsShift:             return "EV Materials & Environment"
         case .muscleCarShowdown:           return "EV vs Muscle Car Showdown"
@@ -317,6 +327,8 @@ public enum CalculatorKind: String, CaseIterable, Identifiable, Hashable, Sendab
         case .chargingSafetyChecklist:     return "Charging Safety Checklist"
         case .emergencyPackChecklist:      return "Emergency Pack Checklist"
         case .teslaInvoiceScan:            return "Tesla Invoice Scan"
+        case .libreNav:                    return "LibreNav Navigation"
+        case .routeDiscovery:              return "Route Discovery"
         }
     }
 
@@ -346,6 +358,8 @@ public enum CalculatorKind: String, CaseIterable, Identifiable, Hashable, Sendab
         case .csvChargingWizard:           return "tray.and.arrow.down"
         case .csvExport:                   return "square.and.arrow.up"
 
+        case .deliveryTracker:             return "shippingbox.and.arrow.backward"
+        case .deliveryChecklist:           return "checklist.checked"
         case .deepDepthShift:              return "brain"
         case .dataQualityCenter:           return "checkmark.shield"
         case .doGoodDonationShift:         return "heart"
@@ -382,6 +396,7 @@ public enum CalculatorKind: String, CaseIterable, Identifiable, Hashable, Sendab
         case .leaseMileage:                return "gauge"
         case .lemonLawGuide:              return "car.badge.exclamationmark"
 
+        case .maintenanceGuides:           return "wrench.and.screwdriver.fill"
         case .mpgeCalculator:              return "gauge"
         case .rangeForecast:               return "gauge"
         case .materialsShift:              return "leaf"
@@ -464,6 +479,8 @@ public enum CalculatorKind: String, CaseIterable, Identifiable, Hashable, Sendab
         case .chargingSafetyChecklist:     return "checklist"
         case .emergencyPackChecklist:      return "backpack"
         case .teslaInvoiceScan:            return "doc.text.magnifyingglass"
+        case .libreNav:                    return "map.fill"
+        case .routeDiscovery:              return "point.topleft.down.to.point.bottomright.curvepath.fill"
         }
     }
 
@@ -473,6 +490,8 @@ public enum CalculatorKind: String, CaseIterable, Identifiable, Hashable, Sendab
         case .superchargerLivePricePredictor: return "Predict tiered pricing from occupancy"
         case .chargingEtiquette:           return "Quick stall courtesy guide"
         case .caughtaKWH:                  return "Catch missing kWh and suspicious rates"
+        case .deliveryTracker:             return "Order stages, EDD countdown, VIN and build decode"
+        case .deliveryChecklist:           return "Inspect the car before you sign"
         case .deepDepthShift:              return "Energy, cost, miles, and data quality"
         case .chartsBudget:                return "Budgets by month and category"
         case .gasToKWhConverter:           return "Compare gas and electric"
@@ -512,6 +531,7 @@ public enum CalculatorKind: String, CaseIterable, Identifiable, Hashable, Sendab
         case .chargeSpeedProfiler:         return "Speed vs SOC trend"
         case .tireMaintenanceTracker:      return "Tire and service history"
         case .diyServiceVault:             return "Receipts and photos"
+        case .maintenanceGuides:           return "Step-by-step DIY procedures & specs"
         case .netCostPerMile:              return "True cost per mile"
         case .monthlyHeatmap:              return "Daily spend or kWh"
         case .shareableReports:            return "Share weekly summaries"
@@ -532,6 +552,8 @@ public enum CalculatorKind: String, CaseIterable, Identifiable, Hashable, Sendab
         case .weatherCockpit:              return "Forecast details for route planning"
         case .tripCockpit:                 return "Distance, route, speed, and energy"
         case .ticTacToe:                   return "Quick two-player cabin game"
+        case .libreNav:                    return "Turn-by-turn nav and charger discovery on open maps"
+        case .routeDiscovery:              return "Browse shared driving routes and save favorites"
         default:                           return "Open tool"
         }
     }

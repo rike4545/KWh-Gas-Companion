@@ -110,12 +110,25 @@ struct GasToKWhConverterView: View {
                 mpgInput = Self.formatNumber(persistedMPG, maxFrac: 1)
             }
         }
-        .onChange(of: gasPriceInput) { _, new in
-            if let v = parse(new), v > 0 { persistedGasPrice = v }
+        // 🔧 FIX 3: was `.onChange(of: gasPriceInput)` / `.onChange(of: mpgInput)`,
+        // which wrote UserDefaults on *every keystroke*. `DashboardView` reads the
+        // same two keys through `@AppStorage`, so each character typed here
+        // invalidated the entire dashboard body (hero card, stat tiles, the full
+        // LazyVGrid of cards) while it sat underneath in the navigation stack.
+        // That is what made typing a gas price feel like the app had frozen.
+        // Persist on focus change and on disappear instead — the value the
+        // dashboard cares about is the committed one, not each intermediate digit.
+        .onChange(of: focused) { old, _ in
+            if old != nil { commitPersistedValues() }
         }
-        .onChange(of: mpgInput) { _, new in
-            if let v = parse(new), v > 0 { persistedMPG = v }
-        }
+        .onDisappear { commitPersistedValues() }
+    }
+
+    /// Writes the current inputs to `@AppStorage`. Only called when a field is
+    /// committed, never per keystroke.
+    private func commitPersistedValues() {
+        if let v = parse(gasPriceInput), v > 0, v != persistedGasPrice { persistedGasPrice = v }
+        if let v = parse(mpgInput), v > 0, v != persistedMPG { persistedMPG = v }
     }
 
     // MARK: - Background

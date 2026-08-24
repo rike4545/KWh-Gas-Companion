@@ -27,16 +27,12 @@ final class EntriesStore: ObservableObject {
     private let saveURL: URL = EntriesStore.makeSaveURL()
     private var isHydrating = true
 
-    /// Serialize / write on a background queue (Data only, never the array itself).
+    /// Serial queue that owns both encoding and writing, off the main thread.
     private let writeQueue = DispatchQueue(label: "EntriesStore.WriteQueue", qos: .utility)
 
-    /// JSON encoder/decoder (main-actor only)
-    private let encoder: JSONEncoder = {
-        let enc = JSONEncoder()
-        enc.outputFormatting = []                 // compact
-        enc.dateEncodingStrategy = .iso8601
-        return enc
-    }()
+    /// Set when a mutation needs to reach disk; cleared once the save is
+    /// scheduled. See `persistAsync()` for why this exists.
+    private var hasPendingSave = false
 
     private let decoder: JSONDecoder = {
         let dec = JSONDecoder()
@@ -77,6 +73,33 @@ final class EntriesStore: ObservableObject {
     /// Alias kept for older call sites.
     func addOrReplace(_ entry: ExpenseEntry) {
         upsert(entry)
+    }
+
+    /// Insert-or-replace a whole batch in one shot.
+    ///
+    /// PERF: importers used to call `addOrReplace(_:)` in a loop. Each call did
+    /// a `firstIndex(where:)` linear scan of an array that grows with every
+    /// insert — O(n·m) — and mutated `entries` m times, so even with coalesced
+    /// saves SwiftUI got m change notifications. This builds an id→index map
+    /// once (O(n + m)) and assigns `entries` exactly once, producing a single
+    /// `objectWillChange` and a single save.
+    func upsertMany(_ incoming: [ExpenseEntry]) {
+        guard !incoming.isEmpty else { return }
+
+        var working = entries
+        var indexByID = [UUID: Int](minimumCapacity: working.count + incoming.count)
+        for (offset, entry) in working.enumerated() { indexByID[entry.id] = offset }
+
+        for entry in incoming {
+            if let idx = indexByID[entry.id] {
+                working[idx] = entry
+            } else {
+                indexByID[entry.id] = working.count
+                working.append(entry)
+            }
+        }
+
+        entries = working
     }
 
     /// Append without checking for an existing entry.
@@ -125,24 +148,45 @@ final class EntriesStore: ObservableObject {
 
     // MARK: - Disk IO
 
-    /// Encodes on the main actor (safe for `@MainActor`-isolated `entries`),
-    /// then writes the Data on a background queue.
+    /// Schedules a save, coalescing every mutation made in the current run-loop
+    /// turn into a single encode + write.
+    ///
+    /// PERF: this used to encode the *entire* entries array to JSON on the main
+    /// actor inside `entries.didSet` — synchronously, on every single mutation.
+    /// The CSV import in `CSVChargingWizardView.startImport()` calls
+    /// `addOrReplace(_:)` once per row in a synchronous loop, so importing N
+    /// rows performed N full encodes of an array that grows to N — O(N²) JSON
+    /// serialization on the main thread, with the whole UI (including the
+    /// import progress bar) wedged until it finished. A few thousand rows meant
+    /// a freeze measured in minutes.
+    ///
+    /// Now a burst of mutations sets a flag and hops through a `Task`, which
+    /// only runs once the synchronous burst has returned to the run loop, so
+    /// the import produces exactly one save. The encode itself also moved off
+    /// the main actor onto `writeQueue` — the array snapshot is a value type,
+    /// so handing it to the serial queue is safe and the queue preserves write
+    /// ordering.
     private func persistAsync() {
-        // 1) Encode on main actor
-        let data: Data
-        do {
-            data = try encoder.encode(entries)
-        } catch {
-            #if DEBUG
-            print("EntriesStore encode error:", error)
-            #endif
-            return
-        }
+        guard !hasPendingSave else { return }
+        hasPendingSave = true
 
-        // 2) Write Data off the main thread
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.hasPendingSave = false
+            self.flushToDisk(self.entries)
+        }
+    }
+
+    /// Encodes and writes `snapshot` on the serial write queue.
+    private func flushToDisk(_ snapshot: [ExpenseEntry]) {
         let url = saveURL
-        writeQueue.async { [url] in
+        writeQueue.async {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = []                 // compact
+            encoder.dateEncodingStrategy = .iso8601
+
             do {
+                let data = try encoder.encode(snapshot)
                 var options: Data.WritingOptions = [.atomic]
                 #if os(iOS)
                 options.insert(.completeFileProtection) // ignored where unsupported

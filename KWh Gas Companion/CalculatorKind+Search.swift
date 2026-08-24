@@ -36,7 +36,8 @@ extension CalculatorKind {
         case .forecastChart, .whatIfForecast, .rangeForecast, .kWhRates,
              .fastVsHomeImpact, .carbonImpactDashboard, .carbonOffset,
              .chargeTime, .superchargerStops, .tripPlanner, .schedulePlanner,
-             .homeChargerOptimizer, .winterRangeImpactPlanner, .routeCostCompare:
+             .homeChargerOptimizer, .winterRangeImpactPlanner, .routeCostCompare,
+             .libreNav, .routeDiscovery:
             return .planAndForecast
 
         // Charging & Analytics
@@ -69,6 +70,8 @@ extension CalculatorKind {
              .serviceReminders, .recalls, .accessoryTracker, .paymentMethod,
              .productPlateScannerArchive, .unitConversion, .serviceInvoices, .tripLogger,
              .winterDrivingTechniques, .tireMaintenanceTracker, .diyServiceVault,
+             .maintenanceGuides,
+             .deliveryTracker, .deliveryChecklist,
              .chargingSafetyChecklist, .emergencyPackChecklist,
              .teslaServiceAlerts, .altitudeCockpit, .weatherCockpit, .tripCockpit, .ticTacToe:
             return .vehicleTools
@@ -104,6 +107,10 @@ extension CalculatorKind {
             extra = "time compare charging vs gas fueling pump minutes hours stop duration"
         case .winterDrivingTechniques:
             extra = "winter snow ice cold driving tips traction braking regen preheat precondition tires chains defog black ice safe distance"
+        case .routeDiscovery:
+            extra = "route discovery shared routes drives scenic backroads community favorites saved trips explore browse road trip"
+        case .libreNav:
+            extra = "librenav navigation navigate turn by turn directions route map openstreetmap osm gps guidance trip planner waypoints chargers discovery voice eta"
         case .nearMe:
             extra = "nearby map chargers supercharger stations location"
         case .superchargeInfoNearMe:
@@ -182,6 +189,8 @@ extension CalculatorKind {
             extra = "tire maintenance tracker service history reminders"
         case .diyServiceVault:
             extra = "diy service vault receipts photos"
+        case .maintenanceGuides:
+            extra = "diy maintenance guides how to tutorial step by step tire rotation pattern directional staggered square lug nut torque 129 lb ft 175 nm 21mm star pattern jack pads lift pucks cabin air filter swap t20 torx trim tool footwell glovebox airflow arrow frunk filter housing ten screws radiator cleaning debris shop vac fins 10mm needle nose service mode red border diagnostics tpms low voltage high voltage thermal hvac alerts home charging setup schedule weekday weekend off peak time of use rates charge stats wheel torque reference juniper 18 19 20 21 inch"
         case .netCostPerMile:
             extra = "net cost per mile depreciation insurance energy"
         case .monthlyHeatmap:
@@ -194,6 +203,10 @@ extension CalculatorKind {
             extra = "route cost compare fast slow charging rate time"
         case .tcoMonthlyTimeline:
             extra = "tco timeline monthly ownership cost"
+        case .deliveryTracker:
+            extra = "delivery status tracker tesla order rn reference number edd estimated delivery date window countdown vin assigned assignment production built factory in transit shipping delivery center appointment handover order status booked routing location odometer mktoptions option codes build sheet spec viewer change log history waiting queue"
+        case .deliveryChecklist:
+            extra = "delivery day checklist inspection inspect new car acceptance panel gap paint defect walk around punch list due bill exterior interior functionality software charging documentation test drive extras photos notes pdf export advisor sign paperwork vin match handover"
         case .chargingSafetyChecklist:
             extra = "charging safety checklist"
         case .emergencyPackChecklist:
