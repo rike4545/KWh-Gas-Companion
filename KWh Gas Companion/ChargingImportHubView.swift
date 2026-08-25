@@ -1,24 +1,11 @@
-//
-//  ChargingImportHubView.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 12/10/25.
-//
-
-
-//
 //  ChargingImportHubView.swift
 //  My KWh Companion
 //
 //  Swift 6 / iOS 17+
 //
-//  Central “Import Center” for charging data:
-//  - Official Tesla Supercharging CSV  → CSVChargingWizardView (billing / ledger)
-//  - TeslaFi Monthly Analytics CSV     → TeslaFiCSVImportView (analytics sessions)
-//
-//  This view does NOT do any importing itself. It only routes to the
-//  appropriate importer and explains the difference between them.
-//
+//  Central "Import Center" for charging data.
+//  ✅ Wired: ImportHubOnboardingSheet (shows once on first launch)
+//  🔧 FIX: TeslaFiTripCSVImportView → TeslaFiCSVImportView (was undefined, caused crash)
 //
 
 import SwiftUI
@@ -28,11 +15,10 @@ struct ChargingImportHubView: View {
     @EnvironmentObject private var appearance: AppAppearance
     @Environment(\.colorScheme) private var scheme
     @StateObject private var adsStore = AdsEntitlementStore.shared
-    @StateObject private var teslaFiUnlock = TeslaFiEntitlementStore.shared
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
+            VStack(spacing: 24) {
                 header
 
                 VStack(spacing: 16) {
@@ -49,29 +35,48 @@ struct ChargingImportHubView: View {
                                 "Supports duplicate skipping & optional kWh backfill"
                             ],
                             accent: appearance.accentColor,
-                            isAnalytics: false,
-                            locked: false
+                            badge: "Official",
+                            isAnalytics: false
                         )
                     }
                     .buttonStyle(.plain)
 
                     NavigationLink {
+                        DirectConnectionClientView()
+                    } label: {
+                        ImportTile(
+                            icon: "server.rack",
+                            title: "TeslaMate",
+                            subtitle: "Connect your self-hosted TeslaMate API or compatible proxy, review live data, and import fetched charging sessions.",
+                            bulletPoints: [
+                                "Supports cars, status, drives, charges, geofences, costs, and charging widgets",
+                                "Imports TeslaMate charges into existing analytics with duplicate skipping",
+                                "Works with read-only API tokens over HTTPS, LAN, or VPN"
+                            ],
+                            accent: appearance.accentColor,
+                            badge: "Self-hosted",
+                            isAnalytics: true
+                        )
+                    }
+                    .buttonStyle(.plain)
+
+                    // 🔧 FIX: was TeslaFiTripCSVImportView() — undefined, crash at runtime.
+                    // Correct type is TeslaFiCSVImportView.
+                    NavigationLink {
                         TeslaFiCSVImportView()
                     } label: {
                         ImportTile(
-                            icon: "chart.line.uptrend.xyaxis",
-                            title: "TeslaFi Monthly Analytics CSV",
-                            subtitle: teslaFiUnlock.hasTeslaFiUnlock
-                                ? "Import monthly CSV exports from TeslaFi.com to build richer analytics and reconstructed charging sessions."
-                                : "Unlock for $0.99 to import monthly CSV exports from TeslaFi.com.",
+                            icon: "road.lanes",
+                            title: "TeslaFi Raw Trip CSV",
+                            subtitle: "Import raw TeslaFi polling logs and derive trip segments for trip summaries and route history.",
                             bulletPoints: [
-                                "Uses TeslaFiSessionStore.parseTeslaFiCSV",
-                                "Safe to re-import the same month (duplicates are skipped)",
-                                "Does not modify your official Tesla billing history"
+                                "Derives trips from speed, shift state, and odometer changes",
+                                "Stores trips locally on-device",
+                                "Keeps this separate from charging-session CSV import"
                             ],
                             accent: appearance.accentColor,
-                            isAnalytics: true,
-                            locked: !teslaFiUnlock.hasTeslaFiUnlock
+                            badge: "Analytics",
+                            isAnalytics: true
                         )
                     }
                     .buttonStyle(.plain)
@@ -86,12 +91,33 @@ struct ChargingImportHubView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 24)
         }
-        .background(Color(uiColor: .systemGroupedBackground))
-        .navigationTitle("Charging Imports")
+        .contentMargins(.top, 72, for: .scrollContent)
+        .background(backgroundGradient.ignoresSafeArea())
+        .navigationTitle("Imports")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Color(uiColor: .systemGroupedBackground), for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .task {
             await adsStore.load()
-            await teslaFiUnlock.load()
+        }
+        .toolbar(.hidden, for: .tabBar)
+        // ✅ Shows the welcome onboarding sheet on first launch, never again after.
+        .importHubOnboarding()
+    }
+
+    // MARK: - Background
+
+    private var backgroundGradient: some View {
+        ZStack {
+            Color(uiColor: .systemGroupedBackground)
+            LinearGradient(
+                colors: [
+                    appearance.accentColor.opacity(scheme == .dark ? 0.10 : 0.06),
+                    Color.clear
+                ],
+                startPoint: .top,
+                endPoint: .center
+            )
         }
     }
 
@@ -100,30 +126,36 @@ struct ChargingImportHubView: View {
     private var header: some View {
         let accent = appearance.accentColor
 
-        return VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(accent.opacity(scheme == .dark ? 0.25 : 0.18))
-                    Image(systemName: "bolt.fill")
-                        .font(.title2.weight(.semibold))
-                }
-                .frame(width: 40, height: 40)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Charging Import Center")
-                        .font(.title2.weight(.semibold))
-                    Text("Choose how you want to bring charging data into My KWh Companion.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
+        return HStack(spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(accent.opacity(scheme == .dark ? 0.22 : 0.14))
+                    .frame(width: 52, height: 52)
+                Image(systemName: "arrow.down.doc.fill")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(accent)
             }
 
-            Text("Use the **Official Tesla Supercharging CSV** importer for real billing history from Tesla. Use the **TeslaFi Monthly Analytics CSV** importer for rich, time-series logs from TeslaFi.com. They are fully independent pipelines.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Import Center")
+                    .font(.title2.weight(.bold))
+                Text("Choose a data pipeline to bring charging history into My KWh Companion.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 0)
         }
+        .padding(18)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.07))
+                )
+        )
+        .frame(maxWidth: 640)
     }
 }
 
@@ -135,48 +167,60 @@ fileprivate struct ImportTile: View {
     let subtitle: String
     let bulletPoints: [String]
     let accent: Color
+    let badge: String
     let isAnalytics: Bool
-    let locked: Bool
 
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
+            // Header row
+            HStack(spacing: 14) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(accent.opacity(scheme == .dark ? 0.26 : 0.18))
+                        .fill(accent.opacity(scheme == .dark ? 0.24 : 0.16))
+                        .frame(width: 50, height: 50)
                     Image(systemName: icon)
-                        .font(.system(size: 24, weight: .semibold))
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundStyle(accent)
                 }
-                .frame(width: 44, height: 44)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(title)
-                        .font(.headline)
+                    HStack(spacing: 8) {
+                        Text(title)
+                            .font(.headline)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 0)
+                        // Badge chip
+                        Text(badge)
+                            .font(.caption2.weight(.semibold))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(
+                                Capsule()
+                                    .fill(accent.opacity(scheme == .dark ? 0.28 : 0.18))
+                            )
+                            .foregroundStyle(accent)
+                    }
                     Text(subtitle)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                Spacer()
-                if locked {
-                    Text("Locked")
-                        .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Capsule().fill(accent.opacity(0.18)))
-                }
-                Image(systemName: "chevron.right")
-                    .foregroundStyle(.secondary)
             }
 
-            VStack(alignment: .leading, spacing: 6) {
+            Divider()
+                .opacity(0.5)
+
+            // Bullets
+            VStack(alignment: .leading, spacing: 7) {
                 ForEach(bulletPoints, id: \.self) { point in
-                    HStack(alignment: .top, spacing: 6) {
-                        Image(systemName: isAnalytics ? "sparkles" : "checkmark.circle")
-                            .font(.caption)
-                            .foregroundStyle(isAnalytics ? accent : .secondary)
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: isAnalytics ? "sparkle" : "checkmark.circle.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(isAnalytics ? accent : .green)
+                            .frame(width: 16, height: 16)
+                            .padding(.top, 1)
                         Text(point)
                             .font(.footnote)
                             .foregroundStyle(.secondary)
@@ -184,20 +228,37 @@ fileprivate struct ImportTile: View {
                     }
                 }
             }
+
+            // Footer row
+            HStack {
+                Spacer()
+                HStack(spacing: 4) {
+                    Text("Open")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(accent)
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(accent)
+                }
+            }
         }
-        .padding(16)
+        .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(Color(uiColor: .secondarySystemBackground))
                 .shadow(
-                    color: Color.black.opacity(scheme == .dark ? 0.35 : 0.10),
-                    radius: 10,
+                    color: Color.black.opacity(scheme == .dark ? 0.30 : 0.08),
+                    radius: 12,
                     x: 0,
                     y: 4
                 )
         )
-        .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06))
+        )
+        .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
 

@@ -1,0 +1,455 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="NONE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="593caa76-21a0-4256-b0d6-60dbfb79e230" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/../KWh Gas Companion/AppLocalization.swift" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../KWh Gas Companion/AppPermissionBootstrap.swift" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../KWh Gas Companion/AppRootIntegration.swift" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../KWh Gas Companion/BrandComponents.swift" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../KWh Gas Companion/BrandThemeEngine.swift" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../KWh Gas Companion/CSVDropTargetModifier.swift" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../KWh Gas Companion/ImportHubOnboardingSheet.swift" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../KWh Gas Companion/RowIssueSeverity.swift" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../KWh Gas Companion/Statelaw.swift" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../KWh Gas Companion/StoreCoordinator.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion.xcodeproj/project.pbxproj" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion.xcodeproj/project.pbxproj" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/AIEvidence.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/AIEvidence.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ALVRules.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ALVRules.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/AccentChoice.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/AccentChoice.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/AckCredit.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/AckCredit.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ActivityView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ActivityView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/AdBannerCard.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/AdBannerCard.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/AdMobBannerView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/AdMobBannerView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/AddEditEntryView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/AddEditEntryView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/AddVehicleView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/AddVehicleView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/AdsInlineEnvironment.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/AdsInlineEnvironment.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/AnalyticsChartsView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/AnalyticsChartsView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/AppInfoView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/AppInfoView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/AppLockManager.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/AppLockManager.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/AppPolish.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/AppPolish.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/AppThemeSpec.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/AppThemeSpec.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/AppUISettings.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/AppUISettings.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/BatteryHealthView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/BatteryHealthView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/BudgetStore.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/BudgetStore.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/CSVChargingWizardView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/CSVChargingWizardView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/CSVExportView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/CSVExportView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/CSVParse.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/CSVParse.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/CSVToast.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/CSVToast.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/CalculatorKind+Search.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/CalculatorKind+Search.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/CalculatorKind.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/CalculatorKind.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/CalculatorsDashboardView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/CalculatorsDashboardView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/CarbonImpactDashboardView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/CarbonImpactDashboardView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/CarsVsEVCalculatorView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/CarsVsEVCalculatorView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ChargeLogDocument.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ChargeLogDocument.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ChargeSeason.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ChargeSeason.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ChargeTimeView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ChargeTimeView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ChargingBudgetConfig.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ChargingBudgetConfig.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ChargingBudgetGuardrailsEngine.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ChargingBudgetGuardrailsEngine.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ChargingBudgetGuardrailsView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ChargingBudgetGuardrailsView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ChargingClassifier.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ChargingClassifier.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ChargingDataHubView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ChargingDataHubView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ChargingDataSource.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ChargingDataSource.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ChargingEtiquetteHomeView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ChargingEtiquetteHomeView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ChargingHistoryProvider.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ChargingHistoryProvider.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ChargingImportHubView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ChargingImportHubView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ChargingLedgerItem.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ChargingLedgerItem.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ChargingLocationNormalizer.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ChargingLocationNormalizer.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ChargingMergeReviewView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ChargingMergeReviewView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ChargingReconciliationView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ChargingReconciliationView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ChargingSession.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ChargingSession.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ChargingStatus.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ChargingStatus.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ChartSession.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ChartSession.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ChartsBudgetView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ChartsBudgetView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/CheapestChargerShift.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/CheapestChargerShift.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/CodingKeys.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/CodingKeys.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/Color+Hex.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/Color+Hex.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/CombinedChargeSessionView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/CombinedChargeSessionView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/CombinedOwnershipView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/CombinedOwnershipView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/CostBreakdownDetailView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/CostBreakdownDetailView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/CostPerKWhMode.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/CostPerKWhMode.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/CostPerKWhStrategy.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/CostPerKWhStrategy.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/CostPerKWhTrendView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/CostPerKWhTrendView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/CostPerMileAndCO2View.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/CostPerMileAndCO2View.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/CostPerMileVsGasView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/CostPerMileVsGasView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/DIYServiceVaultView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/DIYServiceVaultView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/DashboardLayoutEditorView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/DashboardLayoutEditorView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/DashboardLayoutStore.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/DashboardLayoutStore.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/DashboardView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/DashboardView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/DataQualityCenterView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/DataQualityCenterView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/DateRangeSheet.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/DateRangeSheet.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/DecodersHubView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/DecodersHubView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/DeepDepthShiftView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/DeepDepthShiftView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/DepreciationCurveView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/DepreciationCurveView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/DetailVehicleView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/DetailVehicleView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/DiscountsView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/DiscountsView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/DistanceUnit.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/DistanceUnit.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/DriveSession.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/DriveSession.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/DrivingStyle.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/DrivingStyle.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/DuplicateResolverView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/DuplicateResolverView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/DynamicSuperchargingExplainerCAView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/DynamicSuperchargingExplainerCAView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/DynamicSuperchargingExplainerFLView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/DynamicSuperchargingExplainerFLView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/DynamicSuperchargingExplainerILView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/DynamicSuperchargingExplainerILView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/DynamicSuperchargingExplainerNJView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/DynamicSuperchargingExplainerNJView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/DynamicSuperchargingExplainerView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/DynamicSuperchargingExplainerView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/DynamicThemeBridge.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/DynamicThemeBridge.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/EVChargingLedgerSource.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/EVChargingLedgerSource.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/EVChargingVsGasTimeCalculatorView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/EVChargingVsGasTimeCalculatorView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/EVCompanionShortcuts.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/EVCompanionShortcuts.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/EVContentView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/EVContentView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/EVLoanLeaseOptimizerView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/EVLoanLeaseOptimizerView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/EVNewsView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/EVNewsView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/EVSite.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/EVSite.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/EVgoPlan.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/EVgoPlan.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/EVgoPlanSpec.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/EVgoPlanSpec.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/EVvsCarComparisonView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/EVvsCarComparisonView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/EmptyStateView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/EmptyStateView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/EnergyConversion.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/EnergyConversion.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/EnergyEventLink.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/EnergyEventLink.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/EnergyEventStore.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/EnergyEventStore.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/EnergyInsightCategory.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/EnergyInsightCategory.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/EnergyMix.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/EnergyMix.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/EnergyModel.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/EnergyModel.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/EnergySourceKind.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/EnergySourceKind.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/EntriesStore.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/EntriesStore.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/EtiquetteTip.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/EtiquetteTip.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ExpenseEditorView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ExpenseEditorView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ExpenseFilter.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ExpenseFilter.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ExpenseListContentView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ExpenseListContentView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ExpenseListTabView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ExpenseListTabView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ExpenseListView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ExpenseListView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ExpenseListViewModel.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ExpenseListViewModel.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ExpenseRowView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ExpenseRowView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ExpenseSection.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ExpenseSection.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/FastVsHomeImpactView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/FastVsHomeImpactView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/FilterMenu.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/FilterMenu.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ForecastChartView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ForecastChartView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ForecastDashboardView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ForecastDashboardView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ForecastHeaderView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ForecastHeaderView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ForecastRange.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ForecastRange.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/GarageVehicleSummary.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/GarageVehicleSummary.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/GarageVehicleSummaryPreviewCompat.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/GarageVehicleSummaryPreviewCompat.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/GarageView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/GarageView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/GasTaxView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/GasTaxView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/GoogleService-Info.plist" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/GoogleService-Info.plist" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/HomeView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/HomeView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/HourlyPriceBucket.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/HourlyPriceBucket.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/HyperDriveCharts.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/HyperDriveCharts.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/IncentivesView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/IncentivesView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/KWChargeLogEntry.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/KWChargeLogEntry.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/KWh.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/KWh.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/KWhRatesView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/KWhRatesView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/KWhServices.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/KWhServices.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/KWh_Gas_Companion.entitlements" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/KWh_Gas_Companion.entitlements" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/KWh_Gas_CompanionApp.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/KWh_Gas_CompanionApp.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/LoadPhase.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/LoadPhase.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/LocalJSONStore.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/LocalJSONStore.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/MECChargingProvider.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/MECChargingProvider.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/MECChargingStudioRecord.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/MECChargingStudioRecord.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/MainTabView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/MainTabView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/MissingCostAssistantView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/MissingCostAssistantView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/MonthToDateSummary.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/MonthToDateSummary.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/MonthlyChargingChangeCard.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/MonthlyChargingChangeCard.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/MonthlyForecast.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/MonthlyForecast.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/NearMeView+Compat.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/NearMeView+Compat.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/NearMeView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/NearMeView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/NotificationRole.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/NotificationRole.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/NumericField.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/NumericField.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/OnboardingFlow.swift" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/PaymentMethod.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/PaymentMethod.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/PaymentMethodView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/PaymentMethodView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/PaywallView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/PaywallView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/Persistence.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/Persistence.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/PremiumStore.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/PremiumStore.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/PriceWatchlistStore.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/PriceWatchlistStore.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ProductPlateInfo.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ProductPlateInfo.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ProviderComparison.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ProviderComparison.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ProviderDelta.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ProviderDelta.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/PublicIncentiveFinderView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/PublicIncentiveFinderView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/QuarterlyTaxSummaryView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/QuarterlyTaxSummaryView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/RangeForecastView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/RangeForecastView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/RatesStore.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/RatesStore.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/RecallsView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/RecallsView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ReimbursementGeneratorView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ReimbursementGeneratorView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ReorderableList.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ReorderableList.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/RouteProbe.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/RouteProbe.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/SCISiteStatus.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/SCISiteStatus.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/Season.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/Season.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/SectionHeader.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/SectionHeader.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ServiceInvoice.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ServiceInvoice.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ServiceInvoicesListView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ServiceInvoicesListView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ServiceInvoicesStore.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ServiceInvoicesStore.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/SessionAnalyticsView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/SessionAnalyticsView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/SessionEfficiencyScatterView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/SessionEfficiencyScatterView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/SettingsView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/SettingsView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ShareSheet.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ShareSheet.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/SiteExplorerView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/SiteExplorerView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/SitePinView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/SitePinView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/SiteStore.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/SiteStore.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/SparkAssistantProviding.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/SparkAssistantProviding.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/SparkPanel.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/SparkPanel.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/SparkyDI.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/SparkyDI.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/SparkyEngine.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/SparkyEngine.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/SparkyShare.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/SparkyShare.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/StationRatesManagerView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/StationRatesManagerView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/SuperchargeInfoJSON.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/SuperchargeInfoJSON.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/SuperchargePricingInfoModule.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/SuperchargePricingInfoModule.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/SuperchargerLivePricePredictor.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/SuperchargerLivePricePredictor.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/SuperchargerLocationProvider.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/SuperchargerLocationProvider.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/SuperchargerPredictionViewModel.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/SuperchargerPredictionViewModel.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/SuperchargerPriceSample.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/SuperchargerPriceSample.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/SuperchargerRateControl.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/SuperchargerRateControl.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/SuperchargerStationDatabase.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/SuperchargerStationDatabase.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/SystemTheme.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/SystemTheme.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TCOTimelineView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/TCOTimelineView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TPOpenRouterProvider.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/TPOpenRouterProvider.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TPTripPlannerEngine.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/TPTripPlannerEngine.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TeslaAuthManager.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/TeslaAuthManager.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TeslaFiCSVImportView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/TeslaFiCSVImportView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TeslaFiEntitlementStore.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/TeslaFiEntitlementStore.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TeslaFiIssueSeverity.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/TeslaFiIssueSeverity.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TeslaFiSessionNormalizationEngine.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/TeslaFiSessionNormalizationEngine.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TeslaFiSessionStore+Importing.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/TeslaFiSessionStore+Importing.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TeslaFiSessionStore.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/TeslaFiSessionStore.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TeslaFiTrip.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/TeslaFiTrip.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TeslaFiTripStore.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/TeslaFiTripStore.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TeslaFiUnlockCard.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/TeslaFiUnlockCard.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TeslaFindUsIndexEntry.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/TeslaFindUsIndexEntry.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TeslaMateAPIClient.swift" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TeslaMateActivityAttributes.swift" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TeslaMateLiveActivityManager.swift" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TeslaMateOnboardingWizardView.swift" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TeslaMateProClientView.swift" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TeslaMateWidgetData.swift" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TeslaMateWidgets.swift" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TeslaSCOfficialPriceRecord.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/TeslaSCOfficialPriceRecord.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TeslaSiteSummary.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/TeslaSiteSummary.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TeslaStatusTile.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/TeslaStatusTile.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ThemeBackground.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ThemeBackground.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ThemeBinder.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ThemeBinder.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ThemeCoordinator+Box.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ThemeCoordinator+Box.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ThemeCoordinator.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ThemeCoordinator.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ThemedCard.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ThemedCard.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TileButton.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/TileButton.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TimeOfUseTier.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/TimeOfUseTier.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TireMaintenanceTrackerView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/TireMaintenanceTrackerView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ToolCardSection.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ToolCardSection.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/ToolUsageStore.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/ToolUsageStore.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TripLoggerView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/TripLoggerView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TripPlannerModels.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/TripPlannerModels.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TripPlannerView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/TripPlannerView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TripSegment.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/TripSegment.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TripShiftListView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/TripShiftListView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TripShiftStore.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/TripShiftStore.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TripSummary.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/TripSummary.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/TripsAndChargingRoot.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/TripsAndChargingRoot.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/UIShims.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/UIShims.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/UnifiedVINDecoderView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/UnifiedVINDecoderView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/VINDecoderContainerView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/VINDecoderContainerView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/VehicleAvatarView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/VehicleAvatarView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/VehicleIdentity.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/VehicleIdentity.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/VehicleImageStore.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/VehicleImageStore.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/VehicleMenu.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/VehicleMenu.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/VehicleProfile.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/VehicleProfile.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/VehicleProfileListView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/VehicleProfileListView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/VehicleProfileView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/VehicleProfileView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/WeeklyChargingForecastView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/WeeklyChargingForecastView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/WeeklyEVVsGasCostView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/WeeklyEVVsGasCostView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/WeeklyForecastSummary.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/WeeklyForecastSummary.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/WinterDrivingTechniquesView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/WinterDrivingTechniquesView.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh Gas Companion/extension.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh Gas Companion/extension.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../KWh-Gas-Companion-Info.plist" beforeDir="false" afterPath="$PROJECT_DIR$/../KWh-Gas-Companion-Info.plist" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/build.gradle.kts" beforeDir="false" afterPath="$PROJECT_DIR$/app/build.gradle.kts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/AndroidManifest.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/AndroidManifest.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/AppRoot.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/AppRoot.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/MainActivity.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/MainActivity.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/MyEVCompanionApp.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/MyEVCompanionApp.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/core/AppState.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/core/AppState.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/data/Stores.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/data/Stores.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/ui/components/AdBannerCard.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/ui/navigation/Destinations.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/ui/navigation/Destinations.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/ui/screens/ChargingImportHubScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/ui/screens/ChargingImportHubScreen.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/ui/screens/ChargingScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/ui/screens/ChargingScreen.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/ui/screens/EditEntryScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/ui/screens/EditEntryScreen.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/ui/screens/ExpensesScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/ui/screens/ExpensesScreen.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/ui/screens/FeatureListScreen.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/ui/screens/HomeScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/ui/screens/HomeScreen.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/ui/screens/SettingsScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/ui/screens/SettingsScreen.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/ui/screens/ToolsScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/ui/screens/ToolsScreen.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/ui/screens/VehiclesScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/ui/screens/VehiclesScreen.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/ui/theme/Theme.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/ui/theme/Theme.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/ui/theme/Type.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/myevcompanion/app/ui/theme/Type.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/res/values/strings.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/res/values/strings.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/res/values/themes.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/res/values/themes.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build.gradle.kts" beforeDir="false" afterPath="$PROJECT_DIR$/build.gradle.kts" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ClangdSettings">
+    <option name="formatViaClangd" value="false" />
+  </component>
+  <component name="ExecutionTargetManager" SELECTED_TARGET="device_and_snapshot_combo_box_target[LocalEmulator::path=/Users/bryan/.android/avd/Pixel_7.avd]" />
+  <component name="ExternalProjectsData">
+    <projectState path="$PROJECT_DIR$">
+      <ProjectState />
+    </projectState>
+  </component>
+  <component name="ExternalProjectsManager">
+    <system id="GRADLE">
+      <state>
+        <projects_view>
+          <tree_state>
+            <expand>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="MyEVCompanion" type="f1a62948:ProjectNode" />
+              </path>
+            </expand>
+            <select />
+          </tree_state>
+        </projects_view>
+      </state>
+    </system>
+  </component>
+  <component name="GenerateSignedApkSettings">
+    <option name="KEY_STORE_PATH" value="$USER_HOME$/myevcompanion.jks" />
+    <option name="KEY_ALIAS" value="key0" />
+    <option name="REMEMBER_PASSWORDS" value="true" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;rike4545&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/rike4545/KWh-Gas-Companion.git&quot;,
+    &quot;accountId&quot;: &quot;47f9c155-1ecb-4fe2-bb2a-b9c55dfd2a4f&quot;
+  }
+}</component>
+  <component name="GradleScriptDefinitionsStorage" workingDir="$PROJECT_DIR$" gradleHome="$USER_HOME$/.gradle/wrapper/dists/gradle-9.3.1-bin/23ovyewtku6u96viwx3xl3oks/gradle-9.3.1" javaHome="$APPLICATION_HOME_DIR$/jbr/Contents/Home" gradleVersion="9.3.1" />
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 6
+}</component>
+  <component name="ProjectId" id="3BVibOMdHylTmfure8t2a9koZje" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Android App.app.executor": "Run",
+    "BundleExportedModule": "MyEVCompanion.app",
+    "ExportBundle.BundlePathForMyEVCompanion.app": "/Users/bryan/Desktop/App Development/KWh Gas Companion/MyEVCompanion-Android",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.cidr.known.project.marker": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.readMode.enableVisualFormatting": "true",
+    "cf.first.check.clang-format": "false",
+    "cidr.known.project.marker": "true",
+    "com.google.services.firebase.aqiPopupShown": "true",
+    "git-widget-placeholder": "main",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "/Users/bryan/Desktop/App Development/KWh Gas Companion/MyEVCompanion-Android"
+  },
+  "keyToStringList": {
+    "ExportApk.BuildVariants": [
+      "release"
+    ]
+  }
+}]]></component>
+  <component name="RunManager">
+    <configuration name="app" type="AndroidRunConfigurationType" factoryName="Android App" activateToolWindowBeforeRun="false">
+      <module name="MyEVCompanion.app" />
+      <option name="ANDROID_RUN_CONFIGURATION_SCHEMA_VERSION" value="1" />
+      <option name="DEPLOY" value="true" />
+      <option name="DEPLOY_APK_FROM_BUNDLE" value="false" />
+      <option name="DEPLOY_AS_INSTANT" value="false" />
+      <option name="ARTIFACT_NAME" value="" />
+      <option name="PM_INSTALL_OPTIONS" value="" />
+      <option name="ALL_USERS" value="false" />
+      <option name="ALWAYS_INSTALL_WITH_PM" value="false" />
+      <option name="ALLOW_ASSUME_VERIFIED" value="false" />
+      <option name="CLEAR_APP_STORAGE" value="false" />
+      <option name="DYNAMIC_FEATURES_DISABLED_LIST" value="" />
+      <option name="ACTIVITY_EXTRA_FLAGS" value="" />
+      <option name="MODE" value="default_activity" />
+      <option name="RESTORE_ENABLED" value="false" />
+      <option name="RESTORE_FILE" value="" />
+      <option name="RESTORE_FRESH_INSTALL_ONLY" value="false" />
+      <option name="CLEAR_LOGCAT" value="false" />
+      <option name="SHOW_LOGCAT_AUTOMATICALLY" value="false" />
+      <option name="TARGET_SELECTION_MODE" value="DEVICE_AND_SNAPSHOT_COMBO_BOX" />
+      <option name="SELECTED_CLOUD_MATRIX_CONFIGURATION_ID" value="-1" />
+      <option name="SELECTED_CLOUD_MATRIX_PROJECT_ID" value="" />
+      <option name="DEBUGGER_TYPE" value="Auto" />
+      <Auto>
+        <option name="USE_JAVA_AWARE_DEBUGGER" value="false" />
+        <option name="SHOW_STATIC_VARS" value="true" />
+        <option name="WORKING_DIR" value="" />
+        <option name="TARGET_LOGGING_CHANNELS" value="lldb process:gdb-remote packets" />
+        <option name="SHOW_OPTIMIZED_WARNING" value="true" />
+        <option name="ATTACH_ON_WAIT_FOR_DEBUGGER" value="false" />
+        <option name="DEBUG_SANDBOX_SDK" value="false" />
+      </Auto>
+      <Hybrid>
+        <option name="USE_JAVA_AWARE_DEBUGGER" value="false" />
+        <option name="SHOW_STATIC_VARS" value="true" />
+        <option name="WORKING_DIR" value="" />
+        <option name="TARGET_LOGGING_CHANNELS" value="lldb process:gdb-remote packets" />
+        <option name="SHOW_OPTIMIZED_WARNING" value="true" />
+        <option name="ATTACH_ON_WAIT_FOR_DEBUGGER" value="false" />
+        <option name="DEBUG_SANDBOX_SDK" value="false" />
+      </Hybrid>
+      <Java>
+        <option name="ATTACH_ON_WAIT_FOR_DEBUGGER" value="false" />
+        <option name="DEBUG_SANDBOX_SDK" value="false" />
+      </Java>
+      <Native>
+        <option name="USE_JAVA_AWARE_DEBUGGER" value="false" />
+        <option name="SHOW_STATIC_VARS" value="true" />
+        <option name="WORKING_DIR" value="" />
+        <option name="TARGET_LOGGING_CHANNELS" value="lldb process:gdb-remote packets" />
+        <option name="SHOW_OPTIMIZED_WARNING" value="true" />
+        <option name="ATTACH_ON_WAIT_FOR_DEBUGGER" value="false" />
+        <option name="DEBUG_SANDBOX_SDK" value="false" />
+      </Native>
+      <Profilers>
+        <option name="ADVANCED_PROFILING_ENABLED" value="false" />
+        <option name="STARTUP_PROFILING_ENABLED" value="false" />
+        <option name="STARTUP_CPU_PROFILING_ENABLED" value="false" />
+        <option name="STARTUP_CPU_PROFILING_CONFIGURATION_NAME" value="Java/Kotlin Method Sample (legacy)" />
+        <option name="STARTUP_NATIVE_MEMORY_PROFILING_ENABLED" value="false" />
+        <option name="NATIVE_MEMORY_SAMPLE_RATE_BYTES" value="2048" />
+      </Profilers>
+      <option name="DEEP_LINK" value="" />
+      <option name="ACTIVITY" value="" />
+      <option name="ACTIVITY_CLASS" value="" />
+      <option name="SEARCH_ACTIVITY_IN_GLOBAL_SCOPE" value="false" />
+      <option name="SKIP_ACTIVITY_VALIDATION" value="false" />
+      <method v="2">
+        <option name="Android.Gradle.BeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="593caa76-21a0-4256-b0d6-60dbfb79e230" name="Changes" comment="" />
+      <created>1774580709068</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1774580709068</updated>
+    </task>
+    <servers />
+  </component>
+</project>

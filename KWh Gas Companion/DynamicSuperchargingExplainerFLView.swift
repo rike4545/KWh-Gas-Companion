@@ -1,12 +1,3 @@
-//
-//  DynamicSuperchargingExplainerFLView.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 11/17/25.
-//
-
-
-//
 //  DynamicSuperchargingExplainerFLView.swift
 //  My KWh Companion
 //

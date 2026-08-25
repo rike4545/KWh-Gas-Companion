@@ -5,7 +5,11 @@ import UIKit
 #endif
 
 extension Color {
-    init?(hex: String) {
+    public init(hex: String) {
+        self = Self.fromHex(hex) ?? .clear
+    }
+
+    public static func fromHex(_ hex: String) -> Color? {
         let cleaned = hex.trimmingCharacters(in: .whitespacesAndNewlines)
             .replacingOccurrences(of: "#", with: "")
 
@@ -28,7 +32,7 @@ extension Color {
             return nil
         }
 
-        self.init(.sRGB, red: r, green: g, blue: b, opacity: a)
+        return Color(.sRGB, red: r, green: g, blue: b, opacity: a)
     }
 
     func toHex() -> String? {

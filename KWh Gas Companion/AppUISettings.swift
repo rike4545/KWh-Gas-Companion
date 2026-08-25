@@ -1,3 +1,5 @@
+// Copyright Bryan Carroll. Made with Love in New York. All rights reserved. 2026.
+
 import SwiftUI
 
 public enum TypographyMode: String, CaseIterable, Identifiable, Codable, Hashable, Sendable {
@@ -201,11 +203,11 @@ public final class AppUISettings: ObservableObject {
         let storedHaptics = defaults.string(forKey: Keys.haptics).flatMap(HapticsLevel.init(rawValue:))
 
         self.typography = storedTypography ?? .classic
-        self.cardStyle = storedCard ?? .glass
+        self.cardStyle = storedCard ?? .flat
         self.density = storedDensity ?? .comfortable
         self.cardCorner = storedCorner ?? .rounded
         self.cardPadding = storedPadding ?? .standard
-        self.motion = storedMotion ?? .full
+        self.motion = storedMotion ?? .reduced
         self.background = storedBackground ?? .defaultGlow
         self.haptics = storedHaptics ?? .standard
     }
@@ -236,5 +238,25 @@ public final class AppUISettings: ObservableObject {
         case .elevated: return 0.70
         case .glass: return 0.55
         }
+    }
+
+    public func resetToDefaults() {
+        defaults.removeObject(forKey: Keys.typography)
+        defaults.removeObject(forKey: Keys.cardStyle)
+        defaults.removeObject(forKey: Keys.density)
+        defaults.removeObject(forKey: Keys.cardCorner)
+        defaults.removeObject(forKey: Keys.cardPadding)
+        defaults.removeObject(forKey: Keys.motion)
+        defaults.removeObject(forKey: Keys.background)
+        defaults.removeObject(forKey: Keys.haptics)
+
+        typography = .classic
+        cardStyle = .flat
+        density = .comfortable
+        cardCorner = .rounded
+        cardPadding = .standard
+        motion = .reduced
+        background = .defaultGlow
+        haptics = .standard
     }
 }

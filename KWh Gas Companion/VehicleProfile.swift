@@ -2,14 +2,6 @@
 //  VehicleProfile.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 12/24/25.
-//
-
-
-//
-//  VehicleProfile.swift
-//  KWh Gas Companion
-//
 //  Vehicle profile model used by ProfileStore + vehicle UI.
 //  Includes VIN + Plate/Marker to preserve other feature integrations.
 //

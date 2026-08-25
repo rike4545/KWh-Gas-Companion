@@ -1,12 +1,3 @@
-//
-//  AckCredit.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 9/15/25.
-//
-
-
-//
 //  AcknowledgementsView.swift
 //  My KWh Companion
 //
@@ -110,10 +101,10 @@ struct AcknowledgementsView: View {
             tags: ["CSV", "Personal Data"]
         ),
         .init(
-            name: "TeslaFi (User-Provided)",
+            name: "User-Provided Charging CSV",
             summary: "Optional user-provided CSV logs parsed locally in the app.",
             url: URL(string: "https://teslafi.com"),
-            tags: ["TeslaFi", "CSV"]
+            tags: ["Charging CSV", "CSV"]
         )
     ]
 

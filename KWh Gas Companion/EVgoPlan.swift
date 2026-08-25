@@ -1,11 +1,3 @@
-//
-//  EVgoPlan.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 9/3/25.
-//
-
-
 //  EVgoPlan.swift
 //  My KWh Companion
 //

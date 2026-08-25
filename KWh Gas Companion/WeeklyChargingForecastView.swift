@@ -30,7 +30,7 @@ struct WeeklyChargingForecastView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Rolling 4‑week projection")
                 .font(.headline)
-            Text("Uses your recent charging history to forecast next week’s cost and energy.")
+            Text("Uses a tiny on-device neural net over your recent charging history to forecast next week’s cost and energy.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -63,6 +63,18 @@ struct WeeklyChargingForecastView: View {
 
             if stats.confidenceText != nil {
                 Text(stats.confidenceText ?? "")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let modelSummary = stats.modelSummary {
+                Text(modelSummary)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let reinforcementSummary = stats.reinforcementSummary {
+                Label(reinforcementSummary, systemImage: "scope")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

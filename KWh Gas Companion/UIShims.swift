@@ -2,9 +2,7 @@
 //  AppCard.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 10/30/25.
 //
-
 
 // UIShims.swift
 // Minimal shared UI bits used across screens.

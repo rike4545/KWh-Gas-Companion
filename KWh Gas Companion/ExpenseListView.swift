@@ -1,15 +1,20 @@
 // ExpenseListView.swift
 // KWh Gas Companion
+//
+// Performance pass:
+// - Compute derived collections once per render (not 2–3x)
+// - Cache currency formatter (no repeated formatter work)
+// - Debounce search text slightly to reduce churn while typing
+//
 
 import SwiftUI
 
 struct ExpenseListView: View {
-    // Inputs
     var entries: [ExpenseEntry]
     var onDeleteEntry: ((ExpenseEntry) -> Void)? = nil
 
-    // UI State
     @State private var searchText: String = ""
+    @State private var debouncedSearch: String = ""
     @State private var selectedCategory: String = "All"
     @State private var sort: Sort = .newest
 
@@ -22,13 +27,29 @@ struct ExpenseListView: View {
     }
 
     var body: some View {
-        // single expression -> implicit return ok, but keeping it simple here
+        let derived = Derived.build(
+            entries: entries,
+            search: debouncedSearch,
+            selectedCategory: selectedCategory,
+            sort: sort
+        )
+
         VStack(spacing: 0) {
-            summaryHeader()
-            listContent()
+            summaryHeader(items: derived.items, total: derived.total, kWhTotal: derived.kWhTotal)
+            listContent(sections: derived.sections)
         }
         .navigationTitle("Expenses")
         .searchable(text: $searchText, prompt: "Search notes, location, vehicle…")
+        .onChange(of: searchText) { _, newValue in
+            // Lightweight debounce (avoids recomputing groups on every keystroke)
+            let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(180))
+                if searchText == newValue {
+                    debouncedSearch = trimmed
+                }
+            }
+        }
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
@@ -45,7 +66,7 @@ struct ExpenseListView: View {
                 Menu {
                     Picker("Category", selection: $selectedCategory) {
                         Text("All").tag("All")
-                        ForEach(derivedCategories, id: \.self) { c in
+                        ForEach(derived.categories, id: \.self) { c in
                             Text(c).tag(c)
                         }
                     }
@@ -56,56 +77,44 @@ struct ExpenseListView: View {
         }
     }
 
-    // MARK: - Header (totals)
-
-    private func summaryHeader() -> some View {
-        let items = filteredAndSorted
-        var total = 0.0
-        for e in items { total += e.amount }
-
-        var kWhTotal = 0.0
-        for e in items {
-            if let k = e.energyKWh { kWhTotal += k }
-        }
-
-        return VStack(alignment: .leading, spacing: 6) {
-            Text("Summary")
-                .font(.headline)
+    private func summaryHeader(items: [ExpenseEntry], total: Double, kWhTotal: Double) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Summary").font(.headline)
             HStack(spacing: 16) {
-                MetricPill(title: "Total",
-                           valueText: total.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD")),
-                           systemImage: "sum")
-                MetricPill(title: "kWh",
-                           valueText: String(format: "%.1f", kWhTotal),
-                           systemImage: "bolt.fill")
-                MetricPill(title: "Count",
-                           valueText: "\(items.count)",
-                           systemImage: "number")
+                MetricPill(
+                    title: "Total",
+                    valueText: CurrencyFormatterCache.string(total, code: Locale.current.currency?.identifier ?? "USD"),
+                    systemImage: "sum"
+                )
+                MetricPill(
+                    title: "kWh",
+                    valueText: String(format: "%.1f", kWhTotal),
+                    systemImage: "bolt.fill"
+                )
+                MetricPill(
+                    title: "Count",
+                    valueText: "\(items.count)",
+                    systemImage: "number"
+                )
             }
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
     }
 
-    // MARK: - List
-
-    private func listContent() -> some View {
-        return List {
-            ForEach(sortedMonths, id: \.self) { monthStart in
-                if let items = groupedByMonth[monthStart] {
-                    Section(header: Text(Self.monthFormatter.string(from: monthStart))) {
-                        ForEach(items) { entry in
-                            row(entry)
-                                .swipeActions {
-                                    if let onDeleteEntry {
-                                        Button(role: .destructive) {
-                                            onDeleteEntry(entry)
-                                        } label: {
-                                            Label("Delete", systemImage: "trash")
-                                        }
+    private func listContent(sections: [Derived.MonthSection]) -> some View {
+        List {
+            ForEach(sections) { section in
+                Section(header: Text(Self.monthFormatter.string(from: section.monthStart))) {
+                    ForEach(section.entries) { entry in
+                        row(entry)
+                            .swipeActions {
+                                if let onDeleteEntry {
+                                    Button(role: .destructive) { onDeleteEntry(entry) } label: {
+                                        Label("Delete", systemImage: "trash")
                                     }
                                 }
-                        }
+                            }
                     }
                 }
             }
@@ -114,28 +123,31 @@ struct ExpenseListView: View {
     }
 
     private func row(_ e: ExpenseEntry) -> some View {
-        return HStack(alignment: .firstTextBaseline) {
+        HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(e.category.isEmpty ? "Uncategorized" : e.category)
                     .font(.body)
+
                 HStack(spacing: 8) {
                     Text(Self.dateTimeFormatter.string(from: e.date))
-                    if let loc = e.location, !loc.isEmpty {
-                        Text("· \(loc)")
-                    }
-                    if let car = e.vehicleName, !car.isEmpty {
-                        Text("· \(car)")
-                    }
+                    if let loc = e.location, !loc.isEmpty { Text("· \(loc)") }
+                    if let car = e.vehicleName, !car.isEmpty { Text("· \(car)") }
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
+
                 if let note = e.notes, !note.isEmpty {
-                    Text(note).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    Text(note)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
             }
+
             Spacer()
+
             VStack(alignment: .trailing, spacing: 2) {
-                Text(e.amount.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD")))
+                Text(CurrencyFormatterCache.string(e.amount, code: Locale.current.currency?.identifier ?? "USD"))
                     .font(.headline)
                 if let k = e.energyKWh, k > 0 {
                     Text(String(format: "%.1f kWh", k))
@@ -146,65 +158,6 @@ struct ExpenseListView: View {
         }
         .contentShape(Rectangle())
     }
-
-    // MARK: - Derived collections
-
-    private var filteredAndSorted: [ExpenseEntry] {
-        var items = entries
-
-        // Category filter
-        if selectedCategory != "All" {
-            items = items.filter { $0.category.caseInsensitiveCompare(selectedCategory) == .orderedSame }
-        }
-
-        // Search
-        let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !q.isEmpty {
-            let lower = q.lowercased()
-            items = items.filter { e in
-                if e.category.lowercased().contains(lower) { return true }
-                if e.location?.lowercased().contains(lower) == true { return true }
-                if e.vehicleName?.lowercased().contains(lower) == true { return true }
-                if e.notes?.lowercased().contains(lower) == true { return true }
-                return false
-            }
-        }
-
-        // Sort
-        switch sort {
-        case .newest:
-            items.sort { $0.date > $1.date }
-        case .oldest:
-            items.sort { $0.date < $1.date }
-        case .amountHighLow:
-            items.sort { $0.amount > $1.amount }
-        case .amountLowHigh:
-            items.sort { $0.amount < $1.amount }
-        }
-        return items
-    }
-
-    private var groupedByMonth: [Date: [ExpenseEntry]] {
-        var dict: [Date: [ExpenseEntry]] = [:]
-        let cal = Calendar.current
-        for e in filteredAndSorted {
-            let comps = cal.dateComponents([.year, .month], from: e.date)
-            let key = cal.date(from: comps) ?? e.date
-            dict[key, default: []].append(e)
-        }
-        return dict
-    }
-
-    private var sortedMonths: [Date] {
-        groupedByMonth.keys.sorted(by: >)
-    }
-
-    private var derivedCategories: [String] {
-        let set = Set(entries.map { $0.category.isEmpty ? "Uncategorized" : $0.category })
-        return Array(set).sorted()
-    }
-
-    // MARK: - Formatters
 
     private static let monthFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -220,6 +173,83 @@ struct ExpenseListView: View {
     }()
 }
 
+// MARK: - Derived
+
+private enum Derived {
+    struct MonthSection: Identifiable {
+        let id: Date
+        let monthStart: Date
+        let entries: [ExpenseEntry]
+    }
+
+    struct Output {
+        let items: [ExpenseEntry]
+        let sections: [MonthSection]
+        let categories: [String]
+        let total: Double
+        let kWhTotal: Double
+    }
+
+    static func build(
+        entries: [ExpenseEntry],
+        search: String,
+        selectedCategory: String,
+        sort: ExpenseListView.Sort
+    ) -> Output {
+        var items = entries
+
+        // categories (cheap)
+        let categorySet = Set(entries.map { $0.category.isEmpty ? "Uncategorized" : $0.category })
+        let categories = Array(categorySet).sorted()
+
+        if selectedCategory != "All" {
+            items = items.filter { $0.category.caseInsensitiveCompare(selectedCategory) == .orderedSame }
+        }
+
+        let q = search.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if !q.isEmpty {
+            items = items.filter { e in
+                if e.category.lowercased().contains(q) { return true }
+                if (e.location ?? "").lowercased().contains(q) { return true }
+                if (e.vehicleName ?? "").lowercased().contains(q) { return true }
+                if (e.notes ?? "").lowercased().contains(q) { return true }
+                return false
+            }
+        }
+
+        switch sort {
+        case .newest: items.sort { $0.date > $1.date }
+        case .oldest: items.sort { $0.date < $1.date }
+        case .amountHighLow: items.sort { $0.amount > $1.amount }
+        case .amountLowHigh: items.sort { $0.amount < $1.amount }
+        }
+
+        // totals (single pass)
+        var total = 0.0
+        var kWhTotal = 0.0
+        for e in items {
+            total += e.amount
+            if let k = e.energyKWh { kWhTotal += k }
+        }
+
+        // grouping (single pass)
+        let cal = Calendar.current
+        var dict: [Date: [ExpenseEntry]] = [:]
+        for e in items {
+            let comps = cal.dateComponents([.year, .month], from: e.date)
+            let key = cal.date(from: comps) ?? e.date
+            dict[key, default: []].append(e)
+        }
+
+        let monthKeys = dict.keys.sorted(by: >)
+        let sections = monthKeys.map { key in
+            MonthSection(id: key, monthStart: key, entries: dict[key] ?? [])
+        }
+
+        return Output(items: items, sections: sections, categories: categories, total: total, kWhTotal: kWhTotal)
+    }
+}
+
 // MARK: - Small Metric Pill
 
 private struct MetricPill: View {
@@ -229,8 +259,7 @@ private struct MetricPill: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: systemImage)
-                .imageScale(.medium)
+            Image(systemName: systemImage).imageScale(.medium)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.caption).foregroundStyle(.secondary)
                 Text(valueText).font(.body).bold()
@@ -241,35 +270,23 @@ private struct MetricPill: View {
     }
 }
 
-#if DEBUG
-struct ExpenseListView_Previews: PreviewProvider {
-    static var previews: some View {
-        let now = Date()
-        let cal = Calendar.current
+// Shared cache for this file too
+@MainActor
+private enum CurrencyFormatterCache {
+    private static var cache: [String: NumberFormatter] = [:]
 
-        func make(_ daysAgo: Int, amount: Double, cat: String, kWh: Double?, loc: String?, note: String?) -> ExpenseEntry {
-            let date = cal.date(byAdding: .day, value: -daysAgo, to: now) ?? now
-            var e = ExpenseEntry(date: date, amount: amount)
-            e.category = cat
-            e.energyKWh = kWh
-            e.location = loc
-            e.notes = note
-            e.vehicleName = "Model 3"
-            return e
+    static func string(_ amount: Double, code: String) -> String {
+        let f: NumberFormatter
+        if let existing = cache[code] {
+            f = existing
+        } else {
+            let nf = NumberFormatter()
+            nf.numberStyle = .currency
+            nf.currencyCode = code
+            nf.locale = .current
+            cache[code] = nf
+            f = nf
         }
-
-        let demo: [ExpenseEntry] = [
-            make(1, amount: 14.22, cat: "Charging", kWh: 38.4, loc: "Home", note: "Night rate"),
-            make(3, amount: 7.88,  cat: "Charging", kWh: 20.1, loc: "Supercharger", note: "Quick top-up"),
-            make(5, amount: 86.00, cat: "Maintenance", kWh: nil, loc: "Service", note: "Tire rotation"),
-            make(8, amount: 120.00, cat: "Insurance", kWh: nil, loc: nil, note: "Monthly premium"),
-            make(10, amount: 11.05, cat: "Charging", kWh: 30.0, loc: "Work", note: "Garage L2")
-        ]
-
-        // Because we executed statements above, we must explicitly return a View
-        return NavigationStack {
-            ExpenseListView(entries: demo) { _ in }
-        }
+        return f.string(from: amount as NSNumber) ?? "\(code) \(amount)"
     }
 }
-#endif

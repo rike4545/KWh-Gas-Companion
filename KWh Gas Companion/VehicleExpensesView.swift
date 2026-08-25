@@ -1,17 +1,26 @@
 //  VehicleExpensesView.swift
 //  KWh Gas Companion
 //
-//  Lists expenses grouped by vehicle with per-vehicle totals and an overall summary.
-//  - Standalone: no EnvironmentObject assumptions
-//  - Uses ExpenseEntry (amount, date, category, energyKWh, vehicleName, vin, isBusiness)
+//  🔧 FIX 1: `e.note` fallback removed. ExpenseEntry has `.notes`, not `.note`.
+//     The `?? e.note?.lowercased()` chain caused a compile error when `note` isn't
+//     a field on ExpenseEntry. Now only `.notes` is read.
+//
+//  🔧 FIX 2: `energyKWh` → `energyAddedKWh` throughout. The canonical field name
+//     on ExpenseEntry is `energyAddedKWh`; `energyKWh` is only a ChargeLogRow
+//     reflection key. Using the wrong name silently returns nil for every entry.
+//
+//  🔧 FIX 3: DateFormatter and NumberFormatter were constructed inside computed
+//     properties and called on every render pass. Moved to static let constants
+//     so they are created once per process lifetime.
+//
+//  🔧 FIX 4: Preview ExpenseEntry initialisers used non-existent parameter labels
+//     (`energyKWh:`, `isEnergy:`). Replaced with the correct public init labels.
 
 import SwiftUI
 
 struct VehicleExpensesView: View {
-    // Provide your expenses when constructing the view
     var expenses: [ExpenseEntry]
 
-    // Simple filters
     @State private var showBusinessOnly = false
     @State private var query: String = ""
 
@@ -19,7 +28,6 @@ struct VehicleExpensesView: View {
         VStack(spacing: 12) {
             header
 
-            // Filters
             HStack {
                 Toggle(isOn: $showBusinessOnly) {
                     Text("Business only")
@@ -29,14 +37,12 @@ struct VehicleExpensesView: View {
 
                 Spacer()
 
-                // Lightweight search field
                 TextField("Search notes/category…", text: $query)
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 300)
             }
             .padding(.horizontal, 12)
 
-            // Grouped list
             List {
                 ForEach(vehicleGroupsFilteredSorted) { group in
                     Section {
@@ -55,12 +61,46 @@ struct VehicleExpensesView: View {
         .navigationTitle("Vehicle Expenses")
     }
 
+    // MARK: - Formatters (🔧 FIX 3: static to avoid per-render allocation)
+
+    private static let currencyFormatter: NumberFormatter = {
+        let nf = NumberFormatter()
+        nf.numberStyle = .currency
+        nf.currencyCode = Locale.current.currency?.identifier ?? "USD"
+        return nf
+    }()
+
+    private static let decimalFormatter: NumberFormatter = {
+        let nf = NumberFormatter()
+        nf.minimumFractionDigits = 0
+        nf.maximumFractionDigits = 2
+        return nf
+    }()
+
+    static func currencyString(_ value: Double?) -> String {
+        guard let value else { return "—" }
+        return currencyFormatter.string(from: NSNumber(value: value))
+            ?? String(format: "$%.2f", value)
+    }
+
+    static func kwhString(_ value: Double?) -> String {
+        guard let value else { return "—" }
+        return (decimalFormatter.string(from: NSNumber(value: value))
+            ?? String(format: "%.2f", value)) + " kWh"
+    }
+
+    static func currencyPerKWhString(_ value: Double?) -> String {
+        guard let value else { return "—" }
+        return currencyString(value) + "/kWh"
+    }
+
     // MARK: - Header
 
     private var header: some View {
         let filtered = filteredExpenses
         let total = filtered.reduce(0.0) { $0 + $1.amount }
-        let kwhTotal = filtered.compactMap(\.energyKWh).reduce(0.0, +)
+        // 🔧 FIX 2: was \.energyKWh — correct field is energyAddedKWh
+        let kwhTotal = filtered.compactMap(\.energyAddedKWh).reduce(0.0, +)
         let avgPerKWh = kwhTotal > 0 ? total / kwhTotal : nil
 
         return VStack(alignment: .leading, spacing: 10) {
@@ -83,21 +123,23 @@ struct VehicleExpensesView: View {
     private var filteredExpenses: [ExpenseEntry] {
         expenses.filter { e in
             if showBusinessOnly && !e.isBusiness { return false }
-            if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return true }
-            let q = query.lowercased()
+            let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+            if q.isEmpty { return true }
+            let ql = q.lowercased()
             let text = [
                 e.category.lowercased(),
                 e.vehicleName?.lowercased() ?? "",
                 e.vin?.lowercased() ?? "",
-                e.notes?.lowercased() ?? e.note?.lowercased() ?? ""
+                // 🔧 FIX 1: removed `?? e.note?.lowercased()` — field doesn't exist
+                e.notes?.lowercased() ?? ""
             ].joined(separator: " ")
-            return text.contains(q)
+            return text.contains(ql)
         }
     }
 
     private var vehicleGroupsFilteredSorted: [VehicleGroup] {
         let dict = Dictionary(grouping: filteredExpenses, by: { keyForVehicle($0) })
-        let groups: [VehicleGroup] = dict.map { (key, entries) in
+        let groups: [VehicleGroup] = dict.map { key, entries in
             VehicleGroup.make(id: key.id, displayName: key.display, vin: key.vin, entries: entries)
         }
         return groups.sorted { lhs, rhs in
@@ -134,26 +176,22 @@ struct VehicleExpensesView: View {
         let totalKWh: Double
         let entries: [ExpenseEntry]
 
-        // Explicit maker to avoid any synthesized-init ambiguities
         static func make(id: String, displayName: String, vin: String?, entries: [ExpenseEntry]) -> VehicleGroup {
             let total = entries.reduce(0.0) { $0 + $1.amount }
-            let kwh = entries.compactMap(\.energyKWh).reduce(0.0, +)
+            // 🔧 FIX 2: energyAddedKWh
+            let kwh = entries.compactMap(\.energyAddedKWh).reduce(0.0, +)
             return VehicleGroup(id: id, displayName: displayName, vin: vin, totalAmount: total, totalKWh: kwh, entries: entries)
         }
 
-        var entriesSorted: [ExpenseEntry] {
-            entries.sorted { $0.date > $1.date }
-        }
+        var entriesSorted: [ExpenseEntry] { entries.sorted { $0.date > $1.date } }
     }
 
     private struct VehicleGroupRow: View {
         var group: VehicleGroup
-
         var body: some View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(group.displayName)
-                        .font(.headline)
+                    Text(group.displayName).font(.headline)
                     HStack(spacing: 8) {
                         Text(VehicleExpensesView.currencyString(group.totalAmount))
                         if group.totalKWh > 0 {
@@ -172,9 +210,16 @@ struct VehicleExpensesView: View {
         }
     }
 
-    // Single entry row
     private struct ExpenseRow: View {
         var entry: ExpenseEntry
+
+        // 🔧 FIX 3: static formatter
+        private static let dateFmt: DateFormatter = {
+            let df = DateFormatter()
+            df.dateStyle = .short
+            df.timeStyle = .none
+            return df
+        }()
 
         var body: some View {
             HStack(spacing: 12) {
@@ -182,7 +227,8 @@ struct VehicleExpensesView: View {
                     Text(entry.category.isEmpty ? "Expense" : entry.category)
                         .font(.subheadline.weight(.semibold))
                     HStack(spacing: 6) {
-                        if let kwh = entry.energyKWh, kwh > 0 {
+                        // 🔧 FIX 2: energyAddedKWh
+                        if let kwh = entry.energyAddedKWh, kwh > 0 {
                             Text(VehicleExpensesView.kwhString(kwh))
                         }
                         if let loc = entry.location, !loc.isEmpty {
@@ -202,19 +248,12 @@ struct VehicleExpensesView: View {
                     Text(VehicleExpensesView.currencyString(entry.amount))
                         .font(.subheadline.weight(.semibold))
                         .monospacedDigit()
-                    Text(Self.dateShort(entry.date))
+                    Text(Self.dateFmt.string(from: entry.date))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
             .contentShape(Rectangle())
-        }
-
-        private static func dateShort(_ d: Date) -> String {
-            let df = DateFormatter()
-            df.dateStyle = .short
-            df.timeStyle = .none
-            return df.string(from: d)
         }
     }
 
@@ -238,96 +277,43 @@ struct VehicleExpensesView: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(Color.black.opacity(0.06))
+                    .strokeBorder(Color.primary.opacity(0.07))
             )
         }
     }
-
-    // MARK: - Formatting
-
-    static func currencyString(_ value: Double?) -> String {
-        guard let value = value else { return "—" }
-        if #available(iOS 15.0, macOS 12.0, *) {
-            return value.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD"))
-        } else {
-            let nf = NumberFormatter()
-            nf.numberStyle = .currency
-            nf.currencyCode = Locale.current.currencyCode ?? "USD"
-            return nf.string(from: NSNumber(value: value)) ?? String(format: "$%.2f", value)
-        }
-    }
-
-    static func kwhString(_ value: Double?) -> String {
-        guard let value = value else { return "—" }
-        if #available(iOS 15.0, macOS 12.0, *) {
-            return value.formatted(.number.precision(.fractionLength(0...2))) + " kWh"
-        } else {
-            let nf = NumberFormatter()
-            nf.minimumFractionDigits = 0
-            nf.maximumFractionDigits = 2
-            return (nf.string(from: NSNumber(value: value)) ?? String(format: "%.2f", value)) + " kWh"
-        }
-    }
-
-    static func currencyPerKWhString(_ value: Double?) -> String {
-        guard let value = value else { return "—" }
-        return currencyString(value) + "/kWh"
-    }
 }
+
+// MARK: - Preview
 
 #if DEBUG
 struct VehicleExpensesView_Previews: PreviewProvider {
     static var previews: some View {
-        // Inline sample data to avoid any cross-file sample dependencies
-        let cal = Calendar.current
+        // 🔧 FIX 4: Use correct ExpenseEntry init parameter labels.
+        // energyKWh: and isEnergy: are not valid labels on ExpenseEntry.
+        // Using only the fields that the public init actually declares.
         let now = Date()
+        let cal = Calendar.current
+
         let e1 = ExpenseEntry(
             date: now,
             amount: 24.50,
             category: "Charging",
-            energyKWh: 14.0,
-            odometer: 24_300,
             location: "Home",
-            notes: "Overnight",
-            vehicleName: "Model 3",
-            stateOfCharge: 0.8,
-            chargeType: "Home",
-            vehicleID: nil,
-            isBusiness: true,
-            vin: "5YJ3E1EA7KF123456",
-            isEnergy: true
+            notes: "Overnight"
         )
         let e2 = ExpenseEntry(
-            date: cal.date(byAdding: .day, value: -3, to: now)!,
+            date: cal.date(byAdding: .day, value: -3, to: now) ?? now,
             amount: 18.10,
             category: "Charging",
-            energyKWh: 9.0,
-            odometer: 24_000,
             location: "Supercharger",
-            notes: "Trip top-up",
-            vehicleName: "Model 3",
-            stateOfCharge: 0.5,
-            chargeType: "Supercharger",
-            vehicleID: nil,
-            isBusiness: false,
-            vin: "5YJ3E1EA7KF123456",
-            isEnergy: true
+            notes: "Trip top-up"
         )
         let e3 = ExpenseEntry(
-            date: cal.date(byAdding: .day, value: -8, to: now)!,
+            date: cal.date(byAdding: .day, value: -8, to: now) ?? now,
             amount: 62.00,
             category: "Maintenance",
-            energyKWh: nil,
-            odometer: 40_120,
             location: "Service Center",
-            notes: "Tire rotation",
-            vehicleName: "Model Y",
-            stateOfCharge: nil,
-            chargeType: nil,
-            vehicleID: nil,
-            isBusiness: false,
-            vin: "7SAYGDEE9NF654321",
-            isEnergy: false
+            notes: "Tire rotation"
         )
 
         NavigationStack {

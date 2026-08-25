@@ -110,8 +110,8 @@ struct ReimbursementGeneratorView: View {
             .navigationBarTitleDisplayMode(.inline)
         }
         .onAppear {
-            if !availableYears.isEmpty, !availableYears.contains(selectedYear) {
-                selectedYear = availableYears.first!
+            if !availableYears.contains(selectedYear), let firstYear = availableYears.first {
+                selectedYear = firstYear
             }
         }
         .overlay(alignment: .top) {
@@ -364,7 +364,7 @@ struct ReimbursementGeneratorView: View {
     }
 }
 
-// MARK: - Local shells (Tesla-style)
+// MARK: - Local shells
 fileprivate struct RGBackground: View {
     @Environment(\.colorScheme) private var cs
     var body: some View {

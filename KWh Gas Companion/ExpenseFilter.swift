@@ -2,9 +2,7 @@
 //  ExpenseFilter 2.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 7/29/25.
 //
-
 
 // ExpenseFilter.swift
 // MyKwH Companion

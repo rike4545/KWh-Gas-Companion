@@ -113,8 +113,8 @@ struct TireMaintenanceTrackerView: View {
             HStack(spacing: 12) {
                 Text(r.date.formatted(date: .abbreviated, time: .omitted))
                 Text("\(Int(r.mileage)) mi")
-                if status.label != nil {
-                    Text(status.label!)
+                if let statusLabel = status.label {
+                    Text(statusLabel)
                         .font(.caption2.weight(.semibold))
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)

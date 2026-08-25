@@ -2,9 +2,7 @@
 //  TripSummary.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 8/9/25.
 //
-
 
 // TripSummary.swift
 // Summarizes one day of trips: miles, kWh, and cost-at-supercharger-rate.
@@ -21,11 +19,14 @@ public struct TripSummary: Equatable {
         self.date = calendar.startOfDay(for: date)
 
         let sorted = trips.sorted(by: { $0.date < $1.date })
-        let odometers = sorted.compactMap { $0.odometer }
-        if let minOdo = odometers.min(), let maxOdo = odometers.max(), maxOdo >= minOdo {
-            self.distanceMiles = maxOdo - minOdo
+        if let first = sorted.first,
+           let last = sorted.last,
+           let start = first.startOdometer,
+           let end = last.endOdometer,
+           end >= start {
+            self.distanceMiles = end - start
         } else {
-            self.distanceMiles = nil
+            self.distanceMiles = sorted.compactMap(\.distanceMiles).reduce(0, +)
         }
 
         self.energyKWh = sorted.compactMap { $0.energyKWh }.reduce(0, +)

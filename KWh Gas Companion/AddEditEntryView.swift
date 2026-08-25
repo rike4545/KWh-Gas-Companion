@@ -572,7 +572,7 @@ private extension AddEditEntryView {
                     .foregroundStyle(.secondary)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(v.displayName).font(.body.weight(.semibold))
-                    Text(v.vin).font(.caption2).foregroundStyle(.secondary)
+                    Text(v.vin).font(.footnote).foregroundStyle(.secondary)
                 }
                 Spacer()
             }
@@ -627,7 +627,7 @@ private extension AddEditEntryView {
                             .lineLimit(1)
                             .truncationMode(.tail)
                         if let vin = selected?.vin {
-                            Text(vin).font(.caption2).foregroundStyle(.secondary)
+                            Text(vin).font(.footnote).foregroundStyle(.secondary)
                         }
                     }
 
@@ -1153,7 +1153,7 @@ fileprivate struct KGCCurrencyButtonLabel: View {
                 .foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: 2) {
                 Text(display).font(.body.weight(.semibold))
-                Text("Tap to change").font(.caption2).foregroundStyle(.secondary)
+                Text("Tap to change").font(.footnote).foregroundStyle(.secondary)
             }
             Spacer()
             Image(systemName: "chevron.right").font(.footnote).foregroundStyle(.tertiary)

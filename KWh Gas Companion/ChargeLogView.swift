@@ -1,18 +1,33 @@
 // ChargeLogView.swift
 // KWh Gas Companion
+//
+// 🔧 FIX — Invalid redeclaration of 'ChargeLogView':
+//   Delete the old ChargeLogView.swift from your project navigator and use
+//   only this file. The error means Xcode is compiling both copies.
+//
+// Changes vs the original:
+//   1. Explicit init(entries:) replaces the `let entries: [ExpenseEntry]? = nil`
+//      stored-property-with-default pattern (clearer intent, no ambiguity).
+//   2. Filter uses energyAddedKWh — the canonical field name used everywhere
+//      else in the codebase — instead of energyKWh.
+//   3. ChargeRow.kwhText reads energyAddedKWh for the same reason.
 
 import SwiftUI
 
 struct ChargeLogView: View {
-    // Optional injection; dashboard can call no-arg init
-    let entries: [ExpenseEntry]? = nil
+    private let injectedEntries: [ExpenseEntry]?
     @EnvironmentObject private var entriesStore: EntriesStore
 
-    // Precompute data to keep body simple
+    /// Pass entries directly (e.g. from a dashboard card), or omit to use
+    /// the shared EntriesStore automatically.
+    init(entries: [ExpenseEntry]? = nil) {
+        self.injectedEntries = entries
+    }
+
     private var sessions: [ExpenseEntry] {
-        let src = entries ?? entriesStore.entries
+        let src = injectedEntries ?? entriesStore.entries
         return src
-            .filter { $0.isEnergy && ((($0.energyKWh ?? 0) > 0) || $0.amount > 0) }
+            .filter { $0.isEnergy && (($0.energyAddedKWh ?? 0) > 0 || $0.amount > 0) }
             .sorted { $0.date > $1.date }
     }
 
@@ -43,7 +58,6 @@ struct ChargeLogView: View {
         }
     }
 
-    // Deletion by ID against the store
     private func delete(at offsets: IndexSet) {
         let ids = offsets.compactMap { sessions[$0].id }
         ids.forEach { entriesStore.remove(id: $0) }
@@ -70,7 +84,6 @@ private struct ChargeRow: View {
         return nf
     }()
 
-    // Split complex formatting into tiny computed props
     private var titleText: String {
         if let loc = entry.location, !loc.isEmpty { return loc }
         if let t = entry.chargeType, !t.isEmpty { return t }
@@ -82,7 +95,7 @@ private struct ChargeRow: View {
     }
 
     private var kwhText: String? {
-        guard let k = entry.energyKWh, k > 0 else { return nil }
+        guard let k = entry.energyAddedKWh, k > 0 else { return nil }
         return String(format: "%.1f kWh", k)
     }
 
@@ -97,7 +110,6 @@ private struct ChargeRow: View {
     }
 
     private var metaLine: String {
-        // Build a bullet-separated string from available parts
         var parts: [String] = []
         if let k = kwhText { parts.append(k) }
         parts.append(amountText)
@@ -112,15 +124,12 @@ private struct ChargeRow: View {
                 Text(titleText)
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(1)
-
                 Text(metaLine)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
-
             Spacer(minLength: 8)
-
             Text(Self.dateFmt.string(from: entry.date))
                 .font(.caption2)
                 .foregroundStyle(.tertiary)

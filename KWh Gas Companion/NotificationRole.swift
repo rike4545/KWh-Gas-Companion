@@ -151,9 +151,9 @@ public struct FlowLayout: Layout {
     }
 
     public func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        var availableWidth = proposal.width ?? UIScreen.main.bounds.width - 32
+        var availableWidth = proposal.width ?? 320
         if availableWidth <= 0 {
-            availableWidth = UIScreen.main.bounds.width - 32
+            availableWidth = 320
         }
 
         var x: CGFloat = 0

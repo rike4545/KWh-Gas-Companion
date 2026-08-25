@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "752532070606",
+    "project_id": "my-ev-companion-android",
+    "storage_bucket": "my-ev-companion-android.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:752532070606:android:c13f8368c8441f090d309f",
+        "android_client_info": {
+          "package_name": "com.myevcompanion.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD6U-16zu3D1CzZKxeMiDlk3xVZKBId470"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -2,9 +2,7 @@
 //  CSVToast.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 8/13/25.
 //
-
 
 // MARK: - File: CSVImportShared.swift
 import SwiftUI

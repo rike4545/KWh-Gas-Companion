@@ -18,8 +18,13 @@ final class PriceWatchlistStore: ObservableObject {
     }
 
     @Published var items: [PriceWatchlistItem] = [] {
-        didSet { persist() }
+        didSet {
+            guard !isHydrating else { return }
+            persist()
+        }
     }
+
+    private var isHydrating = true
 
     init() {
         load()
@@ -49,6 +54,9 @@ final class PriceWatchlistStore: ObservableObject {
     }
 
     private func load() {
+        isHydrating = true
+        defer { isHydrating = false }
+
         guard let data = UserDefaults.standard.data(forKey: Keys.items),
               let decoded = try? JSONDecoder().decode([PriceWatchlistItem].self, from: data) else {
             items = []

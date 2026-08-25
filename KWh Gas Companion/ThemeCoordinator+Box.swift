@@ -1,14 +1,16 @@
+// Copyright Bryan Carroll. Made with Love in New York. All rights reserved. 2026.
+
 //  ThemeCoordinator+Box.swift
 //  My KWh Companion
-//
-//  Lightweight adapter so .box is available on ThemeCoordinator without
-//  redefining any environment keys or types.
 
 import SwiftUI
 
 public extension ThemeCoordinator {
-    /// Convenience wrapper to build an AppThemeBox from inputs.
-    static func makeBox(uiStyleRaw: String, accentColor: Color, scheme: ColorScheme) -> AppThemeBox {
-        ThemeCoordinator.makeThemeBox(uiStyleRaw: uiStyleRaw, accentColor: accentColor, scheme: scheme)
+    static func makeBox(
+        style: ThemeStyle,
+        accentColor: Color,
+        scheme: ColorScheme
+    ) -> AppThemeBox {
+        ThemeCoordinator.makeThemeBox(style: style, accentColor: accentColor, scheme: scheme)
     }
 }

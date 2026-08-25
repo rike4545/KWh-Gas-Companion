@@ -1,29 +1,28 @@
 //
-//  ChargeLogDocument 2.swift
-//  KWh Gas Companion
+//  ChargeLogDocument.swift
+//  MyKWh Companion
 //
-//  Created by Bryan on 7/15/25.
+//  🔧 FIX: KWChargeLogEntry → ChargeLogEntry throughout.
+//  KWChargeLogEntry was never defined in the project — this caused a compile error.
+//  The actual type declared in ChargeLogEntry.swift is `ChargeLogEntry`.
 //
-
-
-// ChargeLogDocument.swift
-// MyKwH Companion
-// Created by Bryan on 7/15/25.
+//  Swift 6 / iOS 17+
+//
 
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// A FileDocument wrapper around an array of KWChargeLogEntry,
+/// A FileDocument wrapper around an array of ChargeLogEntry,
 /// for JSON-based import/export and document-based persistence.
 struct ChargeLogDocument: FileDocument {
     /// Declare that this document reads and writes JSON
     static var readableContentTypes: [UTType] { [UTType.json] }
 
     /// The array of charge log entries stored in this document
-    var entries: [KWChargeLogEntry]
+    var entries: [ChargeLogEntry]
 
     /// Default initializer for creating a new, empty document
-    init(entries: [KWChargeLogEntry] = []) {
+    init(entries: [ChargeLogEntry] = []) {
         self.entries = entries
     }
 
@@ -33,7 +32,7 @@ struct ChargeLogDocument: FileDocument {
             self.entries = []
             return
         }
-        self.entries = try JSONDecoder().decode([KWChargeLogEntry].self, from: data)
+        self.entries = try JSONDecoder().decode([ChargeLogEntry].self, from: data)
     }
 
     /// Save to disk: encode the entries array as JSON

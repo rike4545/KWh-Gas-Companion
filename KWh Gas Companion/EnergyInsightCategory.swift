@@ -1,11 +1,3 @@
-//
-//  EnergyInsightCategory.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 12/8/25.
-//
-
-
 //  EnergyCoachView.swift
 
 import SwiftUI

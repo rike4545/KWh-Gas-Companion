@@ -2,9 +2,7 @@
 //  VINDecoderContainerView.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 7/24/25.
 //
-
 
 import SwiftUI
 

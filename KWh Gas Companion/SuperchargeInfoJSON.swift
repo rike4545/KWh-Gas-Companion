@@ -1,12 +1,3 @@
-//
-//  SuperchargeInfoJSON.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 1/2/26.
-//
-
-
-//
 //  SuperchargeInfoJSON.swift
 //  KWh Gas Companion / My EV Companion
 //

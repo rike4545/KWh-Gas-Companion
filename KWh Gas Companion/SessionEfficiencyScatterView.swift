@@ -56,11 +56,11 @@ struct SessionEfficiencyScatterView: View {
                 if points.isEmpty {
                     EmptyStateCard(
                         title: "No session data",
-                        message: "Import TeslaFi CSV or add charging entries with odometer/energy to analyze efficiency.")
+                        message: "Add charging entries with odometer and energy details to analyze efficiency.")
                 } else if withTemp.isEmpty {
                     EmptyStateCard(
                         title: "No temperature in data",
-                        message: "This scatter needs ambient temperature. Import TeslaFi CSV that includes temp.")
+                        message: "This scatter needs ambient temperature data in your charging records.")
                 } else {
                     metricsRow
                     energyVsTemp
@@ -125,6 +125,7 @@ struct SessionEfficiencyScatterView: View {
                 }
             }
             .frame(height: 260)
+            .kwhInteractiveDataViz()
         }
     }
 
@@ -170,6 +171,7 @@ struct SessionEfficiencyScatterView: View {
                 }
             }
             .frame(height: 260)
+            .kwhInteractiveDataViz()
         }
     }
 

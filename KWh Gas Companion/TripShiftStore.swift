@@ -103,11 +103,12 @@ public final class TripShiftStore: ObservableObject {
     /// Build a stable composite key so the same TeslaFi row doesn't import twice.
     /// We keep it tolerant to minor formatting differences.
     private func dedupKey(for trip: TeslaFiTrip) -> String {
-        // Round date to seconds for stability
-        let ts = String(Int(trip.date.timeIntervalSince1970))
-        let odo = trip.odometer.map { String(format: "%.1f", $0) } ?? "_"
+        let ts = String(Int(trip.startDate.timeIntervalSince1970))
+        let end = String(Int(trip.endDate.timeIntervalSince1970))
+        let odo = trip.startOdometer.map { String(format: "%.1f", $0) } ?? "_"
+        let endOdo = trip.endOdometer.map { String(format: "%.1f", $0) } ?? "_"
         let kwh = trip.energyKWh.map { String(format: "%.2f", $0) } ?? "_"
         let loc = (trip.location ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        return [ts, odo, kwh, loc].joined(separator: "|")
+        return [ts, end, odo, endOdo, kwh, loc].joined(separator: "|")
     }
 }

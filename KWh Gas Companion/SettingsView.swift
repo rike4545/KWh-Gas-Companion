@@ -1,1396 +1,893 @@
+// SettingsView.swift
+// My EV Companion
 //
-//  SettingsView 2.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 1/26/26.
-//
-
-
-//
-//  SettingsView.swift
-//  KWh Gas Companion
-//
-//  Glass-mode correctness:
-//  - When uiStyle == "teslaGlass", settings surfaces render on .thinMaterial (glass)
-//  - When classic, settings surfaces use theme.cardBackground
-//  - Screen background uses theme.screenBackground + subtle accent glow
-//
-//  Swift 6 • iOS 17+
-//
+// Brand-aware Settings screen.
+// • Auto-switching theme preview
+// • Performance revision:
+//   ✅ SettingsColors cached as @State struct — UIKit color resolution runs once per theme/scheme
+//      change instead of on every render pass (was: called 8+ times per body evaluation)
+//   ✅ interfaceIsDark computed inside SettingsColors.make(), not as a live computed property
+//   ✅ themePreviewCard extracted to Equatable struct — skips re-render when inputs unchanged
+//   ✅ OnboardingFlowView.pages promoted to static let — array not reconstructed per render
+//   ✅ resolvedThemeStyle cached as @State to avoid ThemeStyle.resolve() on every render
+//   ✅ sectionHeader extracted to a tiny Equatable struct (avoids Text() rebuild per render)
 
 import SwiftUI
 #if canImport(UIKit)
 import UIKit
 #endif
 
-@MainActor
-struct SettingsView: View {
-
-    // Theme + look
-    @Environment(\.appThemeBox) private var themeBox
-    @Environment(\.colorScheme) private var scheme
-    @EnvironmentObject private var appearance: AppAppearance
-    @EnvironmentObject private var uiSettings: AppUISettings
-
-    // Data stores (used for counts + hub links)
-    @EnvironmentObject private var entriesStore: EntriesStore
-    @EnvironmentObject private var teslaFiStore: TeslaFiSessionStore
-    @StateObject private var adsStore = AdsEntitlementStore.shared
-    @StateObject private var proStore = TeslaMateProStore.shared
-    @StateObject private var teslaFiUnlock = TeslaFiEntitlementStore.shared
-
-    // ThemeBinder reads/writes this key
-    @AppStorage("uiStyle") private var uiStyleRaw: String = "teslaGlass"
-
-    // ✅ App Icon selection (primary + alternates)
-    @AppStorage("appearance.appIcon") private var appIconRaw: String = AppIconChoice.appIcon.rawValue
-    @State private var showingIconError: Bool = false
-    @State private var iconErrorMessage: String = ""
-
-    // Common preferences
-    @AppStorage("defaultCurrencyCode") private var defaultCurrencyCode: String =
-        (Locale.current.currency?.identifier ?? "USD")
-    @AppStorage("settings.measurementSystem") private var measurementSystem: String = "auto" // auto|imperial|metric
-    @AppStorage("settings.notificationsEnabled") private var notificationsEnabled: Bool = true
-    @AppStorage("categorize.enabled") private var autoCategorizeEnabled: Bool = true
-    @AppStorage("categorize.autoApply") private var autoCategorizeAutoApply: Bool = true
-    @AppStorage("categorize.learn") private var autoCategorizeLearn: Bool = true
-
-    @State private var showingResetConfirm: Bool = false
-
-    private var theme: any AppThemeSpec { themeBox.base }
-    private var uiStyle: ToolsStyle { ToolsStyle(rawValue: uiStyleRaw) ?? .classic }
-    private var selectedAppIcon: AppIconChoice { AppIconChoice(rawValue: appIconRaw) ?? .appIcon }
-
-    private var appVersionText: String {
-        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
-        let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—"
-        return "\(v) (\(b))"
-    }
-
-    // MARK: - Glass + Background
-
-    private var cardBackground: AnyShapeStyle {
-        switch uiStyle {
-        case .classic:
-            return AnyShapeStyle(theme.cardBackground)
-        case .teslaGlass:
-            return AnyShapeStyle(.thinMaterial)
-        }
-    }
-
-    private enum ThemePreset: String, CaseIterable, Identifiable {
-        case teslaOfficial
-        case tesla
-        case minimal
-        case neon
-        case classic
-
-        var id: String { rawValue }
-
-        var title: String {
-            switch self {
-            case .teslaOfficial: return "Tesla Official"
-            case .tesla: return "Tesla"
-            case .minimal: return "Minimal"
-            case .neon: return "Neon"
-            case .classic: return "Classic"
-            }
-        }
-
-        var subtitle: String {
-            switch self {
-            case .teslaOfficial: return "Crisp, tight, low‑chrome"
-            case .tesla: return "Glass + red glow"
-            case .minimal: return "Low chrome"
-            case .neon: return "Bold accent"
-            case .classic: return "System surfaces"
-            }
-        }
-    }
-
-    private var presetRow: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Theme Presets")
-                .font(.subheadline.weight(.semibold))
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    ForEach(ThemePreset.allCases) { preset in
-                        Button {
-                            applyPreset(preset)
-                        } label: {
-                            VStack(alignment: .leading, spacing: 6) {
-                                HStack(spacing: 8) {
-                                    Circle()
-                                        .fill(presetAccent(preset).opacity(0.25))
-                                        .overlay(
-                                            Image(systemName: presetSymbol(preset))
-                                                .font(.caption.weight(.semibold))
-                                                .foregroundStyle(presetAccent(preset))
-                                        )
-                                        .frame(width: 26, height: 26)
-
-                                    Text(preset.title)
-                                        .font(.footnote.weight(.semibold))
-
-                                    Spacer()
-
-                                    if isPresetActive(preset) {
-                                        Text("Active")
-                                            .font(.caption2.weight(.semibold))
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 2)
-                                            .background(Capsule().fill(appearance.accentColor.opacity(0.18)))
-                                    }
-                                }
-
-                                Text(preset.subtitle)
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(2)
-                            }
-                            .frame(width: 150, alignment: .leading)
-                            .padding(12)
-                            .background(
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .fill(theme.cardBackground.opacity(isPresetActive(preset) ? 0.95 : 0.8))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                            .strokeBorder(
-                                                isPresetActive(preset) ? appearance.accentColor.opacity(0.6)
-                                                : theme.separator.opacity(0.5),
-                                                lineWidth: isPresetActive(preset) ? 1.5 : 1
-                                            )
-                                    )
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-        }
-    }
-
-    private func presetSymbol(_ preset: ThemePreset) -> String {
-        switch preset {
-        case .teslaOfficial: return "bolt.circle.fill"
-        case .tesla: return "bolt.fill"
-        case .minimal: return "circle.dashed"
-        case .neon: return "sparkles"
-        case .classic: return "square.grid.2x2"
-        }
-    }
-
-    private func presetAccent(_ preset: ThemePreset) -> Color {
-        switch preset {
-        case .neon: return .cyan
-        case .minimal: return .gray
-        case .classic: return .blue
-        default: return appearance.accentColor
-        }
-    }
-
-    private func isPresetActive(_ preset: ThemePreset) -> Bool {
-        switch preset {
-        case .teslaOfficial:
-            return uiStyleRaw == ToolsStyle.teslaGlass.rawValue
-                && appearance.accentChoice == .red
-                && uiSettings.cardStyle == .glass
-                && uiSettings.background == .carbon
-                && uiSettings.typography == .bold
-                && uiSettings.density == .compact
-                && uiSettings.cardCorner == .crisp
-                && uiSettings.cardPadding == .tight
-                && uiSettings.motion == .reduced
-        case .tesla:
-            return uiStyleRaw == ToolsStyle.teslaGlass.rawValue
-                && appearance.accentChoice == .red
-                && uiSettings.cardStyle == .glass
-                && uiSettings.background == .defaultGlow
-        case .minimal:
-            return uiSettings.cardStyle == .flat && uiSettings.background == .defaultGlow
-        case .neon:
-            return appearance.accentChoice != .red && uiSettings.background == .aurora
-        case .classic:
-            return uiStyleRaw == ToolsStyle.classic.rawValue
-        }
-    }
-
-    private var appearanceSummaryCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Label("Appearance Summary", systemImage: "paintbrush")
-                    .font(.headline)
-                Spacer()
-                Text("Live preview")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            HStack(spacing: 8) {
-                summaryChip("Theme", appearance.scheme.title)
-                summaryChip("Accent", appearance.accentChoice.title)
-                summaryChip("Motion", uiSettings.motion.title)
-            }
-
-            HStack(spacing: 8) {
-                summaryChip("Density", uiSettings.density.title)
-                summaryChip("Corners", uiSettings.cardCorner.title)
-                summaryChip("Padding", uiSettings.cardPadding.title)
-            }
-        }
-        .themedCard()
-    }
-
-    private func summaryChip(_ title: String, _ value: String) -> some View {
-        HStack(spacing: 6) {
-            Text(title)
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.secondary)
-            Text(value)
-                .font(.caption2.weight(.semibold))
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Capsule().fill(theme.pillTint.opacity(0.6)))
-    }
-
-    private var screenBackground: some View {
-        let accent = appearance.accentColor
-        return ZStack {
-            Rectangle()
-                .fill(theme.screenBackground)
-                .ignoresSafeArea()
-
-            switch uiSettings.background {
-            case .defaultGlow:
-                RadialGradient(
-                    colors: [accent.opacity(scheme == .dark ? 0.28 : 0.18), .clear],
-                    center: .topLeading,
-                    startRadius: 0,
-                    endRadius: 520
-                )
-                .blur(radius: 28)
-                .ignoresSafeArea()
-
-                if scheme == .dark {
-                    RadialGradient(
-                        colors: [Color.purple.opacity(0.18), .clear],
-                        center: .bottomTrailing,
-                        startRadius: 0,
-                        endRadius: 520
-                    )
-                    .blur(radius: 34)
-                    .ignoresSafeArea()
-                }
-
-            case .aurora:
-                RadialGradient(
-                    colors: [accent.opacity(scheme == .dark ? 0.22 : 0.14), .clear],
-                    center: .topLeading,
-                    startRadius: 0,
-                    endRadius: 640
-                )
-                .blur(radius: 32)
-                .ignoresSafeArea()
-
-                RadialGradient(
-                    colors: [Color.green.opacity(scheme == .dark ? 0.20 : 0.12), .clear],
-                    center: .bottomTrailing,
-                    startRadius: 0,
-                    endRadius: 680
-                )
-                .blur(radius: 36)
-                .ignoresSafeArea()
-
-            case .dusk:
-                RadialGradient(
-                    colors: [Color.orange.opacity(scheme == .dark ? 0.18 : 0.12), .clear],
-                    center: .top,
-                    startRadius: 0,
-                    endRadius: 520
-                )
-                .blur(radius: 30)
-                .ignoresSafeArea()
-
-                RadialGradient(
-                    colors: [Color.purple.opacity(scheme == .dark ? 0.18 : 0.10), .clear],
-                    center: .bottom,
-                    startRadius: 0,
-                    endRadius: 620
-                )
-                .blur(radius: 36)
-                .ignoresSafeArea()
-
-            case .carbon:
-                LinearGradient(
-                    colors: [
-                        Color.black.opacity(scheme == .dark ? 0.65 : 0.10),
-                        Color.black.opacity(scheme == .dark ? 0.25 : 0.04)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .blendMode(.overlay)
-                .ignoresSafeArea()
-
-            case .blackHistoryMonth:
-                LinearGradient(
-                    colors: [
-                        Color.black.opacity(scheme == .dark ? 0.75 : 0.25),
-                        Color(red: 0.35, green: 0.16, blue: 0.05).opacity(scheme == .dark ? 0.45 : 0.20),
-                        Color(red: 0.75, green: 0.60, blue: 0.20).opacity(scheme == .dark ? 0.35 : 0.18)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .blendMode(.overlay)
-                .ignoresSafeArea()
-
-            case .christmas:
-                RadialGradient(
-                    colors: [Color.red.opacity(scheme == .dark ? 0.28 : 0.18), .clear],
-                    center: .topLeading,
-                    startRadius: 0,
-                    endRadius: 520
-                )
-                .blur(radius: 30)
-                .ignoresSafeArea()
-                RadialGradient(
-                    colors: [Color.green.opacity(scheme == .dark ? 0.24 : 0.14), .clear],
-                    center: .bottomTrailing,
-                    startRadius: 0,
-                    endRadius: 620
-                )
-                .blur(radius: 34)
-                .ignoresSafeArea()
-
-            case .lunarNewYear:
-                RadialGradient(
-                    colors: [Color.red.opacity(scheme == .dark ? 0.30 : 0.20), .clear],
-                    center: .topLeading,
-                    startRadius: 0,
-                    endRadius: 560
-                )
-                .blur(radius: 30)
-                .ignoresSafeArea()
-                RadialGradient(
-                    colors: [Color.yellow.opacity(scheme == .dark ? 0.26 : 0.16), .clear],
-                    center: .bottomTrailing,
-                    startRadius: 0,
-                    endRadius: 640
-                )
-                .blur(radius: 36)
-                .ignoresSafeArea()
-
-            case .halloween:
-                RadialGradient(
-                    colors: [Color.orange.opacity(scheme == .dark ? 0.28 : 0.18), .clear],
-                    center: .top,
-                    startRadius: 0,
-                    endRadius: 520
-                )
-                .blur(radius: 30)
-                .ignoresSafeArea()
-                RadialGradient(
-                    colors: [Color.purple.opacity(scheme == .dark ? 0.26 : 0.16), .clear],
-                    center: .bottom,
-                    startRadius: 0,
-                    endRadius: 620
-                )
-                .blur(radius: 36)
-                .ignoresSafeArea()
-
-            case .thanksgiving:
-                RadialGradient(
-                    colors: [Color(red: 0.65, green: 0.36, blue: 0.12).opacity(scheme == .dark ? 0.28 : 0.18), .clear],
-                    center: .topLeading,
-                    startRadius: 0,
-                    endRadius: 520
-                )
-                .blur(radius: 30)
-                .ignoresSafeArea()
-                RadialGradient(
-                    colors: [Color.orange.opacity(scheme == .dark ? 0.20 : 0.12), .clear],
-                    center: .bottomTrailing,
-                    startRadius: 0,
-                    endRadius: 620
-                )
-                .blur(radius: 34)
-                .ignoresSafeArea()
-
-            case .newYear:
-                RadialGradient(
-                    colors: [Color.blue.opacity(scheme == .dark ? 0.24 : 0.14), .clear],
-                    center: .topLeading,
-                    startRadius: 0,
-                    endRadius: 560
-                )
-                .blur(radius: 30)
-                .ignoresSafeArea()
-                RadialGradient(
-                    colors: [Color.white.opacity(scheme == .dark ? 0.18 : 0.10), .clear],
-                    center: .bottomTrailing,
-                    startRadius: 0,
-                    endRadius: 640
-                )
-                .blur(radius: 36)
-                .ignoresSafeArea()
-            }
-        }
-    }
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: theme.spacing + 12) {
-                appearanceSummaryCard
-
-                // MARK: Appearance
-                SettingsCard(title: "Appearance", icon: "paintbrush", theme: theme, background: cardBackground) {
-
-                    presetRow
-
-                    Divider().opacity(0.7)
-
-                    NavigationLink {
-                        ThemeModePickerView(selection: $appearance.scheme)
-                            .navigationTitle("Theme")
-                            .navigationBarTitleDisplayMode(NavigationBarItem.TitleDisplayMode.inline)
-                    } label: {
-                        SettingsRow(
-                            title: "Theme",
-                            subtitle: appearance.scheme.title,
-                            systemImage: "circle.lefthalf.filled",
-                            accent: appearance.accentColor
-                        )
-                    }
-                    .buttonStyle(.plain)
-
-                    Divider().opacity(0.7)
-
-                    NavigationLink {
-                        AccentPickerView(selection: $appearance.accentChoice)
-                            .navigationTitle("Accent")
-                            .navigationBarTitleDisplayMode(NavigationBarItem.TitleDisplayMode.inline)
-                    } label: {
-                        HStack(spacing: 12) {
-                            SettingsIcon(systemImage: "paintpalette", accent: appearance.accentColor)
-
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Accent")
-                                    .font(.body.weight(.semibold))
-                                Text(appearance.accentChoice.title)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            Spacer()
-
-                            Circle()
-                                .fill(appearance.accentColor)
-                                .frame(width: 14, height: 14)
-
-                            Image(systemName: "chevron.right")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                        }
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-
-                    Divider().opacity(0.7)
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(spacing: 12) {
-                            SettingsIcon(systemImage: "square.on.square", accent: appearance.accentColor)
-
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("UI Style")
-                                    .font(.body.weight(.semibold))
-                                Text(uiStyle == .teslaGlass ? "Glass surfaces (material)" : "Classic surfaces")
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            Spacer()
-                        }
-
-                        Picker("UI Style", selection: $uiStyleRaw) {
-                            Text("Classic").tag(ToolsStyle.classic.rawValue)
-                            Text("Glass").tag(ToolsStyle.teslaGlass.rawValue)
-                        }
-                        .pickerStyle(.segmented)
-                        .accessibilityLabel("UI Style")
-                    }
-
-                    Divider().opacity(0.7)
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(spacing: 12) {
-                            SettingsIcon(systemImage: "textformat.size", accent: appearance.accentColor)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Typography")
-                                    .font(.body.weight(.semibold))
-                                Text(uiSettings.typography.title)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                        }
-
-                        Picker("Typography", selection: $uiSettings.typography) {
-                            ForEach(TypographyMode.allCases) { t in
-                                Text(t.title).tag(t)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                    }
-
-                    Divider().opacity(0.7)
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(spacing: 12) {
-                            SettingsIcon(systemImage: "rectangle.3.offgrid", accent: appearance.accentColor)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Card Style")
-                                    .font(.body.weight(.semibold))
-                                Text(uiSettings.cardStyle.title)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                        }
-
-                        Picker("Card Style", selection: $uiSettings.cardStyle) {
-                            ForEach(CardStyleMode.allCases) { s in
-                                Text(s.title).tag(s)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                    }
-
-                    Divider().opacity(0.7)
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(spacing: 12) {
-                            SettingsIcon(systemImage: "squareroot", accent: appearance.accentColor)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Corner Radius")
-                                    .font(.body.weight(.semibold))
-                                Text(uiSettings.cardCorner.title)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                        }
-
-                        Picker("Corner Radius", selection: $uiSettings.cardCorner) {
-                            ForEach(CardCornerMode.allCases) { c in
-                                Text(c.title).tag(c)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                    }
-
-                    Divider().opacity(0.7)
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(spacing: 12) {
-                            SettingsIcon(systemImage: "arrow.up.left.and.arrow.down.right", accent: appearance.accentColor)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Card Padding")
-                                    .font(.body.weight(.semibold))
-                                Text(uiSettings.cardPadding.title)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                        }
-
-                        Picker("Card Padding", selection: $uiSettings.cardPadding) {
-                            ForEach(CardPaddingMode.allCases) { p in
-                                Text(p.title).tag(p)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                    }
-
-                    Divider().opacity(0.7)
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(spacing: 12) {
-                            SettingsIcon(systemImage: "arrow.up.and.down.text.horizontal", accent: appearance.accentColor)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Density")
-                                    .font(.body.weight(.semibold))
-                                Text(uiSettings.density.title)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                        }
-
-                        Picker("Density", selection: $uiSettings.density) {
-                            ForEach(DensityMode.allCases) { d in
-                                Text(d.title).tag(d)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                    }
-
-                    Divider().opacity(0.7)
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(spacing: 12) {
-                            SettingsIcon(systemImage: "sun.max", accent: appearance.accentColor)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Background")
-                                    .font(.body.weight(.semibold))
-                                Text(uiSettings.background.title)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                        }
-
-                        Picker("Background", selection: $uiSettings.background) {
-                            ForEach(BackgroundStyle.allCases) { b in
-                                Text(b.title).tag(b)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                    }
-
-                    Divider().opacity(0.7)
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(spacing: 12) {
-                            SettingsIcon(systemImage: "sparkles", accent: appearance.accentColor)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Motion")
-                                    .font(.body.weight(.semibold))
-                                Text(uiSettings.motion.title)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                        }
-
-                        Picker("Motion", selection: $uiSettings.motion) {
-                            ForEach(MotionMode.allCases) { m in
-                                Text(m.title).tag(m)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                    }
-
-                    // ✅ NEW: App Icon picker (includes AppIconFunny)
-                    Divider().opacity(0.7)
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(spacing: 12) {
-                            SettingsIcon(systemImage: "app.badge", accent: appearance.accentColor)
-
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("App Icon")
-                                    .font(.body.weight(.semibold))
-                                Text(selectedAppIcon.subtitle)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            Spacer()
-                        }
-
-                        if supportsAlternateIcons {
-                            Picker("App Icon", selection: $appIconRaw) {
-                                ForEach(AppIconChoice.allCases) { choice in
-                                    Text(choice.title).tag(choice.rawValue)
-                                }
-                            }
-                            .pickerStyle(.menu) // 4 options reads better than segmented
-                            .onChange(of: appIconRaw) { oldValue, newValue in
-                                applyAppIcon(oldRaw: oldValue, newRaw: newValue)
-                            }
-                            .accessibilityLabel("App Icon")
-                        } else {
-                            Text("Alternate app icons aren’t available on this device.")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-
-                // MARK: Display & Units
-                SettingsCard(title: "Display & Units", icon: "ruler", theme: theme, background: cardBackground) {
-
-                    SettingsPickerRow(
-                        title: "Currency",
-                        systemImage: "dollarsign.circle",
-                        accent: appearance.accentColor
-                    ) {
-                        Picker("Currency", selection: $defaultCurrencyCode) {
-                            Text("USD").tag("USD")
-                            Text("CAD").tag("CAD")
-                            Text("EUR").tag("EUR")
-                            Text("GBP").tag("GBP")
-                            Text("JPY").tag("JPY")
-                        }
-                        .pickerStyle(.menu)
-                    }
-
-                    Divider().opacity(0.7)
-
-                    SettingsPickerRow(
-                        title: "Measurement",
-                        systemImage: "speedometer",
-                        accent: appearance.accentColor
-                    ) {
-                        Picker("Measurement", selection: $measurementSystem) {
-                            Text("Auto").tag("auto")
-                            Text("Imperial").tag("imperial")
-                            Text("Metric").tag("metric")
-                        }
-                        .pickerStyle(.segmented)
-                    }
-                }
-
-                // MARK: Data
-                SettingsCard(title: "Data", icon: "tray.and.arrow.down", theme: theme, background: cardBackground) {
-
-                    NavigationLink {
-                        ChargingDataHubView()
-                            .navigationTitle("Charging Data")
-                            .navigationBarTitleDisplayMode(NavigationBarItem.TitleDisplayMode.inline)
-                    } label: {
-                        SettingsRow(
-                            title: "Charging Data Hub",
-                            subtitle: "Sessions, integrity, reconciliation",
-                            systemImage: "bolt.car",
-                            accent: appearance.accentColor
-                        )
-                    }
-                    .buttonStyle(.plain)
-
-                    Divider().opacity(0.7)
-
-                    NavigationLink {
-                        ChargingImportHubView()
-                            .navigationTitle("Import Charging")
-                            .navigationBarTitleDisplayMode(NavigationBarItem.TitleDisplayMode.inline)
-                    } label: {
-                        SettingsRow(
-                            title: "Import Charging Data",
-                            subtitle: "CSV + sources",
-                            systemImage: "tray.and.arrow.down",
-                            accent: appearance.accentColor
-                        )
-                    }
-                    .buttonStyle(.plain)
-
-                    Divider().opacity(0.7)
-
-                    NavigationLink {
-                        TeslaFiCSVImportView()
-                            .navigationTitle("TeslaFi Import")
-                            .navigationBarTitleDisplayMode(NavigationBarItem.TitleDisplayMode.inline)
-                    } label: {
-                        SettingsRow(
-                            title: "Import TeslaFi CSV",
-                            subtitle: teslaFiUnlock.hasTeslaFiUnlock ? "Charging sessions" : "Requires $0.99 unlock",
-                            systemImage: "doc.text",
-                            accent: appearance.accentColor
-                        )
-                    }
-                    .buttonStyle(.plain)
-
-                    Divider().opacity(0.7)
-
-                    NavigationLink {
-                        CSVChargingWizardView()
-                            .navigationTitle("CSV Wizard")
-                            .navigationBarTitleDisplayMode(NavigationBarItem.TitleDisplayMode.inline)
-                    } label: {
-                        SettingsRow(
-                            title: "CSV Charging Wizard",
-                            subtitle: "Clean + validate + import",
-                            systemImage: "wand.and.stars",
-                            accent: appearance.accentColor
-                        )
-                    }
-                    .buttonStyle(.plain)
-
-                    Divider().opacity(0.7)
-
-                    SettingsValueRow(title: "Entries", value: "\(entriesStore.entries.count)", systemImage: "list.bullet.rectangle")
-                    if teslaFiUnlock.hasTeslaFiUnlock {
-                        SettingsValueRow(title: "TeslaFi Sessions", value: "\(teslaFiStore.sessions.count)", systemImage: "bolt.car")
-                    } else {
-                        SettingsValueRow(title: "TeslaFi Sessions", value: "Locked", systemImage: "bolt.car")
-                    }
-
-                    if teslaFiUnlock.hasTeslaFiUnlock, !teslaFiStore.canonicalSessions.isEmpty {
-                        SettingsValueRow(title: "Canonical Sessions", value: "\(teslaFiStore.canonicalSessions.count)", systemImage: "checkmark.shield")
-                    }
-                }
-
-                // MARK: Preferences
-                SettingsCard(title: "Preferences", icon: "slider.horizontal.3", theme: theme, background: cardBackground) {
-
-                    Toggle(isOn: $notificationsEnabled) {
-                        HStack(spacing: 12) {
-                            SettingsIcon(systemImage: "bell.badge", accent: appearance.accentColor)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Notifications")
-                                    .font(.body.weight(.semibold))
-                                Text("Alerts and reminders")
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                    .toggleStyle(.switch)
-
-                    Divider().opacity(0.7)
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 12) {
-                            SettingsIcon(systemImage: "hand.tap", accent: appearance.accentColor)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Haptics")
-                                    .font(.body.weight(.semibold))
-                                Text("Tactile feedback")
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                        }
-                        Picker("Haptics", selection: $uiSettings.haptics) {
-                            ForEach(HapticsLevel.allCases) { h in
-                                Text(h.title).tag(h)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                    }
-
-                    Divider().opacity(0.7)
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(spacing: 12) {
-                            SettingsIcon(systemImage: "brain.head.profile", accent: appearance.accentColor)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Smart Categorization")
-                                    .font(.body.weight(.semibold))
-                                Text("Suggest and learn expense categories")
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                        }
-
-                        Toggle("Enable suggestions", isOn: $autoCategorizeEnabled)
-                        Toggle("Auto‑apply suggestion", isOn: $autoCategorizeAutoApply)
-                        Toggle("Learn my choices", isOn: $autoCategorizeLearn)
-                    }
-                }
-
-                // MARK: Pro
-                SettingsCard(title: "Pro", icon: "bolt.fill", theme: theme, background: cardBackground) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemImage: "bolt.fill", accent: appearance.accentColor)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("TeslaMate Client")
-                                .font(.body.weight(.semibold))
-                            Text(proStore.isProActive ? "Active" : "Locked")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                    }
-
-                    Divider().opacity(0.7)
-
-                    Text("Connect directly to your TeslaMate server for dashboards, activities, geofence costs, widgets, and Live Activities.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-
-                    NavigationLink {
-                        TeslaMateProClientView()
-                    } label: {
-                        SettingsRow(
-                            title: "Open TeslaMate Client",
-                            subtitle: proStore.isProActive ? "Manage connection and dashboards" : "Subscribe to unlock",
-                            systemImage: "server.rack",
-                            accent: appearance.accentColor
-                        )
-                    }
-                    .buttonStyle(.plain)
-
-                    if let error = proStore.lastError, !error.isEmpty {
-                        Text(error)
-                            .font(.footnote)
-                            .foregroundStyle(.red)
-                    }
-                }
-
-                // MARK: Ads
-                SettingsCard(title: "Ads", icon: "megaphone", theme: theme, background: cardBackground) {
-                    HStack(spacing: 12) {
-                        SettingsIcon(systemImage: "megaphone", accent: appearance.accentColor)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Banner Ads")
-                                .font(.body.weight(.semibold))
-                            Text(adsStore.hasRemovedAds ? "Removed" : "Active")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                    }
-
-                    Divider().opacity(0.7)
-
-                    if adsStore.hasRemovedAds {
-                        Text("Thanks for supporting the app. Ads are disabled on this device.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Text("Remove banner ads for a one‑time purchase.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-
-                        HStack {
-                            Button {
-                                Task { await adsStore.purchaseRemoveAds() }
-                            } label: {
-                                HStack(spacing: 6) {
-                                    if adsStore.purchaseInFlight {
-                                        ProgressView().scaleEffect(0.9)
-                                    }
-                                    Text(adsStore.purchaseInFlight ? "Processing…" : "Remove Ads \(adsStore.displayPrice)")
-                                }
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(adsStore.purchaseInFlight)
-
-                            Button("Restore Purchases") {
-                                Task { await adsStore.restore() }
-                            }
-                            .buttonStyle(.bordered)
-                            .disabled(adsStore.purchaseInFlight)
-                        }
-                    }
-
-                    if let error = adsStore.lastError, !error.isEmpty {
-                        Text(error)
-                            .font(.footnote)
-                            .foregroundStyle(.red)
-                    }
-                }
-
-                if !adsStore.hasRemovedAds {
-                    AdBannerCard(adsStore: adsStore)
-                }
-
-                // MARK: About
-                SettingsCard(title: "About", icon: "info.circle", theme: theme, background: cardBackground) {
-
-                    SettingsValueRow(title: "Version", value: appVersionText, systemImage: "number")
-
-                    Divider().opacity(0.7)
-
-                    Button(role: .destructive) {
-                        showingResetConfirm = true
-                    } label: {
-                        SettingsRow(
-                            title: "Reset Appearance",
-                            subtitle: "Theme + UI style (accent stays as-is)",
-                            systemImage: "arrow.counterclockwise",
-                            accent: .red
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                Link(destination: URL(string: "https://qualtricsxmm8q5gxrhq.qualtrics.com/jfe/form/SV_1TvkCrIKgaEYHPM")!) {
-                    HStack(spacing: 10) {
-                        Image(systemName: "paperplane")
-                            .font(.body.weight(.semibold))
-                        Text("Submit a Bug / Suggestion")
-                            .font(.footnote.weight(.semibold))
-                        Spacer()
-                        Image(systemName: "arrow.up.right.square")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.vertical, 10)
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 12)
-            .padding(.bottom, 28)
-        }
-        .background(screenBackground)
-        .tint(appearance.accentColor)
-        .preferredColorScheme(appearance.preferredColorScheme)
-        .task {
-            syncAppIconSelectionFromSystem()
-            await adsStore.load()
-            await proStore.load()
-            await proStore.refreshEntitlements()
-            await teslaFiUnlock.load()
-        }
-        .alert("Couldn’t Change App Icon", isPresented: $showingIconError) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text(iconErrorMessage)
-        }
-        .confirmationDialog(
-            "Reset appearance settings?",
-            isPresented: $showingResetConfirm,
-            titleVisibility: .visible
-        ) {
-            Button("Reset", role: .destructive) { resetAppearanceDefaults() }
-            Button("Cancel", role: .cancel) { }
-        } message: {
-            Text("This resets Theme and UI Style back to defaults.")
-        }
-    }
-
-    // MARK: - App Icon
-
-    private var supportsAlternateIcons: Bool {
-        #if canImport(UIKit)
-        return UIApplication.shared.supportsAlternateIcons
-        #else
-        return false
-        #endif
-    }
-
-    private func syncAppIconSelectionFromSystem() {
-        guard supportsAlternateIcons else { return }
-        #if canImport(UIKit)
-        let current = UIApplication.shared.alternateIconName // nil means primary icon
-        if let current, AppIconChoice(rawValue: current) != nil {
-            appIconRaw = current
-        } else {
-            appIconRaw = AppIconChoice.appIcon.rawValue
-        }
-        #endif
-    }
-
-    private func applyAppIcon(oldRaw: String, newRaw: String) {
-        guard supportsAlternateIcons else { return }
-        guard let choice = AppIconChoice(rawValue: newRaw) else { return }
-
-        #if canImport(UIKit)
-        // If already set, no-op
-        if UIApplication.shared.alternateIconName == choice.alternateIconName { return }
-
-        UIApplication.shared.setAlternateIconName(choice.alternateIconName) { error in
-            guard let error else { return }
-            Task { @MainActor in
-                // revert UI selection
-                appIconRaw = oldRaw
-                iconErrorMessage = error.localizedDescription
-                showingIconError = true
-            }
-        }
-        #endif
-    }
-
-    // MARK: - Reset
-
-    private func applyPreset(_ preset: ThemePreset) {
-        switch preset {
-        case .teslaOfficial:
-            uiStyleRaw = ToolsStyle.teslaGlass.rawValue
-            appearance.accentChoice = .red
-            uiSettings.cardStyle = .glass
-            uiSettings.background = .carbon
-            uiSettings.typography = .bold
-            uiSettings.density = .compact
-            uiSettings.cardCorner = .crisp
-            uiSettings.cardPadding = .tight
-            uiSettings.motion = .reduced
-        case .tesla:
-            uiStyleRaw = ToolsStyle.teslaGlass.rawValue
-            appearance.accentChoice = .red
-            uiSettings.cardStyle = .glass
-            uiSettings.background = .defaultGlow
-            uiSettings.typography = .bold
-            uiSettings.density = .comfortable
-            uiSettings.haptics = .standard
-        case .minimal:
-            uiStyleRaw = ToolsStyle.classic.rawValue
-            appearance.accentChoice = .gray
-            uiSettings.cardStyle = .flat
-            uiSettings.background = .carbon
-            uiSettings.typography = .classic
-            uiSettings.density = .compact
-            uiSettings.haptics = .low
-        case .neon:
-            uiStyleRaw = ToolsStyle.teslaGlass.rawValue
-            appearance.accentChoice = .teal
-            uiSettings.cardStyle = .glass
-            uiSettings.background = .aurora
-            uiSettings.typography = .bold
-            uiSettings.density = .comfortable
-            uiSettings.haptics = .standard
-        case .classic:
-            uiStyleRaw = ToolsStyle.classic.rawValue
-            appearance.accentChoice = .blue
-            uiSettings.cardStyle = .elevated
-            uiSettings.background = .defaultGlow
-            uiSettings.typography = .classic
-            uiSettings.density = .comfortable
-            uiSettings.haptics = .standard
-        }
-    }
-
-    private func resetAppearanceDefaults() {
-        let d = UserDefaults.standard
-
-        // Reset keys that drive glass + theme mode
-        d.removeObject(forKey: "uiStyle")
-        d.removeObject(forKey: "appearance.scheme")
-        d.removeObject(forKey: "ui.typography")
-        d.removeObject(forKey: "ui.cardStyle")
-        d.removeObject(forKey: "ui.density")
-        d.removeObject(forKey: "ui.backgroundStyle")
-        d.removeObject(forKey: "ui.hapticsLevel")
-
-        // Do NOT assume any AccentChoice cases exist.
-        // If you also store accent by key, clear it best-effort:
-        d.removeObject(forKey: "appearance.accent")
-
-        // Immediate in-memory reset for a consistent UI
-        uiStyleRaw = ToolsStyle.classic.rawValue
-        appearance.scheme = .system
-        uiSettings.typography = .classic
-        uiSettings.cardStyle = .elevated
-        uiSettings.density = .comfortable
-        uiSettings.background = .defaultGlow
-        uiSettings.haptics = .standard
-
-        // Accent remains whatever your AppAppearance default currently is.
-    }
-}
-
-// MARK: - Cards & Rows (glass-aware)
-
-fileprivate struct SettingsCard<Content: View>: View {
-    let title: String
-    let icon: String
-    let theme: any AppThemeSpec
-    let background: AnyShapeStyle
-    @ViewBuilder var content: Content
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                Image(systemName: icon)
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-                Text(title)
-                    .font(.headline)
-                Spacer()
-            }
-            .accessibilityAddTraits(.isHeader)
-
-            content
-        }
-        .padding(theme.spacing)
-        .background(background, in: RoundedRectangle(cornerRadius: theme.corner, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: theme.corner, style: .continuous)
-                .strokeBorder(theme.separator.opacity(0.85), lineWidth: 1)
+// MARK: - Cached color bundle
+
+/// All derived colors for SettingsView, computed once per theme+scheme combination.
+/// Avoids calling UIKit `UIColor.resolvedColor` on every render pass.
+private struct SettingsColors: Equatable {
+    let primary: Color
+    let secondary: Color
+    let rowBackground: Color
+    let rowSeparator: Color
+    let accent: Color
+
+    static func make(theme: any AppThemeSpec, effectiveScheme: ColorScheme) -> SettingsColors {
+        let isDark = Self.computeIsDark(cardBackground: theme.cardBackground, scheme: effectiveScheme)
+        return SettingsColors(
+            primary:      isDark ? Color(hex: "#F4F5F8") : Color(hex: "#15171B"),
+            secondary:    isDark ? Color(hex: "#A2A8B5") : Color(hex: "#616A78"),
+            rowBackground: theme.cardBackground,
+            rowSeparator:  theme.separator,
+            accent:        theme.accent
         )
-        .shadow(color: Color.black.opacity(0.14), radius: theme.elevation, x: 0, y: 2)
+    }
+
+    // UIKit luminance check — called only when colors are rebuilt, not per-render
+    private static func computeIsDark(cardBackground: Color, scheme: ColorScheme) -> Bool {
+        #if canImport(UIKit)
+        let style: UIUserInterfaceStyle = scheme == .dark ? .dark : .light
+        let trait = UITraitCollection(userInterfaceStyle: style)
+        let uiColor = UIColor(cardBackground).resolvedColor(with: trait)
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        guard uiColor.getRed(&r, green: &g, blue: &b, alpha: &a) else { return scheme == .dark }
+        return (0.2126 * Double(r) + 0.7152 * Double(g) + 0.0722 * Double(b)) < 0.45
+        #else
+        return scheme == .dark
+        #endif
     }
 }
 
-fileprivate struct SettingsIcon: View {
-    let systemImage: String
-    let accent: Color
+// MARK: - Theme preview card (Equatable — skips re-render when inputs unchanged)
 
-    var body: some View {
-        ZStack {
-            Circle().fill(accent.opacity(0.14))
-            Image(systemName: systemImage)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(accent)
-        }
-        .frame(width: 32, height: 32)
-    }
-}
-
-fileprivate struct SettingsRow: View {
-    let title: String
+private struct SettingsThemePreviewCard: View, Equatable {
+    let themeName: String
+    let themeIcon: String
     let subtitle: String
-    let systemImage: String
     let accent: Color
+    let primary: Color
+    let secondary: Color
+    let rowBackground: Color
+    let corner: CGFloat
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.themeName == rhs.themeName &&
+        lhs.themeIcon == rhs.themeIcon &&
+        lhs.subtitle  == rhs.subtitle &&
+        lhs.corner    == rhs.corner
+        // Colors intentionally excluded — if theme/scheme changes, SettingsColors rebuilds
+        // and the parent re-renders, so this struct gets fresh inputs anyway.
+    }
 
     var body: some View {
-        HStack(spacing: 12) {
-            SettingsIcon(systemImage: systemImage, accent: accent)
+        let cardCorner = min(22, max(14, corner))
+        HStack(spacing: 14) {
+            ZStack {
+                Circle().fill(accent.opacity(0.22)).blur(radius: 10)
+                Circle().fill(accent.opacity(0.15))
+                Image(systemName: themeIcon)
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(accent)
+            }
+            .frame(width: 52, height: 52)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.body.weight(.semibold))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(themeName + " Theme")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(primary)
                 Text(subtitle)
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+                    .foregroundStyle(secondary)
             }
 
             Spacer()
 
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
+            Circle()
+                .fill(accent)
+                .frame(width: 12, height: 12)
+                .shadow(color: accent.opacity(0.28), radius: 6)
         }
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
+        .padding(14)
+        .background(rowBackground, in: RoundedRectangle(cornerRadius: cardCorner, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: cardCorner, style: .continuous)
+                .strokeBorder(accent.opacity(0.25), lineWidth: 1)
+        )
     }
 }
 
-fileprivate struct SettingsValueRow: View {
+// MARK: - Section header (tiny Equatable struct avoids Text() rebuild per render)
+
+private struct SettingsSectionHeader: View, Equatable {
     let title: String
-    let value: String
-    let systemImage: String
+    let color: Color
+
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.title == rhs.title }
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: systemImage)
-                .foregroundStyle(.secondary)
-                .frame(width: 32, alignment: .leading)
-
-            Text(title)
-                .font(.body.weight(.semibold))
-
-            Spacer()
-
-            Text(value)
-                .font(.body.weight(.semibold))
-                .foregroundStyle(.secondary)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(title) \(value)")
+        Text(title)
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(color)
     }
 }
 
-fileprivate struct SettingsPickerRow<PickerContent: View>: View {
-    let title: String
-    let systemImage: String
-    let accent: Color
-    @ViewBuilder let picker: PickerContent
+// MARK: - Main View
 
-    var body: some View {
-        HStack(spacing: 12) {
-            SettingsIcon(systemImage: systemImage, accent: accent)
-            Text(title)
-                .font(.body.weight(.semibold))
-            Spacer()
-            picker
+@MainActor
+public struct SettingsView: View {
+
+    // MARK: - Dependencies
+    @EnvironmentObject private var profileStore: ProfileStore
+    @EnvironmentObject private var entriesStore: EntriesStore
+    @EnvironmentObject private var teslaFiStore: TeslaFiSessionStore
+    @EnvironmentObject private var budgetStore: BudgetStore
+    @EnvironmentObject private var toolUsage: ToolUsageStore
+    @EnvironmentObject private var uiSettings: AppUISettings
+    @EnvironmentObject private var appearance:   AppAppearance
+    @Environment(\.appThemeBox) private var themeBox
+    @Environment(\.colorScheme) private var scheme
+
+    // MARK: - Settings state
+    @AppStorage("settings.useMetric")        private var useMetric:        Bool   = false
+    @AppStorage("settings.defaultHomeRate")  private var homeRate:          Double = 0.11
+    @AppStorage("settings.defaultPublicRate") private var publicRate:       Double = 0.42
+    @AppStorage("settings.efficiencyWhMi")   private var efficiencyWhMi:    Double = 310
+    @AppStorage("settings.alertWeekly")      private var alertWeekly:       Bool   = true
+    @AppStorage("settings.alertThreshold")   private var alertThreshold:    Double = 80
+    @AppStorage("settings.dataRefresh")      private var dataRefreshMins:   Double = 30
+    @AppStorage("weekly.alert.enabled")      private var weeklyAlert:        Bool   = true
+    @AppStorage("weekly.alert.threshold")    private var weeklyThreshold:    Double = 80
+    @AppStorage("themePreset")               private var themePresetRaw:    String = ThemeStyle.appDefault.rawValue
+    @AppStorage("uiStyle")                   private var legacyUIStyleRaw:  String = "classic"
+    @AppStorage("themePreset.userSet")       private var themePresetUserSet: Bool  = false
+    @AppStorage(AppLocalization.Keys.marketRaw) private var marketRaw:      String = ""
+    @AppStorage(AppLocalization.Keys.autoApplyMarketDefaults) private var autoApplyMarketDefaults: Bool = true
+    @AppStorage(CoreMLFeatureFlags.liveSuperchargerPricingEnabledKey)
+    private var useCoreMLLivePricing: Bool = CoreMLFeatureFlags.liveSuperchargerPricingEnabledDefault
+    @AppStorage(CoreMLFeatureFlags.semanticToolSearchEnabledKey)
+    private var useSemanticToolSearch: Bool = CoreMLFeatureFlags.semanticToolSearchEnabledDefault
+    @AppStorage("ml.eval.lastSummary")
+    private var mlEvalLastSummary: String = ""
+    @AppStorage("ml.eval.lastRunTS")
+    private var mlEvalLastRunTS: Double = 0
+    @AppStorage("agent.enabled")
+    private var agentEnabled: Bool = true
+
+    // MARK: - UI state
+    @State private var showingVehicleList = false
+    @State private var isRunningMLEvaluation = false
+    @State private var mlEvalStatusMessage: String = ""
+    @State private var showResetConfirmation = false
+
+    // MARK: - Cached derived state (recomputed only on theme/scheme change)
+
+    @State private var colors: SettingsColors = .init(
+        primary: .primary, secondary: .secondary,
+        rowBackground: .clear, rowSeparator: .gray.opacity(0.3), accent: .accentColor
+    )
+
+    // Cache resolved theme style to avoid calling ThemeStyle.resolve() every render
+    @State private var cachedThemeStyle: ThemeStyle = .classic
+
+    // MARK: - Convenience accessors into cached colors
+
+    private var theme: any AppThemeSpec { themeBox.base }
+
+    private var effectiveColorScheme: ColorScheme {
+        switch appearance.scheme {
+        case .automatic: return scheme
+        case .light:     return .light
+        case .dark:      return .dark
         }
     }
-}
 
-// MARK: - Selection Screens
+    /// Rebuilds the color cache — called only when theme or scheme actually changes
+    private func rebuildColors() {
+        colors = SettingsColors.make(theme: theme, effectiveScheme: effectiveColorScheme)
+        cachedThemeStyle = ThemeStyle.resolve(themePresetRaw: themePresetRaw, legacyUIStyleRaw: legacyUIStyleRaw)
+    }
 
-fileprivate struct ThemeModePickerView: View {
-    @Binding var selection: AppearanceMode
+    // MARK: - Body
 
-    var body: some View {
-        List {
-            ForEach(AppearanceMode.allCases) { mode in
-                Button {
-                    selection = mode
-                } label: {
-                    HStack {
-                        Text(mode.title)
-                        Spacer()
-                        if selection == mode {
-                            Image(systemName: "checkmark")
-                                .font(.body.weight(.semibold))
-                        }
-                    }
+    public var body: some View {
+        ZStack {
+            ThemeBackground()
+
+            List {
+                themePreviewSection
+                vehicleSection
+                defaultRatesSection
+                alertsSection
+                displaySection
+                localizationSection
+                adsSection
+                agentSection
+                mlDiagnosticsSection
+                aboutSection
+            }
+            .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
+        }
+        .brandNavTitle("Settings")
+        .sheet(isPresented: $showingVehicleList) {
+            NavigationStack { VehicleProfileListView() }
+        }
+        .confirmationDialog(
+            "Reset all app data?",
+            isPresented: $showResetConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Reset All Data", role: .destructive) {
+                resetAllAppData()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This clears vehicles, charging entries, imported session history, budgets, tool history, onboarding state, avatar, and saved settings on this device.")
+        }
+        .onAppear {
+            if marketRaw.trimmedNonEmpty == nil {
+                marketRaw = AppLocalization.inferredMarket().rawValue
+            }
+            rebuildColors()
+        }
+        .onChange(of: scheme) { _, _ in rebuildColors() }
+        .onChange(of: themePresetRaw) { _, _ in rebuildColors() }
+        .onChange(of: legacyUIStyleRaw) { _, _ in rebuildColors() }
+        .onChange(of: appearance.scheme) { _, _ in rebuildColors() }
+        .onChange(of: marketRaw) { _, _ in
+            guard autoApplyMarketDefaults else { return }
+            applyMarketDefaultsNow()
+        }
+        .onChange(of: autoApplyMarketDefaults) { _, enabled in
+            if enabled { applyMarketDefaultsNow() }
+        }
+    }
+
+    // MARK: - Theme preview section
+
+    private var themePreviewSection: some View {
+        Section {
+            SettingsThemePreviewCard(
+                themeName: cachedThemeStyle.title,
+                themeIcon: themeIcon(for: cachedThemeStyle),
+                subtitle:  themePreviewSubtitle,
+                accent:    colors.accent,
+                primary:   colors.primary,
+                secondary: colors.secondary,
+                rowBackground: colors.rowBackground,
+                corner:    theme.corner
+            )
+            .equatable()
+            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+        }
+    }
+
+    // MARK: - Vehicle section
+
+    private var vehicleSection: some View {
+        Section {
+            if let v = profileStore.selectedVehicle {
+                HStack {
+                    Label(v.displayName, systemImage: "car.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(colors.primary)
+                    Spacer()
+                    BrandBadge(
+                        v.detectedBrand == .tesla ? "Tesla" : v.detectedBrand == .rivian ? "Rivian" : v.make,
+                        style: v.detectedBrand == .tesla ? .danger : v.detectedBrand == .rivian ? .success : .muted
+                    )
+                }
+                .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+            }
+
+            Button {
+                showingVehicleList = true
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "car.2.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .symbolRenderingMode(.monochrome)
+                        .foregroundStyle(colors.secondary)
+                    Text("Manage Vehicles")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(colors.primary)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(colors.secondary)
                 }
             }
+            .buttonStyle(.plain)
+            .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+        } header: {
+            SettingsSectionHeader(title: "Vehicle", color: colors.secondary).equatable()
         }
-        .listStyle(.insetGrouped)
     }
-}
 
-fileprivate struct AccentPickerView: View {
-    @Binding var selection: AccentChoice
+    // MARK: - Default rates
 
-    var body: some View {
-        List {
-            ForEach(AccentChoice.allCases) { choice in
-                Button {
-                    selection = choice
-                } label: {
-                    HStack(spacing: 12) {
-                        Circle()
-                            .fill(choice.color)
-                            .frame(width: 14, height: 14)
-                        Text(choice.title)
-                        Spacer()
-                        if selection == choice {
-                            Image(systemName: "checkmark")
-                                .font(.body.weight(.semibold))
-                        }
-                    }
+    private var defaultRatesSection: some View {
+        Section {
+            rateRow("Home charging",  binding: $homeRate,       unit: "/kWh")
+            rateRow("Public charging", binding: $publicRate,    unit: "/kWh")
+            rateRow("Efficiency",      binding: $efficiencyWhMi, unit: " Wh/mi")
+        } header: {
+            SettingsSectionHeader(title: "Default Rates", color: colors.secondary).equatable()
+        }
+    }
+
+    private func rateRow(_ label: String, binding: Binding<Double>, unit: String) -> some View {
+        HStack {
+            Text(label).font(.subheadline).foregroundStyle(colors.primary)
+            Spacer()
+            TextField("0", value: binding, format: .number.precision(.fractionLength(2)))
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.trailing)
+                .frame(width: 80)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(colors.accent)
+            Text(unit).font(.footnote).foregroundStyle(colors.secondary)
+        }
+        .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+    }
+
+    // MARK: - Alerts
+
+    private var alertsSection: some View {
+        Section {
+            Toggle(isOn: $weeklyAlert) {
+                Label {
+                    Text("Weekly cost alert").foregroundStyle(colors.primary)
+                } icon: {
+                    Image(systemName: "bell.badge.fill")
+                        .symbolRenderingMode(.monochrome).foregroundStyle(colors.secondary)
                 }
             }
+            .tint(colors.accent)
+            .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+
+            if weeklyAlert {
+                HStack {
+                    Label {
+                        Text("Alert threshold").font(.subheadline).foregroundStyle(colors.primary)
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .symbolRenderingMode(.monochrome).foregroundStyle(colors.secondary)
+                    }
+                    Spacer()
+                    Text(weeklyThreshold.formatted(.currency(code: AppLocalization.currencyCode)))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(colors.accent)
+                        .monospacedDigit()
+                }
+                .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+
+                Slider(value: $weeklyThreshold, in: 20...500, step: 5)
+                    .tint(colors.accent)
+                    .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+            }
+        } header: {
+            SettingsSectionHeader(title: "Alerts", color: colors.secondary).equatable()
         }
-        .listStyle(.insetGrouped)
+    }
+
+    // MARK: - Display
+
+    private var displaySection: some View {
+        Section {
+            Picker("Theme", selection: themeStyleBinding) {
+                ForEach(ThemeStyle.allCases) { style in Text(style.title).tag(style) }
+            }
+            .tint(colors.accent)
+            .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+
+            Picker("Appearance", selection: appearanceModeBinding) {
+                ForEach(AppearanceMode.allCases) { mode in
+                    Text(appearanceLabel(for: mode)).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .tint(colors.accent)
+            .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+
+            LabeledContent("Current") {
+                Text(effectiveAppearanceLabel)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(colors.secondary)
+            }
+            .foregroundStyle(colors.primary)
+            .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+
+            Toggle(isOn: $useMetric) {
+                Label {
+                    Text("Metric units (km)").foregroundStyle(colors.primary)
+                } icon: {
+                    Image(systemName: "ruler.fill")
+                        .symbolRenderingMode(.monochrome).foregroundStyle(colors.secondary)
+                }
+            }
+            .tint(colors.accent)
+            .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+
+            HStack {
+                Label {
+                    Text("Accent color").font(.subheadline).foregroundStyle(colors.primary)
+                } icon: {
+                    Image(systemName: "paintpalette.fill")
+                        .symbolRenderingMode(.monochrome).foregroundStyle(colors.secondary)
+                }
+                Spacer()
+                Text("Auto (brand)").font(.footnote).foregroundStyle(colors.secondary)
+                Circle().fill(colors.accent).frame(width: 20, height: 20)
+            }
+            .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+        } header: {
+            SettingsSectionHeader(title: "Display & Units", color: colors.secondary).equatable()
+        }
+    }
+
+    // MARK: - Localization
+
+    private var localizationSection: some View {
+        Section {
+            Picker("Market", selection: selectedMarketBinding) {
+                ForEach(AppMarket.allCases) { market in Text(market.title).tag(market) }
+            }
+            .foregroundStyle(colors.primary)
+            .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+
+            Toggle(isOn: $autoApplyMarketDefaults) {
+                Label {
+                    Text("Auto-apply market defaults").foregroundStyle(colors.primary)
+                } icon: {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .symbolRenderingMode(.monochrome).foregroundStyle(colors.secondary)
+                }
+            }
+            .tint(colors.accent)
+            .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+
+            LabeledContent("Locale") {
+                Text(selectedMarket.localeIdentifier)
+                    .font(.footnote.monospaced()).foregroundStyle(colors.secondary)
+            }
+            .foregroundStyle(colors.primary)
+            .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+
+            LabeledContent("Currency") {
+                Text(selectedMarket.currencyCode)
+                    .font(.subheadline.weight(.semibold)).foregroundStyle(colors.accent)
+            }
+            .foregroundStyle(colors.primary)
+            .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+
+            LabeledContent("Distance units") {
+                Text(selectedMarket.defaultDistanceUnit == .kilometers ? "Kilometers" : "Miles")
+                    .foregroundStyle(colors.secondary)
+            }
+            .foregroundStyle(colors.primary)
+            .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+
+            if !autoApplyMarketDefaults {
+                Button {
+                    applyMarketDefaultsNow()
+                } label: {
+                    Label("Apply Market Defaults Now", systemImage: "checkmark.circle")
+                }
+                .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+            }
+        } header: {
+            SettingsSectionHeader(title: "Localization", color: colors.secondary).equatable()
+        }
+    }
+
+    // MARK: - About
+
+    private var aboutSection: some View {
+        Section {
+            LabeledContent("Version", value: appVersion)
+                .font(.subheadline).foregroundStyle(colors.primary)
+                .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+
+            Link(destination: URL(string: "https://qualtricsxmm8q5gxrhq.qualtrics.com/jfe/form/SV_1TvkCrIKgaEYHPM")!) {
+                Label("Suggestions & Bug Reports", systemImage: "exclamationmark.bubble.fill")
+                    .font(.subheadline)
+                    .symbolRenderingMode(.monochrome)
+                    .foregroundStyle(colors.accent)
+            }
+            .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+
+            Button(role: .destructive) {
+                showResetConfirmation = true
+            } label: {
+                Label("Reset App Data", systemImage: "trash.fill")
+                    .font(.subheadline)
+                    .foregroundStyle(Color(red: 0.85, green: 0.23, blue: 0.20))
+            }
+            .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+        } header: {
+            SettingsSectionHeader(title: "About", color: colors.secondary).equatable()
+        }
+    }
+
+    // MARK: - Ads
+
+    private var adsSection: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 8) {
+                Label("Ad experience", systemImage: "megaphone.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(colors.primary)
+
+                Text("Banner ads appear on supported screens to help fund ongoing development.")
+                    .font(.subheadline)
+                    .foregroundStyle(colors.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+
+            LabeledContent("Active banner unit") {
+                Text(AdsConfig.bannerAdUnitID)
+                    .font(.subheadline.monospaced())
+                    .foregroundStyle(colors.secondary)
+            }
+            .foregroundStyle(colors.primary)
+            .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+
+            if GoogleMobileAdsConsentManager.shared.isPrivacyOptionsRequired {
+                Button {
+                    Task {
+                        await GoogleMobileAdsConsentManager.shared.presentPrivacyOptionsForm()
+                    }
+                } label: {
+                    Label {
+                        Text("Manage ad privacy choices").foregroundStyle(colors.primary)
+                    } icon: {
+                        Image(systemName: "hand.raised.fill")
+                            .symbolRenderingMode(.monochrome).foregroundStyle(colors.secondary)
+                    }
+                }
+                .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+            }
+        } header: {
+            SettingsSectionHeader(title: "Ads", color: colors.secondary).equatable()
+        }
+    }
+
+    private var agentSection: some View {
+        Section {
+            Toggle(isOn: $agentEnabled) {
+                Label {
+                    Text("Enable AI Copilot").foregroundStyle(colors.primary)
+                } icon: {
+                    Image(systemName: "sparkles")
+                        .symbolRenderingMode(.monochrome).foregroundStyle(colors.secondary)
+                }
+            }
+            .tint(colors.accent)
+            .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+
+            Text("Copilot currently runs on-device and action-gates writes back into your data.")
+                .font(.footnote)
+                .foregroundStyle(colors.secondary)
+                .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+        } header: {
+            SettingsSectionHeader(title: "Agent", color: colors.secondary).equatable()
+        }
+    }
+
+    // MARK: - ML & Diagnostics
+
+    private var livePricingEngineForSettings: any SuperchargerLivePriceEngine {
+        if useCoreMLLivePricing {
+            return CoreMLSuperchargerLivePriceEnginePlaceholder()
+        }
+        return RuleBasedSuperchargerLivePriceEngine()
+    }
+
+    private var toolRankingEngineForSettings: any ToolSemanticRankingEngine {
+        if useSemanticToolSearch {
+            return CoreMLToolSemanticRankingEnginePlaceholder()
+        }
+        return DisabledToolSemanticRankingEngine()
+    }
+
+    private var mlDiagnosticsSection: some View {
+        Section {
+            Toggle(isOn: $useCoreMLLivePricing) {
+                Label {
+                    Text("Core ML live pricing").foregroundStyle(colors.primary)
+                } icon: {
+                    Image(systemName: "bolt.badge.clock")
+                        .symbolRenderingMode(.monochrome).foregroundStyle(colors.secondary)
+                }
+            }
+            .tint(colors.accent)
+            .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+
+            Toggle(isOn: $useSemanticToolSearch) {
+                Label {
+                    Text("Semantic tool search").foregroundStyle(colors.primary)
+                } icon: {
+                    Image(systemName: "magnifyingglass.circle")
+                        .symbolRenderingMode(.monochrome).foregroundStyle(colors.secondary)
+                }
+            }
+            .tint(colors.accent)
+            .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+
+            LabeledContent("Live pricing engine") {
+                Text(livePricingEngineForSettings.healthReport.state.rawValue.capitalized)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(colors.secondary)
+            }
+            .foregroundStyle(colors.primary)
+            .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+
+            LabeledContent("Tool ranking engine") {
+                Text(toolRankingEngineForSettings.healthReport.state.rawValue.capitalized)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(colors.secondary)
+            }
+            .foregroundStyle(colors.primary)
+            .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+
+            Button {
+                guard !isRunningMLEvaluation else { return }
+                Task { await runOfflineMLEvaluation() }
+            } label: {
+                HStack {
+                    if isRunningMLEvaluation {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+                    Label("Run Offline ML Evaluation", systemImage: "waveform.path.ecg")
+                }
+                .foregroundStyle(colors.accent)
+            }
+            .disabled(isRunningMLEvaluation)
+            .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+
+            if !mlEvalStatusMessage.isEmpty {
+                Text(mlEvalStatusMessage)
+                    .font(.footnote)
+                    .foregroundStyle(colors.secondary)
+                    .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+            }
+
+            if mlEvalLastRunTS > 0 {
+                let ts = Date(timeIntervalSince1970: mlEvalLastRunTS)
+                Text("Last run: \(ts.formatted(date: .abbreviated, time: .shortened))")
+                    .font(.footnote)
+                    .foregroundStyle(colors.secondary)
+                    .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+            }
+            if !mlEvalLastSummary.isEmpty {
+                Text(mlEvalLastSummary)
+                    .font(.footnote)
+                    .foregroundStyle(colors.secondary)
+                    .settingsListRow(background: colors.rowBackground, separator: colors.rowSeparator)
+            }
+        } header: {
+            SettingsSectionHeader(title: "ML & Diagnostics", color: colors.secondary).equatable()
+        }
+    }
+
+    // MARK: - Helpers (pure, no UIKit)
+
+    private func themeIcon(for style: ThemeStyle) -> String {
+        switch style {
+        case .classic: return "sparkles"
+        case .tesla:   return "bolt.car.fill"
+        case .rivian:  return "leaf.fill"
+        case .tessie:  return "chart.line.uptrend.xyaxis"
+        case .modern:  return "square.grid.2x2.fill"
+        case .orange:  return "sun.max.fill"
+        }
+    }
+
+    private var appVersion: String {
+        (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "—"
+    }
+
+    private var selectedMarket: AppMarket { AppLocalization.market(fromRaw: marketRaw) }
+
+    private var selectedMarketBinding: Binding<AppMarket> {
+        Binding(get: { selectedMarket }, set: { marketRaw = $0.rawValue })
+    }
+
+    private var appearanceModeBinding: Binding<AppearanceMode> {
+        Binding(get: { appearance.scheme }, set: { appearance.scheme = $0 })
+    }
+
+    private var themeStyleBinding: Binding<ThemeStyle> {
+        Binding(get: { cachedThemeStyle }, set: { applyThemePreset($0) })
+    }
+
+    private var themePreviewSubtitle: String {
+        switch appearance.scheme {
+        case .automatic: return "Selected in Settings, follows system Light/Dark"
+        case .light:     return "Selected in Settings, currently Light mode"
+        case .dark:      return "Selected in Settings, currently Dark mode"
+        }
+    }
+
+    private var effectiveAppearanceLabel: String {
+        switch appearance.scheme {
+        case .automatic: return effectiveColorScheme == .dark ? "System Dark" : "System Light"
+        case .light:     return "Light"
+        case .dark:      return "Dark"
+        }
+    }
+
+    private func appearanceLabel(for mode: AppearanceMode) -> String {
+        switch mode {
+        case .automatic: return "System"
+        case .light:     return "Light"
+        case .dark:      return "Dark"
+        }
+    }
+
+    private func applyThemePreset(_ style: ThemeStyle) {
+        themePresetRaw    = style.rawValue
+        themePresetUserSet = true
+        switch style {
+        case .classic: appearance.accentChoice = .red
+        case .tessie:  appearance.accentChoice = .blue
+        case .tesla:   appearance.accentChoice = .blue
+        case .rivian:  appearance.accentChoice = .yellow
+        case .modern:  appearance.accentChoice = .yellow
+        case .orange:  appearance.accentChoice = .orange
+        }
+    }
+
+    private func applyMarketDefaultsNow() {
+        AppLocalization.applyMarketDefaults(selectedMarket, profileStore: profileStore)
+    }
+
+    private func runOfflineMLEvaluation() async {
+        isRunningMLEvaluation = true
+        defer { isRunningMLEvaluation = false }
+
+        let toolSnapshot = CoreMLEvaluationHarness.evaluateToolSearch(
+            semanticEnabled: useSemanticToolSearch,
+            rankingEngine: toolRankingEngineForSettings
+        )
+
+        let historySnapshot = CoreMLEvaluationHarness.evaluateSuperchargerHistory(
+            samples: SuperchargerPriceStore.shared.allSamples
+        )
+
+        do {
+            let toolURL = try CoreMLEvaluationHarness.writeSnapshot(toolSnapshot, prefix: "tool_search_eval")
+            let historyURL = try CoreMLEvaluationHarness.writeSnapshot(historySnapshot, prefix: "supercharger_history_eval")
+
+            let summary = String(
+                format: "MRR %.3f · Hit@3 %.1f%% · Hit@5 %.1f%% · samples %d across %d stations",
+                toolSnapshot.meanReciprocalRank,
+                toolSnapshot.hitRateAt3 * 100.0,
+                toolSnapshot.hitRateAt5 * 100.0,
+                historySnapshot.totalSamples,
+                historySnapshot.stationCount
+            )
+
+            mlEvalLastSummary = summary
+            mlEvalLastRunTS = Date().timeIntervalSince1970
+            mlEvalStatusMessage = "Saved: \(toolURL.lastPathComponent), \(historyURL.lastPathComponent)"
+        } catch {
+            mlEvalStatusMessage = "Evaluation failed: \(error.localizedDescription)"
+        }
+    }
+
+    private func resetAllAppData() {
+        entriesStore.clearAll()
+        teslaFiStore.clear()
+        profileStore.vehicles = []
+        profileStore.setSelected(nil as UUID?)
+        budgetStore.clearAllPlans()
+        toolUsage.clearAllData()
+
+        let defaults = UserDefaults.standard
+        let resetKeys = [
+            "settings.useMetric",
+            "settings.defaultHomeRate",
+            "settings.defaultPublicRate",
+            "settings.efficiencyWhMi",
+            "settings.alertWeekly",
+            "settings.alertThreshold",
+            "settings.dataRefresh",
+            "weekly.alert.enabled",
+            "weekly.alert.threshold",
+            "themePreset",
+            "uiStyle",
+            "themePreset.userSet",
+            AppLocalization.Keys.marketRaw,
+            AppLocalization.Keys.autoApplyMarketDefaults,
+            CoreMLFeatureFlags.liveSuperchargerPricingEnabledKey,
+            CoreMLFeatureFlags.semanticToolSearchEnabledKey,
+            "ml.eval.lastSummary",
+            "ml.eval.lastRunTS",
+            "agent.enabled",
+            "agent.cloudEnabled",
+            "defaultCurrencyCode",
+            "dashboard.moreCardsPrompted",
+            "budget_useCategoryBudgets",
+            "monthlyBudgetLimit",
+            "budget_supercharging",
+            "budget_lease",
+            "budget_insurance",
+            "budget_misc",
+            "onboarding.v2.completed",
+            "permissions.bootstrap.completed",
+            "kwh.userAvatarJPEG"
+        ]
+
+        for key in resetKeys {
+            defaults.removeObject(forKey: key)
+        }
+
+        appearance.resetToDefaults()
+        uiSettings.resetToDefaults()
+
+        useMetric = false
+        homeRate = 0.11
+        publicRate = 0.42
+        efficiencyWhMi = 310
+        alertWeekly = true
+        alertThreshold = 80
+        dataRefreshMins = 30
+        weeklyAlert = true
+        weeklyThreshold = 80
+        themePresetRaw = ThemeStyle.appDefault.rawValue
+        legacyUIStyleRaw = "classic"
+        themePresetUserSet = false
+        marketRaw = AppLocalization.inferredMarket().rawValue
+        autoApplyMarketDefaults = true
+        useCoreMLLivePricing = CoreMLFeatureFlags.liveSuperchargerPricingEnabledDefault
+        useSemanticToolSearch = CoreMLFeatureFlags.semanticToolSearchEnabledDefault
+        mlEvalLastSummary = ""
+        mlEvalLastRunTS = 0
+        agentEnabled = true
+        mlEvalStatusMessage = ""
+
+        applyMarketDefaultsNow()
+        rebuildColors()
     }
 }
 
-// MARK: - UI style values (must match ThemeBinder’s accepted strings)
+// MARK: - Row modifier
 
-fileprivate enum ToolsStyle: String {
-    case classic
-    case teslaGlass
+private struct SettingsListRowModifier: ViewModifier {
+    let background: Color
+    let separator: Color
+
+    func body(content: Content) -> some View {
+        content
+            .listRowBackground(background)
+            .listRowSeparatorTint(separator)
+    }
 }
 
-// MARK: - App Icon choices (Info.plist keys must match these raw values)
-
-fileprivate enum AppIconChoice: String, CaseIterable, Identifiable {
-    case appIcon = "AppIcon"                 // primary
-    case appIconOld = "AppIconOld"           // alternate icon key
-    case appIconGlobal = "AppIconGlobal"     // alternate icon key
-    case appIconFunny = "AppIconFunny"       // ✅ NEW alternate icon key
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .appIcon: return "Default"
-        case .appIconOld: return "Old"
-        case .appIconGlobal: return "Global"
-        case .appIconFunny: return "Funny"
-        }
-    }
-
-    var subtitle: String {
-        switch self {
-        case .appIcon: return "Primary icon (default)"
-        case .appIconOld: return "Alternate: AppIconOld"
-        case .appIconGlobal: return "Alternate: AppIconGlobal"
-        case .appIconFunny: return "Alternate: AppIconFunny"
-        }
-    }
-
-    /// Pass this to `setAlternateIconName`. Nil means "use primary".
-    var alternateIconName: String? {
-        switch self {
-        case .appIcon: return nil
-        case .appIconOld, .appIconGlobal, .appIconFunny: return rawValue
-        }
+private extension View {
+    func settingsListRow(background: Color, separator: Color) -> some View {
+        modifier(SettingsListRowModifier(background: background, separator: separator))
     }
 }

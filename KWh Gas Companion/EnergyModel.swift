@@ -1,12 +1,3 @@
-//
-//  EnergyModel.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 10/19/25.
-//
-
-
-//
 //  EnergyModel.swift
 //  My EV Companion
 //

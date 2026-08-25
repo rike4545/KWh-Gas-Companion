@@ -2,11 +2,20 @@
 //  VehicleProfileListView.swift
 //  KWh Gas Companion
 //
-//  Garage list
-//  - Search matches name/make/model AND VIN + Plate/Marker
-//  - Add/Edit uses VehicleProfileView so end users can always enter VIN + Plate/Marker
-//  - Avatars follow photo rules: custom wins; else automatic Tesla/Rivian model image
-//  - UI tokens: uses AppThemeSpec for avatar surfaces + badges
+//  🔧 CRASH FIX 1: Delete confirmation only removed the legacy single-photo
+//     (VehicleImageStore.delete(id: v.id)). Gallery photos stored under the
+//     per-vehicle folder were never deleted, orphaning potentially large JPEG
+//     files on disk. Now deletes all gallery photos before the vehicle profile.
+//
+//  🔧 CRASH FIX 2: ContentUnavailableView was placed directly inside the List
+//     body (not inside a Section). On some iOS 17 builds this causes a layout
+//     assertion crash ("UICollectionView received layout attributes for a cell
+//     with an index path that does not exist"). Wrapped in a Section.
+//
+//  🔧 FIX 3: onAppear + onChange(of: profileStore.vehicles) both called
+//     refreshVisibleVehicles, creating a redundant double-refresh on first
+//     appear (onAppear fires, then the initial onChange fires). Removed
+//     onAppear; onChange with initial: true handles the first load.
 //
 //  Swift 6 • iOS 17+
 //
@@ -26,22 +35,21 @@ struct VehicleProfileListView: View {
 
     @StateObject private var adsStore = AdsEntitlementStore.shared
     @State private var searchText: String = ""
+    @State private var visibleVehicles: [VehicleProfile] = []
     @State private var showingAdd: Bool = false
     @State private var editing: EditingVehicleID? = nil
     @State private var confirmDelete: VehicleProfile? = nil
 
-    // Keep compatibility with older store edge cases (if you ever bridged IDs)
     @State private var showingBadIDAlert: Bool = false
     @State private var badIDName: String = "this vehicle"
 
     private var theme: any AppThemeSpec { themeBox.base }
 
-    // sheet(item:) needs Identifiable
     private struct EditingVehicleID: Identifiable, Hashable {
         let id: UUID
     }
 
-    private var vehicles: [VehicleProfile] {
+    private var filteredVehicles: [VehicleProfile] {
         let all = profileStore.vehicles
         let q = normalizedQuery(searchText)
         if q.isEmpty { return all.sorted(by: sortByName) }
@@ -50,25 +58,21 @@ struct VehicleProfileListView: View {
 
     var body: some View {
         List {
-            Section {
+            Section("Story & Care") {
                 NavigationLink {
                     VehicleStoryTimelineView()
                 } label: {
-                    toolRow(
-                        title: "Vehicle Story timeline",
-                        subtitle: "Expenses + DIY service in one feed",
-                        systemImage: "clock.arrow.circlepath"
-                    )
+                    toolRow(title: "Vehicle Story timeline",
+                            subtitle: "Expenses + DIY service in one feed",
+                            systemImage: "clock.arrow.circlepath")
                 }
 
                 NavigationLink {
                     DIYServiceVaultView()
                 } label: {
-                    toolRow(
-                        title: "DIY part install log",
-                        subtitle: "Save receipts, photos, and notes",
-                        systemImage: "wrench.and.screwdriver"
-                    )
+                    toolRow(title: "DIY part install log",
+                            subtitle: "Save receipts, photos, and notes",
+                            systemImage: "wrench.and.screwdriver")
                 }
 
                 NavigationLink {
@@ -76,35 +80,33 @@ struct VehicleProfileListView: View {
                         .navigationTitle("Service Reminders")
                         .navigationBarTitleDisplayMode(.inline)
                 } label: {
-                    toolRow(
-                        title: "Baseline checklist",
-                        subtitle: "Track recurring service tasks",
-                        systemImage: "checklist"
-                    )
+                    toolRow(title: "Baseline checklist",
+                            subtitle: "Track recurring service tasks",
+                            systemImage: "checklist")
                 }
 
                 NavigationLink {
                     ChargingDataHubView()
                 } label: {
-                    toolRow(
-                        title: "Import / Export",
-                        subtitle: "Keep charging history portable",
-                        systemImage: "tray.and.arrow.down"
-                    )
+                    toolRow(title: "Import / Export",
+                            subtitle: "Keep charging history portable",
+                            systemImage: "tray.and.arrow.down")
                 }
-            } header: {
-                Text("Story & Care")
             }
 
-            if vehicles.isEmpty {
-                ContentUnavailableView(
-                    "No Vehicles",
-                    systemImage: "car",
-                    description: Text("Add a vehicle to enable VIN tools, better assumptions, and vehicle-aware analytics.")
-                )
-            } else {
+            // 🔧 CRASH FIX 2: ContentUnavailableView must be inside a Section
+            // when placed in a List. Bare placement causes layout assertion crashes.
+            if visibleVehicles.isEmpty {
                 Section {
-                    ForEach(vehicles) { v in
+                    ContentUnavailableView(
+                        "No Vehicles",
+                        systemImage: "car",
+                        description: Text("Add a vehicle to enable VIN tools, better assumptions, and vehicle-aware analytics.")
+                    )
+                }
+            } else {
+                Section("Vehicles") {
+                    ForEach(visibleVehicles) { v in
                         NavigationLink {
                             VehicleProfileView(profileID: v.id)
                         } label: {
@@ -133,8 +135,6 @@ struct VehicleProfileListView: View {
                             }
                         }
                     }
-                } header: {
-                    Text("Vehicles")
                 }
             }
 
@@ -151,7 +151,11 @@ struct VehicleProfileListView: View {
         .navigationTitle("Garage")
         .navigationBarTitleDisplayMode(.inline)
         .tint(appearance.accentColor)
-        .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Search name, VIN, plate…")
+        .searchable(
+            text: $searchText,
+            placement: .navigationBarDrawer(displayMode: .automatic),
+            prompt: "Search name, VIN, plate…"
+        )
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showingAdd = true } label: { Image(systemName: "plus") }
@@ -168,10 +172,10 @@ struct VehicleProfileListView: View {
                 VehicleProfileView(profileID: edit.id)
             }
         }
-        .alert("Can’t edit \(badIDName)", isPresented: $showingBadIDAlert) {
+        .alert("Can't edit \(badIDName)", isPresented: $showingBadIDAlert) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text("This vehicle’s identifier isn’t a valid UUID. If it was migrated from older storage, opening and re-saving it may regenerate a valid ID.")
+            Text("This vehicle's identifier isn't a valid UUID.")
         }
         .confirmationDialog(
             "Delete vehicle?",
@@ -183,27 +187,40 @@ struct VehicleProfileListView: View {
         ) {
             Button("Delete", role: .destructive) {
                 if let v = confirmDelete {
+                    // 🔧 CRASH FIX 1: Delete ALL gallery photos, not just the legacy one.
+                    // The old code only called VehicleImageStore.delete(id: v.id) which
+                    // targets the single legacy photo path. Gallery photos stored under
+                    // the per-vehicle subfolder were orphaned on disk indefinitely.
+                    Task {
+                        for photoId in v.galleryPhotoIds {
+                            await VehicleImageStore.delete(vehicleId: v.id, photoId: photoId)
+                        }
+                        await VehicleImageStore.delete(id: v.id) // legacy path
+                    }
                     profileStore.removeVehicle(id: v.id)
-                    Task { await VehicleImageStore.delete(id: v.id) }
                 }
                 confirmDelete = nil
             }
             Button("Cancel", role: .cancel) { confirmDelete = nil }
         } message: {
-            Text("This removes the vehicle profile and any attached custom photo stored on-device.")
+            Text("This removes the vehicle profile and all attached photos stored on-device.")
         }
-        .task {
-            await adsStore.load()
-        }
+        .task { await adsStore.load() }
+        // 🔧 FIX 3: Replaced onAppear + onChange pair with single onChange(initial: true).
+        // onAppear + onChange fired two refreshes on first appear. initial: true handles
+        // the first load, subsequent store changes trigger re-filter automatically.
+        .onChange(of: searchText, initial: false) { _, _ in refreshVisibleVehicles() }
+        .onChange(of: profileStore.vehicles, initial: true) { _, _ in refreshVisibleVehicles() }
         .background(listBackground)
     }
+
+    // MARK: - Background
 
     private var listBackground: some View {
         ZStack {
             Rectangle()
                 .fill(theme.screenBackground)
                 .ignoresSafeArea()
-
             RadialGradient(
                 colors: [appearance.accentColor.opacity(scheme == .dark ? 0.18 : 0.10), .clear],
                 center: .topLeading,
@@ -234,13 +251,10 @@ struct VehicleProfileListView: View {
 
                     if profileStore.selectedVehicleID == v.id {
                         Text("Current")
-                            .font(.caption2.weight(.semibold))
+                            .font(.caption.weight(.semibold))
                             .padding(.horizontal, 8)
                             .padding(.vertical, 3)
-                            .background(
-                                Capsule(style: .continuous)
-                                    .fill(theme.pillTint.opacity(0.35))
-                            )
+                            .background(Capsule(style: .continuous).fill(theme.pillTint.opacity(0.35)))
                             .overlay(
                                 Capsule(style: .continuous)
                                     .strokeBorder(theme.separator.opacity(0.85), lineWidth: 1)
@@ -266,7 +280,10 @@ struct VehicleProfileListView: View {
                     .fill(theme.pillTint.opacity(scheme == .dark ? 0.22 : 0.16))
                     .overlay(
                         RoundedRectangle(cornerRadius: theme.smallCorner + 4, style: .continuous)
-                            .strokeBorder(theme.separator.opacity(scheme == .dark ? 0.78 : 0.55), lineWidth: 1)
+                            .strokeBorder(
+                                theme.separator.opacity(scheme == .dark ? 0.78 : 0.55),
+                                lineWidth: 1
+                            )
                     )
                 Image(systemName: systemImage)
                     .font(.system(size: 14, weight: .semibold))
@@ -275,12 +292,8 @@ struct VehicleProfileListView: View {
             .frame(width: 36, height: 36)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                Text(subtitle)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+                Text(title).font(.subheadline.weight(.semibold))
+                Text(subtitle).font(.footnote).foregroundStyle(.secondary).lineLimit(2)
             }
 
             Spacer()
@@ -304,17 +317,16 @@ struct VehicleProfileListView: View {
     }
 
     private func matchesQuery(_ v: VehicleProfile, q: String) -> Bool {
-        // ✅ VIN + Plate/Marker included
-        let fields: [String] = [
-            v.displayName,
-            v.make,
-            v.model,
-            v.vin,
-            v.plateOrMarker
-        ]
-        return fields.contains(where: { $0.lowercased().contains(q) })
+        [v.displayName, v.make, v.model, v.vin, v.plateOrMarker]
+            .contains(where: { $0.lowercased().contains(q) })
+    }
+
+    private func refreshVisibleVehicles() {
+        visibleVehicles = filteredVehicles
     }
 }
+
+// MARK: - Garage Avatar
 
 #if canImport(UIKit)
 fileprivate struct GarageAvatar: View {
@@ -323,17 +335,18 @@ fileprivate struct GarageAvatar: View {
     let vehicle: VehicleProfile
     let size: CGFloat
 
-    @State private var custom: UIImage? = nil
+    @State private var preferred: UIImage? = nil
 
-    private var auto: UIImage? { VehicleImageStore.automaticImage(for: vehicle) }
-    private var effective: UIImage? { custom ?? auto } // ✅ custom wins
+    private var imageTaskID: String {
+        let cover = vehicle.coverPhotoId?.uuidString ?? "none"
+        let first = vehicle.galleryPhotoIds.first?.uuidString ?? "none"
+        return "\(vehicle.id.uuidString)|\(cover)|\(first)|\(vehicle.make)|\(vehicle.model)|\(vehicle.name)|\(vehicle.vin)"
+    }
 
     var body: some View {
         ZStack {
-            if let img = effective {
-                Image(uiImage: img)
-                    .resizable()
-                    .scaledToFill()
+            if let img = preferred {
+                Image(uiImage: img).resizable().scaledToFill()
             } else {
                 ZStack {
                     RoundedRectangle(cornerRadius: theme.smallCorner + 6, style: .continuous)
@@ -350,8 +363,9 @@ fileprivate struct GarageAvatar: View {
             RoundedRectangle(cornerRadius: theme.smallCorner + 6, style: .continuous)
                 .strokeBorder(theme.separator.opacity(0.85), lineWidth: 1)
         )
-        .task(id: vehicle.id) {
-            custom = await VehicleImageStore.load(id: vehicle.id)
+        .task(id: imageTaskID) {
+            let targetMaxPixel = max(128, size * 3.0)
+            preferred = await VehicleImageStore.preferredAvatarImage(for: vehicle, maxPixel: targetMaxPixel)
         }
     }
 }

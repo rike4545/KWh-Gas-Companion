@@ -2,9 +2,7 @@
 //  ForecastRange 2.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 8/7/25.
 //
-
 
 // ForecastRange.swift
 // My KWh Companion

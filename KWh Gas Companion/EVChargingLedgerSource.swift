@@ -19,7 +19,7 @@ enum EVChargingLedgerSource: String, Codable, Hashable, CaseIterable, Identifiab
 
     var title: String {
         switch self {
-        case .teslaFi: return "TeslaFi"
+        case .teslaFi: return "Imported Session"
         case .entry:   return "Manual Entry"
         }
     }

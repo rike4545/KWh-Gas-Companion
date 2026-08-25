@@ -2,9 +2,7 @@
 //  StationRatesManagerView.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 8/17/25.
 //
-
 
 import SwiftUI
 

@@ -278,7 +278,7 @@ struct TripShiftListView: View {
                 .foregroundStyle(.secondary)
 
             if sessions.isEmpty {
-                Text("Import Tesla CSV or TeslaFi sessions to populate this list.")
+                Text("Import Tesla CSV or charging-session history to populate this list.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

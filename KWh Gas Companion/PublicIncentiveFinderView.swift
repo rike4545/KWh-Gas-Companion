@@ -2,17 +2,14 @@
 //  PublicIncentiveFinderView.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 9/17/25.
 //
-
-
-
 
 // =============================
 // File: PublicIncentiveFinderView.swift
 // =============================
 import SwiftUI
 import CoreLocation
+import MapKit
 
 /// PublicIncentiveFinderView
 /// Location & vehicle-based incentive browser (offline stub + bookmarking).
@@ -107,10 +104,25 @@ fileprivate final class LocationHelper: NSObject, ObservableObject, CLLocationMa
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) { defer { isLocating = false }; guard let loc = locations.first else { return }; fetchState(for: loc) }
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) { isLocating = false }
     private func fetchState(for loc: CLLocation) {
-        let geo = CLGeocoder()
-        geo.reverseGeocodeLocation(loc) { [weak self] placemarks, _ in
-            guard let self = self else { return }
-            self.stateCode = placemarks?.first?.administrativeArea
+        Task { [weak self] in
+            guard let self else { return }
+            let mapItems = try? await MapKitCompat.reverseGeocodeMapItems(for: loc)
+            let fullAddress = mapItems?.first?.compatFullAddress
+            self.stateCode = Self.extractUSStateCode(from: fullAddress)
         }
+    }
+
+    private static func extractUSStateCode(from fullAddress: String?) -> String? {
+        guard let fullAddress else { return nil }
+        let pattern = #"\b([A-Z]{2})\s*(?:\d{5}(?:-\d{4})?)?\b"#
+        guard let re = try? NSRegularExpression(pattern: pattern, options: []),
+              let match = re.firstMatch(
+                  in: fullAddress,
+                  options: [],
+                  range: NSRange(fullAddress.startIndex..<fullAddress.endIndex, in: fullAddress)
+              ),
+              match.numberOfRanges > 1,
+              let range = Range(match.range(at: 1), in: fullAddress) else { return nil }
+        return String(fullAddress[range])
     }
 }

@@ -1,13 +1,10 @@
 //
-//  ChargeSeason 2.swift
-//  KWh Gas Companion
+//  ChargeSeason.swift
+//  My KWh Companion
 //
-//  Created by Bryan on 8/7/25.
+//  🔧 FIX: Removed duplicate file-header comment ("ChargeSeason 2.swift").
+//  Swift 6 / iOS 17+
 //
-
-
-// ChargeSeason.swift
-// My KWh Companion
 
 import Foundation
 

@@ -28,7 +28,10 @@ final class TeslaFiSessionStore: ObservableObject {
     // MARK: - RAW sessions (persisted)
 
     @Published private(set) var sessions: [TeslaFiSession] = [] {
-        didSet { persistAsync() }
+        didSet {
+            guard !isHydrating else { return }
+            persistAsync()
+        }
     }
 
     // MARK: - Canonical + integrity (derived)
@@ -50,6 +53,11 @@ final class TeslaFiSessionStore: ObservableObject {
 
     private let sessionsFileURL: URL
     private let blocksFileURL: URL
+    private var isHydrating = true
+
+    /// Set when a mutation needs to reach disk; cleared once the save is
+    /// scheduled. See `persistAsync()`.
+    private var hasPendingSave = false
 
     private let encoder: JSONEncoder = {
         let enc = JSONEncoder()
@@ -70,8 +78,10 @@ final class TeslaFiSessionStore: ObservableObject {
 
     init(fileURL: URL? = nil) {
         let fm = FileManager.default
-        let base = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? fm.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let base =
+            fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? fm.urls(for: .documentDirectory, in: .userDomainMask).first
+            ?? fm.temporaryDirectory
 
         if !fm.fileExists(atPath: base.path) {
             try? fm.createDirectory(at: base, withIntermediateDirectories: true)
@@ -410,8 +420,8 @@ final class TeslaFiSessionStore: ObservableObject {
         if raw.isEmpty {
             issues.append(.init(
                 severity: .info,
-                title: "No TeslaFi sessions yet",
-                detail: "Import a TeslaFi CSV to see charging analytics."
+                title: "No imported sessions yet",
+                detail: "Import charging history CSV data to see charging analytics."
             ))
         }
 
@@ -432,14 +442,36 @@ final class TeslaFiSessionStore: ObservableObject {
 
     // MARK: - Disk I/O
 
+    /// Schedules a save, coalescing every mutation made in the current run-loop
+    /// turn into a single encode + write.
+    ///
+    /// PERF: same bug as `EntriesStore.persistAsync()` — this encoded the whole
+    /// `sessions` array synchronously inside `sessions.didSet`. Any loop that
+    /// mutates sessions element-by-element therefore paid a full re-encode per
+    /// element; `applyEstimatedCost(ratePerKWh:onlySince:)` writes
+    /// `sessions[i].cost` for every uncosted session, so applying a rate across
+    /// a few thousand imported TeslaFi sessions froze the main thread outright.
+    /// Now a burst collapses into one save, and the encode itself runs on
+    /// `writeQueue` instead of the main thread.
     private func persistAsync() {
-        let data: Data
-        do { data = try encoder.encode(sessions) }
-        catch { return }
+        guard !hasPendingSave else { return }
+        hasPendingSave = true
 
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.hasPendingSave = false
+            self.flushSessionsToDisk(self.sessions)
+        }
+    }
+
+    private func flushSessionsToDisk(_ snapshot: [TeslaFiSession]) {
         let url = sessionsFileURL
         writeQueue.async {
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .iso8601
+
             do {
+                let data = try encoder.encode(snapshot)
                 var options: Data.WritingOptions = [.atomic]
                 #if os(iOS)
                 options.insert(.completeFileProtection)
@@ -481,9 +513,11 @@ final class TeslaFiSessionStore: ObservableObject {
             }()
 
             await MainActor.run {
+                self.isHydrating = true
                 self.sessions = Self.deduplicated(from: sessionsDecoded)
                 self.doNotMergePairs = Set(blocksDecoded)
                 self.rebuildCanonicalSessions()
+                self.isHydrating = false
             }
         }
     }

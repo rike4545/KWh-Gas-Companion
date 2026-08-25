@@ -15,6 +15,7 @@
 		93B4682A2F37A25100FE3B6A /* FirebaseAnalyticsOnDeviceConversion in Frameworks */ = {isa = PBXBuildFile; productRef = 93687B682E255E4600690065 /* FirebaseAnalyticsOnDeviceConversion */; };
 		93B4682B2F37A25100FE3B6A /* SwiftCSV in Frameworks */ = {isa = PBXBuildFile; productRef = 93FB5E042E33B0FC00FAF25B /* SwiftCSV */; };
 		93B4682C2F37A25100FE3B6A /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = 934A1F842F339FD700571D94 /* GoogleMobileAds */; };
+		93B4682D2F37A25100FE3B6A /* GoogleUserMessagingPlatform in Frameworks */ = {isa = PBXBuildFile; productRef = 934A1F862F339FD700571D94 /* GoogleUserMessagingPlatform */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -71,6 +72,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				93B4682C2F37A25100FE3B6A /* GoogleMobileAds in Frameworks */,
+				93B4682D2F37A25100FE3B6A /* GoogleUserMessagingPlatform in Frameworks */,
 				93B4682B2F37A25100FE3B6A /* SwiftCSV in Frameworks */,
 				93B4682A2F37A25100FE3B6A /* FirebaseAnalyticsOnDeviceConversion in Frameworks */,
 				93B468292F37A25100FE3B6A /* FirebaseAnalyticsIdentitySupport in Frameworks */,
@@ -143,6 +145,7 @@
 				93687B682E255E4600690065 /* FirebaseAnalyticsOnDeviceConversion */,
 				93FB5E042E33B0FC00FAF25B /* SwiftCSV */,
 				934A1F842F339FD700571D94 /* GoogleMobileAds */,
+				934A1F862F339FD700571D94 /* GoogleUserMessagingPlatform */,
 			);
 			productName = "KWh Gas Companion";
 			productType = "com.apple.product-type.application";
@@ -203,7 +206,7 @@
 					"New-1",
 				);
 				LastSwiftUpdateCheck = 1640;
-				LastUpgradeCheck = 2620;
+				LastUpgradeCheck = 2630;
 				TargetAttributes = {
 					93AB53BE2E11704000686913 = {
 						CreatedOnToolsVersion = 16.4;
@@ -243,6 +246,7 @@
 				93687B5F2E255E4600690065 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 				93FB5E032E33B0FC00FAF25B /* XCRemoteSwiftPackageReference "SwiftCSV" */,
 				934A1F832F339FD700571D94 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
+				934A1F852F339FD700571D94 /* XCRemoteSwiftPackageReference "swift-package-manager-google-user-messaging-platform" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 93AB53C02E11704000686913 /* Products */;
@@ -376,6 +380,7 @@
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "This allows you to add Service Reminders for your Vehicle";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Needed to calculate your charging station proximity and range estimates.";
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 2026.08.03;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -438,6 +443,7 @@
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "This allows you to add Service Reminders for your Vehicle";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Needed to calculate your charging station proximity and range estimates.";
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 2026.08.03;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -454,7 +460,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = "KWh Gas Companion/KWh_Gas_Companion.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 46;
+				CURRENT_PROJECT_VERSION = 67;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = RT25WXR9M5;
 				ENABLE_APP_SANDBOX = YES;
@@ -469,6 +475,8 @@
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "This allows you to add Service Reminders for your Vehicle";
 				INFOPLIST_KEY_NSCameraUsageDescription = "We use the camera to scan your vehicle product plate.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Needed to calculate your charging station proximity and range estimates; nearby stations";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "We use your photo library so you can import vehicle and charging-related photos.";
+				INFOPLIST_KEY_NSUserTrackingUsageDescription = "This identifier helps us show more relevant ads and support free features.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -478,11 +486,11 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 15.5;
-				MARKETING_VERSION = 2026.2.7;
+				MARKETING_VERSION = 2026.8.06;
 				PRODUCT_BUNDLE_IDENTIFIER = "Me.KWh-Gas-Companion";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -506,7 +514,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = "KWh Gas Companion/KWh_Gas_Companion.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 46;
+				CURRENT_PROJECT_VERSION = 67;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = RT25WXR9M5;
 				ENABLE_APP_SANDBOX = YES;
@@ -521,6 +529,8 @@
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "This allows you to add Service Reminders for your Vehicle";
 				INFOPLIST_KEY_NSCameraUsageDescription = "We use the camera to scan your vehicle product plate.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Needed to calculate your charging station proximity and range estimates; nearby stations";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "We use your photo library so you can import vehicle and charging-related photos.";
+				INFOPLIST_KEY_NSUserTrackingUsageDescription = "This identifier helps us show more relevant ads and support free features.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -530,11 +540,11 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 15.5;
-				MARKETING_VERSION = 2026.2.7;
+				MARKETING_VERSION = 2026.8.06;
 				PRODUCT_BUNDLE_IDENTIFIER = "Me.KWh-Gas-Companion";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -558,16 +568,17 @@
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = RT25WXR9M5;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MACOSX_DEPLOYMENT_TARGET = 15.5;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "Me.KWh-Gas-CompanionTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/KWh Gas Companion.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/KWh Gas Companion";
 				XROS_DEPLOYMENT_TARGET = 2.5;
 			};
@@ -582,16 +593,17 @@
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = RT25WXR9M5;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MACOSX_DEPLOYMENT_TARGET = 15.5;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "Me.KWh-Gas-CompanionTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/KWh Gas Companion.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/KWh Gas Companion";
 				XROS_DEPLOYMENT_TARGET = 2.5;
 			};
@@ -605,16 +617,17 @@
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = RT25WXR9M5;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MACOSX_DEPLOYMENT_TARGET = 15.5;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "Me.KWh-Gas-CompanionUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = "KWh Gas Companion";
 				XROS_DEPLOYMENT_TARGET = 2.5;
 			};
@@ -628,16 +641,17 @@
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = RT25WXR9M5;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MACOSX_DEPLOYMENT_TARGET = 15.5;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "Me.KWh-Gas-CompanionUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = "KWh Gas Companion";
 				XROS_DEPLOYMENT_TARGET = 2.5;
 			};
@@ -693,6 +707,14 @@
 				minimumVersion = 12.14.0;
 			};
 		};
+		934A1F852F339FD700571D94 /* XCRemoteSwiftPackageReference "swift-package-manager-google-user-messaging-platform" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/swift-package-manager-google-user-messaging-platform.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.1.0;
+			};
+		};
 		93687B5F2E255E4600690065 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
@@ -724,6 +746,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 934A1F832F339FD700571D94 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
 			productName = GoogleMobileAds;
+		};
+		934A1F862F339FD700571D94 /* GoogleUserMessagingPlatform */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 934A1F852F339FD700571D94 /* XCRemoteSwiftPackageReference "swift-package-manager-google-user-messaging-platform" */;
+			productName = GoogleUserMessagingPlatform;
 		};
 		93687B602E255E4600690065 /* FirebaseAI */ = {
 			isa = XCSwiftPackageProductDependency;

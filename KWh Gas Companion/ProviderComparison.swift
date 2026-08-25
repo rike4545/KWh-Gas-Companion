@@ -1,11 +1,3 @@
-//
-//  ProviderComparison.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 9/3/25.
-//
-
-
 //  ProviderComparison.swift
 //  My KWh Companion
 //

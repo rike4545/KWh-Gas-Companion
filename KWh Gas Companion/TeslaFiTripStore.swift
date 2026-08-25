@@ -123,11 +123,13 @@ public final class TeslaFiTripStore: ObservableObject {
 
     /// Stable composite key to avoid duplicate imports.
     private func dedupKey(for t: TeslaFiTrip) -> String {
-        let ts = String(Int(t.date.timeIntervalSince1970))
-        let odo = t.odometer.map { String(format: "%.1f", $0) } ?? "_"
+        let ts = String(Int(t.startDate.timeIntervalSince1970))
+        let end = String(Int(t.endDate.timeIntervalSince1970))
+        let odo = t.startOdometer.map { String(format: "%.1f", $0) } ?? "_"
+        let endOdo = t.endOdometer.map { String(format: "%.1f", $0) } ?? "_"
         let kwh = t.energyKWh.map { String(format: "%.2f", $0) } ?? "_"
         let loc = (t.location ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        return [ts, odo, kwh, loc].joined(separator: "|")
+        return [ts, end, odo, endOdo, kwh, loc].joined(separator: "|")
     }
 
     private func persistIfNeeded() {

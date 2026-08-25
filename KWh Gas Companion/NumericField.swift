@@ -2,9 +2,7 @@
 //  NumericField.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 7/28/25.
 //
-
 
 import SwiftUI
 

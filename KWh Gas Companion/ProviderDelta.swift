@@ -1,11 +1,3 @@
-//
-//  ProviderDelta.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 9/3/25.
-//
-
-
 //  ProviderDelta.swift
 //  My KWh Companion
 //

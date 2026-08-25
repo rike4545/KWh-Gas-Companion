@@ -433,7 +433,7 @@ fileprivate struct TripNumberField: View {
             TextField("0", text: $text)
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.trailing)
-                .onChange(of: text) { apply(text) }
+                .onChange(of: text) { _, newValue in apply(newValue) }
                 .onAppear { text = formatted(value) }
                 .onSubmit { apply(text) }
                 .textInputAutocapitalization(.never)

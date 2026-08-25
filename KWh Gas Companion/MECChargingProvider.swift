@@ -1,11 +1,3 @@
-//
-//  MECChargingProvider.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 12/8/25.
-//
-
-
 //  ChargingModels.swift
 //  My EV Companion / My KWh Companion
 //

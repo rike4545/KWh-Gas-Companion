@@ -2,9 +2,7 @@
 //  RecallsView 2.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 9/10/25.
 //
-
 
 import SwiftUI
 import SafariServices
@@ -54,10 +52,8 @@ struct RecallsView: View {
                         .font(.largeTitle.bold())
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                    (
-                        Text("Use your VIN for the official status of ")
-                        + Text("open\u{00A0}/\u{00A0}unrepaired").bold()
-                        + Text(" recalls. Or decode the VIN to see model-level campaigns published by NHTSA.")
+                    Text(
+                        "Use your VIN for the official status of \(Text("open\u{00A0}/\u{00A0}unrepaired").bold()) recalls. Or decode the VIN to see model-level campaigns published by NHTSA."
                     )
                     .font(.subheadline)
                     .foregroundStyle(.secondary)

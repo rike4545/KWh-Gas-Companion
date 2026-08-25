@@ -2,9 +2,7 @@
 //  ALVRules.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 8/31/25.
 //
-
 
 // ALVRules.swift
 import Foundation

@@ -1,11 +1,3 @@
-//
-//  PaymentMethodView.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 9/3/25.
-//
-
-
 //  PaymentMethodView.swift
 //  My KWh Companion
 //

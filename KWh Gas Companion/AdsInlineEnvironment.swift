@@ -1,7 +1,7 @@
 import SwiftUI
 
 private struct AdsInlineEnabledKey: EnvironmentKey {
-    static var defaultValue: Bool = true
+    static var defaultValue: Bool = false
 }
 
 extension EnvironmentValues {

@@ -180,7 +180,7 @@ private actor AppleMapsDiscovery {
         var seen: [String: MKMapItem] = [:]
         for it in items {
             if let cat = it.pointOfInterestCategory, cat != .evCharger { continue }
-            let key = (it.name ?? "EV Charger") + "@" + coordKey(it.placemark.coordinate, precision: 5)
+            let key = (it.name ?? "EV Charger") + "@" + coordKey(it.compatCoordinate, precision: 5)
             if seen[key] == nil { seen[key] = it }
         }
 
@@ -328,7 +328,7 @@ private struct ChargerVM: Identifiable, Equatable {
     var usageCostText: String?
     var providerName: String
 
-    var coordinate: CLLocationCoordinate2D { mapItem.placemark.coordinate }
+    var coordinate: CLLocationCoordinate2D { mapItem.compatCoordinate }
     var title: String { mapItem.name ?? "EV Charger" }
 
     var id: String {
@@ -388,7 +388,7 @@ struct CheapestChargerShift: View {
         .task(id: radius) {
             radiusChangeTask?.cancel()
             radiusChangeTask = Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 250_000_000)
+                try? await Task.sleep(for: .milliseconds(250))
                 startSearch()
             }
         }
@@ -539,7 +539,7 @@ struct CheapestChargerShift: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-                if let addr = site.mapItem.placemark.title {
+                if let addr = site.mapItem.compatFullAddress {
                     Text(addr)
                         .font(.footnote)
                         .foregroundStyle(.secondary)

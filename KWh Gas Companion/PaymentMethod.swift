@@ -1,16 +1,10 @@
 //
 //  PaymentMethod.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 9/3/25.
-//
-
-
-//  EVgoVsTeslaAnalyzer.swift
 //  My KWh Companion
 //
-//  Core calculators for EVgo vs Tesla, plus Electrify America and Month‑to‑Date what‑ifs.
-//  Depends on: EVgoPlan.swift, EVgoPlanSpec.swift, ProviderComparison.swift, RateModel.swift,
+//  Payment and comparison model helpers used by `PaymentMethodView`.
+//
+//  Depends on: EVgoPlan.swift, EVgoPlanSpec.swift, ProviderComparison.swift,
 //              MonthToDateSummary.swift, ProviderDelta.swift
 //
 //  ⚠️ Disclaimers (display elsewhere in UI):

@@ -1,12 +1,3 @@
-//
-//  ReorderableList.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 11/4/25.
-//
-
-
-//
 //  ReorderableList.swift
 //
 

@@ -53,17 +53,6 @@ struct EVCompanionShortcuts: AppShortcutsProvider {
             shortTitle: "Tools",
             systemImageName: "square.grid.2x2"
         )
-
-        AppShortcut(
-            intent: StartTeslaFiImportIntent(),
-            phrases: [
-                "Import TeslaFi in \(.applicationName)",
-                "Start TeslaFi import in \(.applicationName)",
-                "Open TeslaFi import in \(.applicationName)"
-            ],
-            shortTitle: "Import TeslaFi",
-            systemImageName: "tray.and.arrow.down"
-        )
     }
 }
 
@@ -99,16 +88,5 @@ struct OpenToolsIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         .result(dialog: "Opening tools.")
-    }
-}
-
-@available(iOS 16.0, *)
-struct StartTeslaFiImportIntent: AppIntent {
-    static var title: LocalizedStringResource = "Start TeslaFi Import"
-    static var description = IntentDescription("Opens My KWh Companion so you can import a TeslaFi CSV.")
-    static var openAppWhenRun: Bool { true }
-
-    func perform() async throws -> some IntentResult & ProvidesDialog {
-        .result(dialog: "Opening TeslaFi import.")
     }
 }

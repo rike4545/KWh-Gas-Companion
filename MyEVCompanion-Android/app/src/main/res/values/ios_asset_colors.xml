@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="accentcolor">#E82127</color>
+    <color name="appdarkgray">#333333</color>
+    <color name="applightgray">#F2F2F2</color>
+    <color name="customblack">#000000</color>
+    <color name="customwhite">#FFFFFF</color>
+    <color name="silver">#A6A6A6</color>
+    <color name="teslared">#CC0000</color>
+</resources>

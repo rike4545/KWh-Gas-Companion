@@ -201,7 +201,7 @@ struct ChargingReconciliationView: View {
                 Label("Overview", systemImage: "arrow.triangle.2.circlepath")
                     .font(.headline)
 
-                statRow("TeslaFi rows", "\(result.teslaFiCount)")
+                statRow("Imported rows", "\(result.teslaFiCount)")
                 statRow("Entry rows", "\(result.entryCount)")
                 statRow("Matches", "\(result.matches.count)")
 
@@ -257,7 +257,7 @@ struct ChargingReconciliationView: View {
                                 .foregroundStyle(.secondary)
                         }
 
-                        Text("TeslaFi: \(m.teslaFi.location)")
+                        Text("Imported: \(m.teslaFi.location)")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
@@ -284,7 +284,7 @@ struct ChargingReconciliationView: View {
     private func unmatchedTeslaFiCard(items: [EVChargingLedgerItem]) -> some View {
         card {
             VStack(alignment: .leading, spacing: 10) {
-                Label("Unmatched TeslaFi", systemImage: "tray.and.arrow.down")
+                Label("Unmatched Imported Sessions", systemImage: "tray.and.arrow.down")
                     .font(.headline)
 
                 ForEach(items.prefix(40)) { it in
@@ -326,7 +326,7 @@ struct ChargingReconciliationView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Label("Nothing to reconcile yet", systemImage: "info.circle")
                     .font(.headline)
-                Text("Import TeslaFi and/or add charging entries to compare sources.")
+                Text("Import charging sessions and/or add charging entries to compare sources.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

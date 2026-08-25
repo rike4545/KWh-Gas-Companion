@@ -318,6 +318,7 @@ struct CombinedOwnershipView: View {
                 .frame(height: 240)
                 .padding(.horizontal)
                 .chartYAxis { AxisMarks(position: .leading) }
+                .kwhInteractiveDataViz()
                 #else
                 VStack(spacing: 8) {
                     ForEach(byCategory.prefix(12), id: \.category) { item in
@@ -375,6 +376,7 @@ struct CombinedOwnershipView: View {
                 .frame(height: 220)
                 .padding(.horizontal)
                 .chartYAxis { AxisMarks(position: .leading) }
+                .kwhInteractiveDataViz()
                 #else
                 VStack(spacing: 8) {
                     ForEach(monthly, id: \.month) { item in

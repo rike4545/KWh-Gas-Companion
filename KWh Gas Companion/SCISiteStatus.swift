@@ -1,12 +1,3 @@
-//
-//  SCISiteStatus.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 8/31/25.
-//
-
-
-//
 //  SCISiteModels.swift
 //  KWh Gas Companion
 //

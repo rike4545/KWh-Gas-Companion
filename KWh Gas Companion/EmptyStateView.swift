@@ -1,12 +1,3 @@
-//
-//  EmptyStateView.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 7/27/25.
-//
-
-
-//
 //  EmptyStateView.swift
 //  MyKwH Companion – 2025-07-29
 //  Displays a placeholder when there are no expense entries.

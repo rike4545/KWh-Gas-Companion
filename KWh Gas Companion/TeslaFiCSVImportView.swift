@@ -1,14 +1,14 @@
+//
 //  TeslaFiCSVImportView.swift
 //  My KWh Companion
 //
 //  Swift 6 / iOS 17+
 //
-//  Dedicated TeslaFi CSV import screen.
+//  Wired: CSVDropSupport -- drag a CSV onto the import card to trigger import.
 //
-//  - Uses `.fileImporter` with proper security-scoped URL handling
-//  - Shows a clear loading state while parsing large CSVs
-//  - Surfaces `TFIImportReport` details (inserted, duplicates, failures, header mapping)
-//  - Relies on `TeslaFiSessionStore.importFromCSV(at:)` for the heavy lifting
+//  🔧 FIX: Removed inner NavigationStack wrapper. This view is always pushed
+//  via NavigationLink inside ChargingImportHubView's NavigationStack. Wrapping
+//  in a second NavigationStack killed the back button and caused layout glitches.
 //
 
 import SwiftUI
@@ -23,7 +23,6 @@ struct TeslaFiCSVImportView: View {
     @Environment(\.colorScheme) private var scheme
     @EnvironmentObject private var teslaFiStore: TeslaFiSessionStore
     @EnvironmentObject private var appearance: AppAppearance
-    @StateObject private var teslaFiUnlock = TeslaFiEntitlementStore.shared
 
     // MARK: - Local UI state
 
@@ -33,180 +32,235 @@ struct TeslaFiCSVImportView: View {
     @State private var showHeaderDetails = false
     @State private var showFailures = false
 
+    // Drag-and-drop hover state
+    @State private var isDragTargeted = false
+
     // MARK: - Body
 
+    // 🔧 FIX: No NavigationStack here — ChargingImportHubView owns the stack.
+    // Adding one here created a double-navigation-stack hierarchy that broke
+    // the back button and produced incorrect title bar behavior.
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    headerSection
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                statsSection
+                importCard
+                if teslaFiStore.lastImportReport != nil { reportSection }
+                if teslaFiStore.lastImportReport?.hasFailures == true { failuresSection }
+                footerHint
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .padding(.bottom, 40)
+        }
+        .background(backgroundGradient.ignoresSafeArea())
+        .navigationTitle("TeslaFi CSV Import")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Color(uiColor: .systemGroupedBackground), for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
+        .fileImporter(
+            isPresented: $showingFileImporter,
+            allowedContentTypes: [
+                .commaSeparatedText,
+                .plainText,
+                .data
+            ],
+            allowsMultipleSelection: false,
+            onCompletion: handleFileImporterResult(_:)
+        )
+    }
 
-                    if teslaFiUnlock.hasTeslaFiUnlock {
-                        currentStatsSection
-                        importCard
-                        reportSection
-                        failuresSection
-                        footerHint
-                    } else {
-                        TeslaFiUnlockCard(
-                            title: "TeslaFi Import Locked",
-                            subtitle: "Unlock TeslaFi CSV import and analytics for a one‑time purchase."
-                        )
-                    }
-                }
-                .padding()
-            }
-            .navigationTitle("Import from TeslaFi")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
-                }
-            }
-            .fileImporter(
-                isPresented: $showingFileImporter,
-                allowedContentTypes: [
-                    .commaSeparatedText,
-                    .plainText,
-                    .data
+    // MARK: - Background
+
+    private var backgroundGradient: some View {
+        ZStack {
+            Color(uiColor: .systemGroupedBackground)
+            LinearGradient(
+                colors: [
+                    appearance.accentColor.opacity(scheme == .dark ? 0.10 : 0.05),
+                    Color.clear
                 ],
-                allowsMultipleSelection: false,
-                onCompletion: handleFileImporterResult(_:)
+                startPoint: .top,
+                endPoint: .center
             )
         }
-        .task { await teslaFiUnlock.load() }
     }
 
-    // MARK: - Sections
+    // MARK: - Stats Section
 
-    private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("TeslaFi CSV Import")
-                .font(.title2.weight(.semibold))
-
-            Text("Bring in your TeslaFi charging sessions so My KWh Companion can use them in analytics, dashboards, and budgeting. This importer is separate from the official Tesla CSV wizard.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private var currentStatsSection: some View {
+    private var statsSection: some View {
         let accent = appearance.accentColor
 
         return Group {
             if teslaFiStore.sessionCount > 0 {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Current TeslaFi Data")
+                VStack(alignment: .leading, spacing: 12) {
+                    Label("Current Data", systemImage: "chart.bar.fill")
                         .font(.headline)
 
-                    HStack(spacing: 16) {
+                    HStack(spacing: 12) {
                         statChip(
                             title: "Sessions",
-                            value: "\(teslaFiStore.sessionCount)"
+                            value: "\(teslaFiStore.sessionCount)",
+                            icon: "bolt.fill",
+                            color: accent
                         )
                         statChip(
                             title: "Total kWh",
-                            value: String(format: "%.1f", teslaFiStore.totalKWh)
+                            value: String(format: "%.1f", teslaFiStore.totalKWh),
+                            icon: "gauge.with.dots.needle.67percent",
+                            color: .green
                         )
                         if teslaFiStore.totalCost > 0 {
                             statChip(
                                 title: "Total Cost",
-                                value: currency(teslaFiStore.totalCost)
+                                value: currency(teslaFiStore.totalCost),
+                                icon: "dollarsign",
+                                color: .orange
                             )
                         }
                     }
 
                     if let latest = teslaFiStore.latestSession {
-                        Text("Latest session: \(dateFormatter.string(from: latest.startDate)) at \(latest.location ?? "Unknown")")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        HStack(spacing: 6) {
+                            Image(systemName: "clock")
+                                .font(.caption)
+                            Text("Latest: \(dateFormatter.string(from: latest.startDate))")
+                                .font(.caption)
+                            if let loc = latest.location {
+                                Text("·")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                                Text(loc)
+                                    .font(.caption)
+                            }
+                        }
+                        .foregroundStyle(.secondary)
                     }
                 }
+                .padding(16)
+                .background(glassCard)
             } else {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("No TeslaFi sessions yet")
-                        .font(.headline)
-                    Text("Start by exporting a CSV from TeslaFi (Charging Sessions export) and then import it below.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                HStack(spacing: 14) {
+                    Image(systemName: "tray")
+                        .font(.title2)
+                        .foregroundStyle(accent)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("No imported sessions yet")
+                            .font(.headline)
+                        Text("Export a compatible charging-session CSV and import it below.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
                 }
+                .padding(16)
+                .background(glassCard)
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(accent.opacity(scheme == .dark ? 0.18 : 0.10))
-        )
     }
+
+    // MARK: - Import Card
 
     private var importCard: some View {
         let accent = appearance.accentColor
 
         return VStack(alignment: .leading, spacing: 16) {
+            // Header
             HStack {
-                Label("Select TeslaFi CSV", systemImage: "tray.and.arrow.down")
-                    .font(.headline)
+                ZStack {
+                    Circle()
+                        .fill(accent.opacity(scheme == .dark ? 0.22 : 0.14))
+                        .frame(width: 40, height: 40)
+                    Image(systemName: teslaFiStore.isImporting ? "arrow.down.circle" : "tray.and.arrow.down.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(accent)
+                        .symbolEffect(.pulse, isActive: teslaFiStore.isImporting)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Select Charging CSV")
+                        .font(.headline)
+                    Text("Export from your source, save to Files, then choose below — or drag & drop.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 Spacer()
                 if teslaFiStore.isImporting {
                     ProgressView()
                         .progressViewStyle(.circular)
+                        .scaleEffect(0.8)
                 }
             }
 
-            Text("From TeslaFi, export your charging sessions as CSV (typically via **Tools → Export → Charging**). Save it into the Files app, then tap the button below to select it.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-
-            if let selectedFileName {
-                HStack {
-                    Image(systemName: "doc.text")
-                    Text(selectedFileName)
+            // Selected file chip
+            if let name = selectedFileName {
+                HStack(spacing: 8) {
+                    Image(systemName: "doc.text.fill")
+                        .foregroundStyle(accent)
+                    Text(name)
                         .lineLimit(1)
+                        .font(.subheadline)
                     Spacer()
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
                 }
-                .font(.subheadline)
-                .padding(8)
+                .padding(10)
                 .background(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color.secondary.opacity(scheme == .dark ? 0.28 : 0.12))
+                        .fill(Color.secondary.opacity(scheme == .dark ? 0.18 : 0.08))
                 )
             }
 
+            // Progress bar when importing
+            if teslaFiStore.isImporting {
+                VStack(alignment: .leading, spacing: 6) {
+                    ProgressView()
+                        .progressViewStyle(.linear)
+                        .tint(accent)
+                    Text("Parsing charging CSV… This can take a moment for large imports.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            // Choose button
             Button {
                 filePickerError = nil
                 showingFileImporter = true
             } label: {
-                HStack {
+                HStack(spacing: 8) {
                     Image(systemName: "folder.badge.plus")
-                    Text("Choose CSV from Files")
+                    Text(selectedFileName == nil ? "Choose CSV from Files" : "Choose Different File")
                 }
                 .frame(maxWidth: .infinity)
+                .padding(.vertical, 2)
             }
             .buttonStyle(.borderedProminent)
             .tint(accent)
             .disabled(teslaFiStore.isImporting)
 
-            if teslaFiStore.isImporting {
-                Text("Parsing TeslaFi CSV… This can take a little while for large exports. You can leave this screen open while it works.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+            // Drag hint
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.down.to.line.compact")
+                    .font(.caption)
+                Text("Or drag & drop a CSV directly onto this card")
+                    .font(.caption)
             }
+            .foregroundStyle(.secondary)
 
-            if let pickerError = filePickerError {
-                errorBanner(text: pickerError)
-            }
-
-            if let importError = teslaFiStore.lastError {
-                errorBanner(text: importError)
-            }
+            // Error banners
+            if let pickerError = filePickerError { errorBanner(text: pickerError) }
+            if let importError = teslaFiStore.lastError { errorBanner(text: importError) }
         }
-        .padding()
+        .padding(18)
         .background(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(
                     LinearGradient(
                         colors: [
-                            Color(.systemBackground),
-                            appearance.accentColor.opacity(scheme == .dark ? 0.25 : 0.15)
+                            Color(uiColor: .secondarySystemBackground),
+                            accent.opacity(scheme == .dark ? 0.12 : 0.06)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -215,173 +269,111 @@ struct TeslaFiCSVImportView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(
-                    Color.white.opacity(scheme == .dark ? 0.30 : 0.20),
-                    lineWidth: 0.7
+                .strokeBorder(
+                    isDragTargeted ? accent : Color.primary.opacity(0.07),
+                    style: isDragTargeted
+                        ? StrokeStyle(lineWidth: 2.5, dash: [8, 5])
+                        : StrokeStyle(lineWidth: 0.8)
                 )
+                .animation(.easeInOut(duration: 0.18), value: isDragTargeted)
+        )
+        .overlay(alignment: .center) {
+            if isDragTargeted {
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(accent.opacity(scheme == .dark ? 0.15 : 0.08))
+                    .overlay(
+                        VStack(spacing: 10) {
+                            Image(systemName: "arrow.down.doc.fill")
+                                .font(.system(size: 32))
+                            Text("Release to Import")
+                                .font(.headline)
+                        }
+                        .foregroundStyle(accent)
+                    )
+                    .transition(.opacity.combined(with: .scale(scale: 0.97)))
+            }
+        }
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isDragTargeted)
+        .dropDestination(
+            for: URL.self,
+            action: { items, _ in
+                guard let url = items.first else { return false }
+                let ext = url.pathExtension.lowercased()
+                guard ["csv", "txt", ""].contains(ext) else { return false }
+                selectedFileName = url.lastPathComponent
+                filePickerError = nil
+                Task { await teslaFiStore.importFromCSV(at: url) }
+                return true
+            },
+            isTargeted: { isDragTargeted = $0 }
         )
     }
+
+    // MARK: - Report Section
 
     private var reportSection: some View {
         Group {
             if let report = teslaFiStore.lastImportReport {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Last Import Summary")
-                        .font(.headline)
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack {
-                            Text("File")
-                            Spacer()
-                            Text(report.filename)
-                                .foregroundStyle(.secondary)
-                        }
-                        HStack {
-                            Text("Rows processed")
-                            Spacer()
-                            Text("\(report.rowCount)")
-                                .foregroundStyle(.secondary)
-                        }
-                        HStack {
-                            Text("Inserted sessions")
-                            Spacer()
-                            Text("\(report.insertedCount)")
-                                .foregroundStyle(.secondary)
-                        }
-                        HStack {
-                            Text("Skipped duplicates")
-                            Spacer()
-                            Text("\(report.skippedDuplicates)")
-                                .foregroundStyle(.secondary)
-                        }
-
-                        if report.columnMismatchRowCount > 0 {
-                            HStack(alignment: .firstTextBaseline) {
-                                Text("Column mismatches")
-                                Spacer()
-                                Text("\(report.columnMismatchRowCount)")
-                                    .foregroundStyle(.secondary)
-                            }
-                            if !report.columnMismatchSampleLines.isEmpty {
-                                Text("Sample rows with mismatched column counts: \(report.columnMismatchSampleLines.map(String.init).joined(separator: ", ")).")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                    .font(.subheadline)
-
-                    if !report.headerUsage.isEmpty {
-                        DisclosureGroup(
-                            isExpanded: $showHeaderDetails,
-                            content: {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    ForEach(report.headerUsage, id: \.index) { usage in
-                                        HStack(alignment: .firstTextBaseline) {
-                                            Text("#\(usage.index + 1)")
-                                                .font(.caption.monospacedDigit())
-                                                .foregroundStyle(.secondary)
-                                            Text("“\(usage.name)”")
-                                            Spacer(minLength: 8)
-                                            if usage.mappedTo.isEmpty {
-                                                Text("— not mapped")
-                                                    .font(.caption)
-                                                    .foregroundStyle(.secondary)
-                                            } else {
-                                                Text(usage.mappedTo.joined(separator: ", "))
-                                                    .font(.caption)
-                                                    .foregroundStyle(.secondary)
-                                            }
-                                        }
-                                    }
-                                }
-                                .padding(.top, 4)
-                            },
-                            label: {
-                                Label("Header mapping details", systemImage: "list.bullet.rectangle")
-                                    .font(.subheadline)
-                            }
-                        )
-                    }
-                }
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(Color(.secondarySystemBackground))
-                )
+                ImportReportCard(report: report, showHeaderDetails: $showHeaderDetails)
             }
         }
     }
 
     private var failuresSection: some View {
         Group {
-            if let report = teslaFiStore.lastImportReport,
-               report.hasFailures {
-                VStack(alignment: .leading, spacing: 8) {
-                    DisclosureGroup(
-                        isExpanded: $showFailures,
-                        content: {
-                            VStack(alignment: .leading, spacing: 6) {
-                                ForEach(report.failures, id: \.lineNumber) { failure in
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("Line \(failure.lineNumber)")
-                                            .font(.caption.weight(.semibold))
-                                        Text(failure.message)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    .padding(8)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                            .fill(Color.red.opacity(0.07))
-                                    )
-                                }
-                            }
-                            .padding(.top, 4)
-                        },
-                        label: {
-                            Label(
-                                "Rows with issues (\(report.failures.count))",
-                                systemImage: "exclamationmark.triangle"
-                            )
-                            .foregroundStyle(.red)
-                        }
-                    )
-
-                    Text("These rows were skipped during import. You can review them in the original CSV if needed.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.top, 8)
+            if let report = teslaFiStore.lastImportReport, report.hasFailures {
+                TFIFailuresCard(report: report, showFailures: $showFailures)
             }
         }
     }
 
     private var footerHint: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("How this data is used")
-                .font(.headline)
-            Text("Imported TeslaFi sessions stay on this device and can be reused across My KWh Companion’s analytics dashboards, forecasts, and budgeting tools. No data is uploaded to a server.")
-                .font(.footnote)
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "lock.shield.fill")
+                .font(.title3)
                 .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Stays on Your Device")
+                    .font(.subheadline.weight(.semibold))
+                Text("Imported data is stored locally and used across analytics, forecasts, and budgeting. Nothing is uploaded to a server.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
         }
-        .padding(.top, 16)
+        .padding(14)
+        .background(glassCard)
+        .padding(.top, 4)
     }
 
-    // MARK: - Helpers
+    // MARK: - Reusable sub-views
 
-    private func statChip(title: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+    private var glassCard: some View {
+        RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .fill(.ultraThinMaterial)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.07))
+            )
+    }
+
+    private func statChip(title: String, value: String, icon: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.caption2)
+                    .foregroundStyle(color)
+                Text(title)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
             Text(value)
-                .font(.headline.monospacedDigit())
+                .font(.subheadline.weight(.semibold).monospacedDigit())
         }
-        .padding(8)
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color(.tertiarySystemBackground))
+                .fill(Color(uiColor: .tertiarySystemBackground))
         )
     }
 
@@ -397,10 +389,12 @@ struct TeslaFiCSVImportView: View {
         .padding(10)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.red.opacity(0.12))
+                .fill(Color.red.opacity(0.10))
         )
         .foregroundStyle(.red)
     }
+
+    // MARK: - Handlers
 
     private func handleFileImporterResult(_ result: Result<[URL], Error>) {
         switch result {
@@ -413,10 +407,7 @@ struct TeslaFiCSVImportView: View {
             }
             selectedFileName = url.lastPathComponent
             filePickerError = nil
-
-            Task {
-                await teslaFiStore.importFromCSV(at: url)
-            }
+            Task { await teslaFiStore.importFromCSV(at: url) }
         }
     }
 
@@ -432,5 +423,183 @@ struct TeslaFiCSVImportView: View {
         f.dateStyle = .medium
         f.timeStyle = .short
         return f
+    }
+}
+
+// MARK: - ImportReportCard
+
+private struct ImportReportCard: View {
+    let report: TFIImportReport
+    @Binding var showHeaderDetails: Bool
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label("Last Import Summary", systemImage: "checkmark.seal.fill")
+                .font(.headline)
+                .foregroundStyle(.green)
+
+            // Stat row
+            HStack(spacing: 0) {
+                resultStat(label: "Processed", value: "\(report.rowCount)", icon: "doc.text")
+                Divider().frame(height: 36).padding(.horizontal, 12)
+                resultStat(label: "Inserted", value: "\(report.insertedCount)", icon: "plus.circle.fill", color: .green)
+                Divider().frame(height: 36).padding(.horizontal, 12)
+                resultStat(label: "Skipped", value: "\(report.skippedDuplicates)", icon: "minus.circle", color: .secondary)
+            }
+
+            // File info
+            HStack(spacing: 6) {
+                Image(systemName: "doc.text")
+                    .font(.caption)
+                Text(report.filename)
+                    .font(.caption)
+                    .lineLimit(1)
+            }
+            .foregroundStyle(.secondary)
+
+            if report.columnMismatchRowCount > 0 {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.caption)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(report.columnMismatchRowCount) rows had mismatched column counts")
+                            .font(.caption.weight(.medium))
+                        if !report.columnMismatchSampleLines.isEmpty {
+                            Text("Sample lines: \(report.columnMismatchSampleLines.map(String.init).joined(separator: ", "))")
+                                .font(.caption2)
+                        }
+                    }
+                }
+                .foregroundStyle(.orange)
+                .padding(8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.orange.opacity(0.08))
+                )
+            }
+
+            if !report.headerUsage.isEmpty {
+                DisclosureGroup(isExpanded: $showHeaderDetails) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(report.headerUsage, id: \.index) { usage in
+                            HeaderUsageRow(usage: usage)
+                        }
+                    }
+                    .padding(.top, 4)
+                } label: {
+                    Label("Header mapping details", systemImage: "list.bullet.rectangle")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color(uiColor: .secondarySystemBackground))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .strokeBorder(Color.green.opacity(scheme == .dark ? 0.25 : 0.15))
+                )
+        )
+    }
+
+    private func resultStat(
+        label: String,
+        value: String,
+        icon: String,
+        color: Color = .primary
+    ) -> some View {
+        VStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 14))
+                .foregroundStyle(color)
+            Text(value)
+                .font(.title3.weight(.bold).monospacedDigit())
+                .foregroundStyle(color)
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - HeaderUsageRow
+
+private struct HeaderUsageRow: View {
+    let usage: TFIHeaderUsage
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text("#\(usage.index + 1)")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .frame(width: 28, alignment: .trailing)
+            Text(usage.name)
+                .font(.caption)
+            Spacer(minLength: 8)
+            if usage.mappedTo.isEmpty {
+                Text("not mapped")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            } else {
+                Text(usage.mappedTo.joined(separator: ", "))
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 1)
+    }
+}
+
+// MARK: - TFIFailuresCard
+
+private struct TFIFailuresCard: View {
+    let report: TFIImportReport
+    @Binding var showFailures: Bool
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            DisclosureGroup(isExpanded: $showFailures) {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(report.failures, id: \.lineNumber) { failure in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Line \(failure.lineNumber)")
+                                .font(.caption.weight(.semibold))
+                            Text(failure.message)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(Color.red.opacity(0.07))
+                        )
+                    }
+                }
+                .padding(.top, 6)
+            } label: {
+                Label("Rows with issues (\(report.failures.count))", systemImage: "exclamationmark.triangle.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.red)
+            }
+
+            Text("These rows were skipped. Review them in the original CSV if needed.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color.red.opacity(scheme == .dark ? 0.10 : 0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(Color.red.opacity(0.2))
+                )
+        )
     }
 }

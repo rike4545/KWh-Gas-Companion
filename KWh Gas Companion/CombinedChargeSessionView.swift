@@ -243,6 +243,7 @@ struct CombinedChargeSessionView: View {
                 .frame(height: 220)
                 .padding(.horizontal)
                 .chartYAxis { AxisMarks(position: .leading) }
+                .kwhInteractiveDataViz()
             }
 
             // Price per kWh trend (if kWh present)
@@ -269,6 +270,7 @@ struct CombinedChargeSessionView: View {
                 .frame(height: 220)
                 .padding(.horizontal)
                 .chartYAxis { AxisMarks(position: .leading) }
+                .kwhInteractiveDataViz()
             }
             #else
             // Fallback if Charts isn’t available

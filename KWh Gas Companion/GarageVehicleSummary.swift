@@ -1,12 +1,3 @@
-//
-//  GarageVehicleSummary 2.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 12/23/25.
-//
-
-
-//
 //  GarageVehicleSummary.swift
 //  KWh Gas Companion
 //

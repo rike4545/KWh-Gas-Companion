@@ -198,6 +198,7 @@ struct ForecastChartView: View {
                 }
             }
             .frame(height: 260)
+            .kwhInteractiveDataViz()
         }
     }
 

@@ -1,3 +1,5 @@
+// Copyright Bryan Carroll. Made with Love in New York. All rights reserved. 2026.
+
 //
 //  ThemeBackground.swift
 //  KWh Gas Companion
@@ -12,30 +14,43 @@ public struct ThemeBackground: View {
     @Environment(\.appThemeBox) private var box
     @Environment(\.colorScheme) private var scheme
     public init() {}
+
     public var body: some View {
+        let theme = box.base
+
         ZStack {
             Rectangle()
-                .fill(box.base.screenBackground)
-                .ignoresSafeArea()
+                .fill(theme.screenBackground)
 
-            RadialGradient(
-                colors: [box.base.accent.opacity(scheme == .dark ? 0.22 : 0.16), .clear],
-                center: .topLeading,
-                startRadius: 0,
-                endRadius: 520
+            LinearGradient(
+                colors: [
+                    theme.accent.opacity(scheme == .dark ? 0.08 : 0.05),
+                    Color.white.opacity(scheme == .dark ? 0.02 : 0.12),
+                    .clear,
+                    theme.pillTint.opacity(scheme == .dark ? 0.10 : 0.08)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
-            .blur(radius: 30)
-            .ignoresSafeArea()
-
-            RadialGradient(
-                colors: [box.base.accent.opacity(scheme == .dark ? 0.14 : 0.10), .clear],
-                center: .bottomTrailing,
-                startRadius: 0,
-                endRadius: 620
-            )
-            .blur(radius: 34)
-            .ignoresSafeArea()
+            .blendMode(scheme == .dark ? .screen : .softLight)
         }
+        .overlay(
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.black.opacity(scheme == .dark ? 0.10 : 0.025),
+                            .clear,
+                            Color.black.opacity(scheme == .dark ? 0.16 : 0.055)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .blendMode(.multiply)
+                .opacity(scheme == .dark ? 1 : 0.55)
+        )
+        .ignoresSafeArea()
         .accessibilityHidden(true)
     }
 }

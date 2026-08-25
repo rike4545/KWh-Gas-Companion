@@ -22,7 +22,7 @@ struct AdBannerOverlayCard: View {
     @ObservedObject var adsStore: AdsEntitlementStore
 
     var body: some View {
-        AdBannerCardContent(adsStore: adsStore)
+        AdBannerOverlayCompactContent(adsStore: adsStore)
     }
 }
 
@@ -44,35 +44,23 @@ private struct AdBannerCardContent: View {
         } else {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Label("Sponsored", systemImage: "megaphone")
-                        .font(.headline)
+                    Label("Sponsored", systemImage: "megaphone.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(theme.accent)
                     Spacer()
-                    Button {
-                        Task { await adsStore.purchaseRemoveAds() }
-                    } label: {
-                        HStack(spacing: 6) {
-                            if adsStore.purchaseInFlight {
-                                ProgressView().scaleEffect(0.85)
-                            }
-                            Text(adsStore.purchaseInFlight ? "Processing…" : "Remove Ads \(adsStore.displayPrice)")
-                        }
-                    }
-                    .font(.footnote.weight(.semibold))
-                    .disabled(adsStore.purchaseInFlight)
+                    Text("Ad-supported")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
                 }
 
                 ZStack {
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(theme.pillTint.opacity(0.25))
+                        .fill(theme.pillTint.opacity(0.2))
                         .overlay(
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
                                 .strokeBorder(theme.separator.opacity(0.6), lineWidth: 1)
                         )
                         .frame(height: bannerHeight)
-
-                    Text("Ad space")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
 
                     AdMobBannerView(adUnitID: AdsConfig.bannerAdUnitID, adSize: bannerSize)
                         .frame(height: bannerHeight)
@@ -80,6 +68,42 @@ private struct AdBannerCardContent: View {
                 }
             }
             .themedCard()
+            .task {
+                await adsStore.load()
+            }
+        }
+    }
+}
+
+@MainActor
+private struct AdBannerOverlayCompactContent: View {
+    @ObservedObject var adsStore: AdsEntitlementStore
+    @Environment(\.appThemeBox) private var themeBox
+
+    private var theme: any AppThemeSpec { themeBox.base }
+    private let bannerHeight: CGFloat = 50
+
+    var body: some View {
+        if adsStore.hasRemovedAds {
+            EmptyView()
+        } else {
+            VStack(spacing: 6) {
+                HStack(spacing: 8) {
+                    Text("Sponsored")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("Ad-supported")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(theme.accent)
+                }
+
+                ZStack {
+                    AdMobBannerView(adUnitID: AdsConfig.bannerAdUnitID, adSize: AdBannerSizes.banner)
+                        .frame(height: bannerHeight)
+                        .frame(maxWidth: .infinity)
+                }
+            }
             .task {
                 await adsStore.load()
             }

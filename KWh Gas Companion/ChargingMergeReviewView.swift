@@ -1,12 +1,3 @@
-//
-//  ChargingMergeReviewView 2.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 12/17/25.
-//
-
-
-//
 //  ChargingMergeReviewView.swift
 //  My KWh Companion
 //
@@ -30,7 +21,7 @@ struct ChargingMergeReviewView: View {
     var body: some View {
         List {
             Section {
-                Text("Canonical sessions are built by merging near-duplicate TeslaFi rows. If a merge looks wrong, block it and rebuild.")
+                Text("Canonical sessions are built by merging near-duplicate imported rows. If a merge looks wrong, block it and rebuild.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

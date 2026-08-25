@@ -165,6 +165,7 @@ struct BatteryHealthView: View {
             }
         }
         .chartYAxisLabel("Estimated Capacity (kWh)")
+        .kwhInteractiveDataViz()
         #else
         VStack(alignment: .leading, spacing: 6) {
             Text("Trend").font(.headline)

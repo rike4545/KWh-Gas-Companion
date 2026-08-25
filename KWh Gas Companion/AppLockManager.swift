@@ -1,12 +1,3 @@
-//
-//  AppLockManager.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 12/17/25.
-//
-
-
-//
 //  AppLockManager.swift
 //  My KWh Companion
 //

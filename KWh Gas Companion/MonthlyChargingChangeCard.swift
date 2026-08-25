@@ -1,12 +1,3 @@
-//
-//  MonthlyChargingChangeCard 2.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 12/17/25.
-//
-
-
-//
 //  MonthlyChargingChangeCard.swift
 //  My KWh Companion
 //
@@ -64,7 +55,7 @@ struct MonthlyChargingChangeCard: View {
                     .foregroundStyle(.secondary)
             }
 
-            Text("TeslaFi: \(now.count) sessions • \(now.kwh, specifier: "%.1f") kWh • \(now.cost, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))")
+            Text("Imported: \(now.count) sessions • \(now.kwh, specifier: "%.1f") kWh • \(now.cost, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
@@ -76,7 +67,7 @@ struct MonthlyChargingChangeCard: View {
 
             DeltaRow(label: "Sessions", value: Double(now.count - prev.count), isCurrency: false, fractionDigits: 0)
             DeltaRow(label: "kWh", value: now.kwh - prev.kwh, isCurrency: false, fractionDigits: 1)
-            DeltaRow(label: "TeslaFi cost", value: now.cost - prev.cost, isCurrency: true, fractionDigits: 2)
+            DeltaRow(label: "Imported cost", value: now.cost - prev.cost, isCurrency: true, fractionDigits: 2)
             DeltaRow(label: "Ledger cost", value: ledgerNow - ledgerPrev, isCurrency: true, fractionDigits: 2)
         }
         .padding(14)

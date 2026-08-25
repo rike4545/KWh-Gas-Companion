@@ -1,12 +1,3 @@
-//
-//  ToolUsageStore 2.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 12/17/25.
-//
-
-
-//
 //  ToolUsageStore.swift
 //  My KWh Companion
 //
@@ -54,8 +45,10 @@ final class ToolUsageStore: ObservableObject {
             self.fileURL = fileURL
         } else {
             let fm = FileManager.default
-            let base = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-                ?? fm.urls(for: .documentDirectory, in: .userDomainMask).first!
+            let base =
+                fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+                ?? fm.urls(for: .documentDirectory, in: .userDomainMask).first
+                ?? fm.temporaryDirectory
 
             if !fm.fileExists(atPath: base.path) {
                 try? fm.createDirectory(at: base, withIntermediateDirectories: true)
@@ -90,6 +83,12 @@ final class ToolUsageStore: ObservableObject {
     }
 
     func clearRecents() {
+        recent.removeAll()
+        persistAsync()
+    }
+
+    func clearAllData() {
+        pinned.removeAll()
         recent.removeAll()
         persistAsync()
     }

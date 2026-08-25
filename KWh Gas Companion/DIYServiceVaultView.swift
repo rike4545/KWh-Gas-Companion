@@ -62,14 +62,23 @@ final class DIYServiceVaultStore: LocalJSONStore<DIYServiceEntry> {
         super.init(filename: "diy_service_vault.json")
     }
 
+    private var documentsDirectory: URL {
+        (try? FileManager.default.url(
+            for: .documentDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )) ?? FileManager.default.temporaryDirectory
+    }
+
     func imageURL(for filename: String) -> URL {
-        let base = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        return base.appendingPathComponent("DIYVault").appendingPathComponent(filename)
+        documentsDirectory
+            .appendingPathComponent("DIYVault")
+            .appendingPathComponent(filename)
     }
 
     func saveImage(_ data: Data, for id: UUID) -> String? {
-        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-            .appendingPathComponent("DIYVault")
+        let dir = documentsDirectory.appendingPathComponent("DIYVault")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let filename = "\(id.uuidString).jpg"
         let url = dir.appendingPathComponent(filename)
@@ -211,6 +220,18 @@ struct DIYServiceEntryEditor: View {
     @State private var tagsText: String = ""
 
     let onSave: (DIYServiceEntry) -> Void
+
+    init(
+        prefillTitle: String = "",
+        prefillNotes: String = "",
+        prefillTags: [String] = [],
+        onSave: @escaping (DIYServiceEntry) -> Void
+    ) {
+        _title = State(initialValue: prefillTitle)
+        _notes = State(initialValue: prefillNotes)
+        _tagsText = State(initialValue: prefillTags.joined(separator: ", "))
+        self.onSave = onSave
+    }
 
     var body: some View {
         NavigationStack {

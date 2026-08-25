@@ -1,0 +1,235 @@
+[
+  {
+    "ios_asset": "AppIcon.appiconset",
+    "android_resources": [
+      "appicon.png"
+    ],
+    "type": "appiconset"
+  },
+  {
+    "ios_asset": "AppIconFunny.appiconset",
+    "android_resources": [
+      "appiconfunny.png"
+    ],
+    "type": "appiconset"
+  },
+  {
+    "ios_asset": "AppIconGlobal.appiconset",
+    "android_resources": [
+      "appiconglobal.png"
+    ],
+    "type": "appiconset"
+  },
+  {
+    "ios_asset": "AppIconOld.appiconset",
+    "android_resources": [
+      "appiconold.png",
+      "appiconold_2.png",
+      "appiconold_3.png"
+    ],
+    "type": "appiconset"
+  },
+  {
+    "ios_asset": "DoGoodBoxHero.imageset",
+    "android_resources": [
+      "dogoodboxhero.png"
+    ],
+    "type": "imageset"
+  },
+  {
+    "ios_asset": "MyEVSplash.imageset",
+    "android_resources": [
+      "myevsplash.png"
+    ],
+    "type": "imageset"
+  },
+  {
+    "ios_asset": "RivianR1S.imageset",
+    "android_resources": [
+      "rivianr1s.png"
+    ],
+    "type": "imageset"
+  },
+  {
+    "ios_asset": "RivianR1T.imageset",
+    "android_resources": [
+      "rivianr1t.png"
+    ],
+    "type": "imageset"
+  },
+  {
+    "ios_asset": "RivianR2.imageset",
+    "android_resources": [
+      "rivianr2.png"
+    ],
+    "type": "imageset"
+  },
+  {
+    "ios_asset": "RivianR3.imageset",
+    "android_resources": [
+      "rivianr3.png"
+    ],
+    "type": "imageset"
+  },
+  {
+    "ios_asset": "SplashDayAbstract.imageset",
+    "android_resources": [
+      "splashdayabstract.png"
+    ],
+    "type": "imageset"
+  },
+  {
+    "ios_asset": "SplashDayCoastWater.imageset",
+    "android_resources": [
+      "splashdaycoastwater.jpg"
+    ],
+    "type": "imageset"
+  },
+  {
+    "ios_asset": "SplashDayCountryRoad2.imageset",
+    "android_resources": [
+      "splashdaycountryroad2.jpg"
+    ],
+    "type": "imageset"
+  },
+  {
+    "ios_asset": "SplashDayRoad.imageset",
+    "android_resources": [
+      "splashdayroad.jpg"
+    ],
+    "type": "imageset"
+  },
+  {
+    "ios_asset": "SplashDaySunriseA.imageset",
+    "android_resources": [
+      "splashdaysunrisea.png"
+    ],
+    "type": "imageset"
+  },
+  {
+    "ios_asset": "SplashDaySunriseB.imageset",
+    "android_resources": [
+      "splashdaysunriseb.png"
+    ],
+    "type": "imageset"
+  },
+  {
+    "ios_asset": "SplashDuskBeach.imageset",
+    "android_resources": [
+      "splashduskbeach.jpg"
+    ],
+    "type": "imageset"
+  },
+  {
+    "ios_asset": "SplashNightCosmic.imageset",
+    "android_resources": [
+      "splashnightcosmic.png"
+    ],
+    "type": "imageset"
+  },
+  {
+    "ios_asset": "cybertruck.imageset",
+    "android_resources": [
+      "cybertruck.png"
+    ],
+    "type": "imageset"
+  },
+  {
+    "ios_asset": "hingedpic.imageset",
+    "android_resources": [
+      "hingedpic.png"
+    ],
+    "type": "imageset"
+  },
+  {
+    "ios_asset": "model 3.imageset",
+    "android_resources": [
+      "model_3.png"
+    ],
+    "type": "imageset"
+  },
+  {
+    "ios_asset": "model s.imageset",
+    "android_resources": [
+      "model_s.png"
+    ],
+    "type": "imageset"
+  },
+  {
+    "ios_asset": "model x.imageset",
+    "android_resources": [
+      "model_x.png"
+    ],
+    "type": "imageset"
+  },
+  {
+    "ios_asset": "model y.imageset",
+    "android_resources": [
+      "model_y.png"
+    ],
+    "type": "imageset"
+  },
+  {
+    "ios_asset": "roadster.imageset",
+    "android_resources": [
+      "roadster.png"
+    ],
+    "type": "imageset"
+  },
+  {
+    "ios_asset": "unhingedpic.imageset",
+    "android_resources": [
+      "unhingedpic.png"
+    ],
+    "type": "imageset"
+  },
+  {
+    "ios_asset": "AccentColor.colorset",
+    "android_resources": [
+      "@color/accentcolor"
+    ],
+    "type": "colorset"
+  },
+  {
+    "ios_asset": "AppDarkGray.colorset",
+    "android_resources": [
+      "@color/appdarkgray"
+    ],
+    "type": "colorset"
+  },
+  {
+    "ios_asset": "AppLightGray.colorset",
+    "android_resources": [
+      "@color/applightgray"
+    ],
+    "type": "colorset"
+  },
+  {
+    "ios_asset": "CustomBlack.colorset",
+    "android_resources": [
+      "@color/customblack"
+    ],
+    "type": "colorset"
+  },
+  {
+    "ios_asset": "CustomWhite.colorset",
+    "android_resources": [
+      "@color/customwhite"
+    ],
+    "type": "colorset"
+  },
+  {
+    "ios_asset": "Silver.colorset",
+    "android_resources": [
+      "@color/silver"
+    ],
+    "type": "colorset"
+  },
+  {
+    "ios_asset": "TeslaRed.colorset",
+    "android_resources": [
+      "@color/teslared"
+    ],
+    "type": "colorset"
+  }
+]

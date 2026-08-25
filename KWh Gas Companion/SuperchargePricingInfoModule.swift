@@ -1,10 +1,3 @@
-
-//
-//  SuperchargePricingInfoModule.swift
-//  KWh Gas Companion
-//
-//  Shift replacement for:
-//   • SuperchargeInfoNearMeView.swift
 //   • SuperchargePricingInfoStore.swift
 //
 //  Reliability-first approach:
@@ -171,7 +164,6 @@ public struct SuperchargeInfoNearMeView: View {
         .padding(.bottom, 8)
         .background(.ultraThinMaterial)
     }
-
 
     private var statusSection: some View {
         Section {
@@ -799,23 +791,33 @@ public func homeVsSuperchargerSummary(for site: TeslaNearbySite) -> String? {
                 sites.reserveCapacity(items.count)
 
                 for mi in items {
-                    let p = mi.placemark
+                    let coordinate = mi.compatCoordinate
+                    let fullAddress = mi.compatFullAddress
 
-                    let street = [p.subThoroughfare, p.thoroughfare]
-                        .compactMap { $0 }
-                        .joined(separator: " ")
-                        .trimmedNonEmpty
+                    let street = mi.compatShortAddress
+                        ?? Regex.firstGroup(
+                            in: fullAddress ?? "",
+                            pattern: #"(?m)^(\d{1,6}\s+[A-Za-z0-9].+)$"#,
+                            options: []
+                        ).trimmedNonEmpty
 
-                    // IMPORTANT: do NOT use optional-chaining here; we want the Optional<String> extension.
-                    let city = p.locality.trimmedNonEmpty
-                    let st = p.administrativeArea?.uppercased().trimmedNonEmpty
-                    let zip = p.postalCode.trimmedNonEmpty
+                    let city = mi.compatCityName
+                    let st = Regex.firstGroup(
+                        in: fullAddress ?? "",
+                        pattern: #"\b([A-Z]{2})\s*(?:\d{5}(?:-\d{4})?)?\b"#,
+                        options: []
+                    ).trimmedNonEmpty
+                    let zip = Regex.firstGroup(
+                        in: fullAddress ?? "",
+                        pattern: #"\b(\d{5}(?:-\d{4})?)\b"#,
+                        options: []
+                    ).trimmedNonEmpty
 
                     let rawName = mi.name.trimmedNonEmpty
                     let displayName = TeslaNearbySite.makeDisplayName(name: rawName, city: city, state: st)
 
-                    let id = TeslaNearbySite.makeID(name: displayName, coordinate: p.coordinate)
-                    let coordinate = SPICoordinate(latitude: p.coordinate.latitude, longitude: p.coordinate.longitude)
+                    let id = TeslaNearbySite.makeID(name: displayName, coordinate: coordinate)
+                    let siteCoordinate = SPICoordinate(latitude: coordinate.latitude, longitude: coordinate.longitude)
 
                     sites.append(
                         TeslaNearbySite(
@@ -825,7 +827,7 @@ public func homeVsSuperchargerSummary(for site: TeslaNearbySite) -> String? {
                             city: city,
                             stateAbbrev: st,
                             postalCode: zip,
-                            coordinate: coordinate,
+                            coordinate: siteCoordinate,
                             detailURL: nil,
                             pricing: nil
                         )
@@ -1123,7 +1125,6 @@ public struct TeslaNearbyPricing: Codable, Hashable {
     public var teslaKwh: Double?
 }
 
-
 public struct SPIHomeResidentialRate: Codable, Hashable {
     public var stateAbbrev: String
     public var stateName: String
@@ -1288,17 +1289,14 @@ enum SPIHTTP {
 
 enum SPIReverseGeocoder {
     static func stateAbbrev(for location: CLLocation) async throws -> String? {
-        let geocoder = CLGeocoder()
-        return try await withCheckedThrowingContinuation { cont in
-            geocoder.reverseGeocodeLocation(location) { placemarks, error in
-                if let error {
-                    cont.resume(throwing: error)
-                    return
-                }
-                let st = placemarks?.first?.administrativeArea
-                cont.resume(returning: st?.trimmingCharacters(in: .whitespacesAndNewlines))
-            }
-        }
+        let items = try await MapKitCompat.reverseGeocodeMapItems(for: location)
+        let fullAddress = items.first?.compatFullAddress
+        let state = Regex.firstGroup(
+            in: fullAddress ?? "",
+            pattern: #"\b([A-Z]{2})\s*(?:\d{5}(?:-\d{4})?)?\b"#,
+            options: []
+        )
+        return state?.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 

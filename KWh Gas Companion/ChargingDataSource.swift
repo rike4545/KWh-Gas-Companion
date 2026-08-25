@@ -13,7 +13,7 @@ public enum ChargingDataSource: String, Codable, CaseIterable, Identifiable, Sen
     public var shortLabel: String {
         switch self {
         case .teslaOfficial: return "Tesla"
-        case .teslaFi:       return "TeslaFi"
+        case .teslaFi:       return "Imported"
         case .manual:        return "Manual"
         case .other:         return "Other"
         }
@@ -22,7 +22,7 @@ public enum ChargingDataSource: String, Codable, CaseIterable, Identifiable, Sen
     public var longLabel: String {
         switch self {
         case .teslaOfficial: return "Official Tesla CSV"
-        case .teslaFi:       return "TeslaFi Analytics"
+        case .teslaFi:       return "Imported Session Analytics"
         case .manual:        return "Manual Entry"
         case .other:         return "Other Source"
         }

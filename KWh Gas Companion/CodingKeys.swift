@@ -2,9 +2,7 @@
 //  CodingKeys.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 10/19/25.
 //
-
 
 // TPGeoCodable.swift
 import CoreLocation

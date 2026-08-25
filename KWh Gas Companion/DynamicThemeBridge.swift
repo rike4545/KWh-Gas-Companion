@@ -1,3 +1,5 @@
+// Copyright Bryan Carroll. Made with Love in New York. All rights reserved. 2026.
+
 import SwiftUI
 
 /// Keeps a provided AppThemeBox in sync with the SwiftUI environment.

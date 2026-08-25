@@ -1,12 +1,3 @@
-//
-//  ChargingBudgetGuardrailsView.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 12/17/25.
-//
-
-
-//
 //  ChargingBudgetGuardrailsView.swift
 //  My KWh Companion
 //
@@ -122,7 +113,7 @@ struct ChargingBudgetGuardrailsView: View {
         .navigationTitle("Budget Guardrails")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            Task { await requestAuthAndRefreshStatus() }
+            Task { await refreshAuthStatus() }
             recalcAndMaybeNotify()
         }
         .onReceive(entriesStore.$entries) { _ in
@@ -162,6 +153,26 @@ struct ChargingBudgetGuardrailsView: View {
             _ = try? await center.requestAuthorization(options: [.alert, .sound, .badge])
             let s2 = await center.notificationSettings()
             authStatusText = (s2.authorizationStatus == .authorized) ? "Authorized" : "Not authorized"
+        case .provisional:
+            authStatusText = "Provisional"
+        case .ephemeral:
+            authStatusText = "Ephemeral"
+        @unknown default:
+            authStatusText = "Unknown"
+        }
+    }
+
+    private func refreshAuthStatus() async {
+        let center = UNUserNotificationCenter.current()
+        let settings = await center.notificationSettings()
+
+        switch settings.authorizationStatus {
+        case .authorized:
+            authStatusText = "Authorized"
+        case .denied:
+            authStatusText = "Denied"
+        case .notDetermined:
+            authStatusText = "Not determined"
         case .provisional:
             authStatusText = "Provisional"
         case .ephemeral:

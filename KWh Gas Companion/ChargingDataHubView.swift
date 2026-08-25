@@ -13,11 +13,10 @@ import Foundation
 @MainActor
 struct ChargingDataHubView: View {
 
-    @EnvironmentObject private var teslaFiStore: TeslaFiSessionStore
     @EnvironmentObject private var entriesStore: EntriesStore
     @EnvironmentObject private var appearance: AppAppearance
     @StateObject private var adsStore = AdsEntitlementStore.shared
-    @StateObject private var teslaFiUnlock = TeslaFiEntitlementStore.shared
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         ScrollView {
@@ -39,135 +38,110 @@ struct ChargingDataHubView: View {
         .background(backgroundView.ignoresSafeArea())
         .task {
             await adsStore.load()
-            await teslaFiUnlock.load()
         }
+        .toolbar(.hidden, for: .tabBar)
     }
 
-    // MARK: - Cards
+    // MARK: - Summary Card
 
     private var summaryCard: some View {
-        card {
-            VStack(alignment: .leading, spacing: 10) {
-                Label("Summary", systemImage: "tray.full")
+        card(tint: appearance.accentColor) {
+            VStack(alignment: .leading, spacing: 12) {
+                Label("Summary", systemImage: "tray.full.fill")
                     .font(.headline)
 
-                let teslaFiCount: Int = {
-                    guard teslaFiUnlock.hasTeslaFiUnlock else { return 0 }
-                    if !teslaFiStore.canonicalSessions.isEmpty { return teslaFiStore.canonicalSessions.count }
-                    return teslaFiStore.sessions.count
-                }()
+                let energyCount = entriesStore.energyEntries().count
+                let totalCount = entriesStore.entries.count
 
-                let energyEntryCount = entriesStore.energyEntries().count
-
-                statRow("TeslaFi sessions", "\(teslaFiCount)")
-                statRow("Energy entries", "\(energyEntryCount)")
-                statRow("All entries", "\(entriesStore.entries.count)")
-
-                Divider().padding(.vertical, 2)
-
-                if teslaFiUnlock.hasTeslaFiUnlock {
-                    Text("Use Import, Reconcile, and Export to keep your charging history clean and portable.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                } else {
-                    Text("Unlock TeslaFi import to enable richer analytics and reconciliation.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 12) {
+                    summaryStatChip(
+                        value: "\(energyCount)",
+                        label: "Energy entries",
+                        icon: "bolt.fill",
+                        color: appearance.accentColor
+                    )
+                    summaryStatChip(
+                        value: "\(totalCount)",
+                        label: "All entries",
+                        icon: "list.bullet",
+                        color: .secondary
+                    )
                 }
+
+                Divider()
+                    .opacity(0.4)
+
+                Text("Use Import, Reconcile, and Export to keep your charging history clean and portable.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
         }
     }
+
+    // MARK: - Import Card
 
     private var importStatusCard: some View {
-        card {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Label("TeslaFi Import", systemImage: "tray.and.arrow.down")
-                        .font(.headline)
-                    Spacer()
-                    if teslaFiStore.isImporting && teslaFiUnlock.hasTeslaFiUnlock {
-                        Text("Working…")
-                            .font(.caption.weight(.semibold))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Capsule().fill(Color.secondary.opacity(0.15)))
-                    }
-                }
+        card(tint: appearance.accentColor) {
+            VStack(alignment: .leading, spacing: 12) {
+                Label("Import Charging History", systemImage: "tray.and.arrow.down.fill")
+                    .font(.headline)
 
-                if !teslaFiUnlock.hasTeslaFiUnlock {
-                    TeslaFiUnlockCard(
-                        title: "TeslaFi Import Locked",
-                        subtitle: "Unlock TeslaFi CSV import and analytics for $0.99."
+                Text("Bring in your official Tesla charging history and save each session to your charging log.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                NavigationLink {
+                    CSVChargingWizardView()
+                } label: {
+                    actionRow(
+                        title: "Import Official Tesla CSV",
+                        subtitle: "Match columns and save your sessions",
+                        systemImage: "tray.and.arrow.down",
+                        tint: appearance.accentColor
                     )
-                } else if teslaFiStore.isImporting {
-                    HStack(spacing: 10) {
-                        ProgressView()
-                        Text("Importing and parsing your CSV…")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                } else if let err = teslaFiStore.lastError, !err.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Text(err)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                } else if let report = teslaFiStore.lastImportReport {
-                    Text("Last import: \(describeImportReport(report))")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                } else {
-                    Text("No import yet. Importing TeslaFi unlocks richer session analytics and reconciliation.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
-
-                if teslaFiUnlock.hasTeslaFiUnlock {
-                    NavigationLink {
-                        TeslaFiCSVImportView()
-                    } label: {
-                        actionRow(
-                            title: "Import TeslaFi CSV",
-                            subtitle: "Bring in charging sessions from TeslaFi",
-                            systemImage: "tray.and.arrow.down"
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
+                .buttonStyle(.plain)
             }
         }
     }
 
+    // MARK: - Actions Card
+
     private var actionsCard: some View {
-        card {
-            VStack(alignment: .leading, spacing: 10) {
-                Label("Tools", systemImage: "wrench.and.screwdriver")
+        card(tint: .secondary) {
+            VStack(alignment: .leading, spacing: 4) {
+                Label("Tools", systemImage: "wrench.and.screwdriver.fill")
                     .font(.headline)
+                    .padding(.bottom, 8)
 
                 NavigationLink {
                     ChargingReconciliationView()
                 } label: {
                     actionRow(
                         title: "Reconcile Sources",
-                        subtitle: "Compare TeslaFi vs your entries",
-                        systemImage: "arrow.triangle.2.circlepath"
+                        subtitle: "Compare imported sessions vs your entries",
+                        systemImage: "arrow.triangle.2.circlepath",
+                        tint: .purple
                     )
                 }
                 .buttonStyle(.plain)
 
+                rowDivider
+
                 NavigationLink {
-                    ChargingDataStudioView() // ✅ no-arg
+                    ChargingDataStudioView()
                 } label: {
                     actionRow(
                         title: "Charging Data Studio",
                         subtitle: "Inspect and analyze charging records",
-                        systemImage: "tablecells"
+                        systemImage: "tablecells",
+                        tint: .blue
                     )
                 }
                 .buttonStyle(.plain)
+
+                rowDivider
 
                 NavigationLink {
                     CSVExportView()
@@ -175,18 +149,22 @@ struct ChargingDataHubView: View {
                     actionRow(
                         title: "Export CSV",
                         subtitle: "Share or back up your data",
-                        systemImage: "square.and.arrow.up"
+                        systemImage: "square.and.arrow.up",
+                        tint: .green
                     )
                 }
                 .buttonStyle(.plain)
 
+                rowDivider
+
                 NavigationLink {
-                    TeslaMateProClientView()
+                    DirectConnectionClientView()
                 } label: {
                     actionRow(
-                        title: "TeslaMate Client (Pro)",
-                        subtitle: "Direct TeslaMate dashboards + charging costs",
-                        systemImage: "server.rack"
+                        title: "Direct Connection",
+                        subtitle: "Connect a compatible dashboard API",
+                        systemImage: "server.rack",
+                        tint: .orange
                     )
                 }
                 .buttonStyle(.plain)
@@ -194,41 +172,72 @@ struct ChargingDataHubView: View {
         }
     }
 
-    // MARK: - UI Helpers
+    // MARK: - Helpers
 
-    private func statRow(_ title: String, _ value: String) -> some View {
-        HStack {
-            Text(title).foregroundStyle(.secondary)
-            Spacer()
-            Text(value).font(.subheadline.weight(.semibold))
-        }
-        .font(.subheadline)
+    private var rowDivider: some View {
+        Divider()
+            .padding(.leading, 40)
+            .opacity(0.4)
     }
 
-    private func actionRow(title: String, subtitle: String, systemImage: String) -> some View {
+    private func summaryStatChip(value: String, label: String, icon: String, color: Color) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(color)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(value)
+                    .font(.title3.weight(.bold).monospacedDigit())
+                Text(label)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color(uiColor: .tertiarySystemBackground))
+        )
+    }
+
+    private func actionRow(
+        title: String,
+        subtitle: String,
+        systemImage: String,
+        tint: Color
+    ) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: systemImage)
-                .font(.system(size: 18, weight: .semibold))
-                .frame(width: 28)
+            ZStack {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(tint.opacity(scheme == .dark ? 0.22 : 0.12))
+                    .frame(width: 32, height: 32)
+                Image(systemName: systemImage)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(tint)
+            }
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.subheadline.weight(.semibold))
-                Text(subtitle).font(.footnote).foregroundStyle(.secondary)
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Spacer()
 
             Image(systemName: "chevron.right")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.tertiary)
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 6)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityHint("Opens \(title)")
     }
 
-    private func card<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+    private func card<Content: View>(tint: Color, @ViewBuilder _ content: () -> Content) -> some View {
         content()
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -242,13 +251,17 @@ struct ChargingDataHubView: View {
     private var backgroundView: some View {
         let accent = appearance.accentColor
         return LinearGradient(
-            colors: [accent.opacity(0.18), Color(.systemBackground), Color(.secondarySystemBackground)],
+            colors: [
+                accent.opacity(scheme == .dark ? 0.16 : 0.10),
+                Color(uiColor: .systemBackground),
+                Color(uiColor: .secondarySystemBackground)
+            ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
     }
 
-    // MARK: - Import report formatting (no assumptions about fields)
+    // MARK: - Import report formatting
 
     private func describeImportReport(_ report: TFIImportReport) -> String {
         let m = Mirror(reflecting: report)
@@ -272,8 +285,6 @@ struct ChargingDataHubView: View {
         if let errors, errors > 0 { parts.append("\(errors) errors") }
         if let seconds { parts.append(String(format: "%.1fs", seconds)) }
 
-        if !parts.isEmpty { return parts.joined(separator: " · ") }
-        if let desc = report as? CustomStringConvertible { return desc.description }
-        return String(describing: type(of: report))
+        return parts.isEmpty ? String(describing: type(of: report)) : parts.joined(separator: " · ")
     }
 }

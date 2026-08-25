@@ -1,12 +1,3 @@
-//
-//  ChargingBudgetGuardrailsEngine.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 12/17/25.
-//
-
-
-//
 //  ChargingBudgetGuardrailsEngine.swift
 //  My KWh Companion
 //
@@ -32,7 +23,7 @@ final class ChargingBudgetGuardrailsEngine {
             .reduce(0, +)
     }
 
-    static func requestNotificationAuthIfNeeded() async {
+    static func requestNotificationAuthorizationFromUserAction() async {
         let center = UNUserNotificationCenter.current()
         _ = try? await center.requestAuthorization(options: [.alert, .sound, .badge])
     }

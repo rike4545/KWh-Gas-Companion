@@ -451,7 +451,9 @@ fileprivate struct ClusterMapView: UIViewRepresentable {
 
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
             guard let a = annotation as? SiteAnnotation else { return nil }
-            let view = mapView.dequeueReusableAnnotationView(withIdentifier: "site", for: a) as! MKMarkerAnnotationView
+            guard let view = mapView.dequeueReusableAnnotationView(withIdentifier: "site", for: a) as? MKMarkerAnnotationView else {
+                return nil
+            }
             view.clusteringIdentifier = "siteCluster"
             view.titleVisibility = .adaptive
             view.subtitleVisibility = .hidden

@@ -1,11 +1,3 @@
-//
-//  TeslaFindUsIndexEntry.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 9/17/25.
-//
-
-
 //  TeslaFindUsIndex.swift
 //  My KWh Companion
 //

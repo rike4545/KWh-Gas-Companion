@@ -162,6 +162,7 @@ struct TCOTimelineView: View {
                 }
             }
             .frame(height: 300)
+            .kwhInteractiveDataViz()
         }
     }
 

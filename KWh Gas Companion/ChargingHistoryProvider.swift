@@ -1,11 +1,3 @@
-//
-//  ChargingHistoryProvider.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 11/2/25.
-//
-
-
 //  ForecastEngine.swift
 //  My KWh Companion
 //  Seasonal rates + behavior-driven monthly forecast (Swift 6 / iOS 17+)

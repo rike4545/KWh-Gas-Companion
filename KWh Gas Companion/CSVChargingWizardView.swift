@@ -23,8 +23,6 @@ import Foundation
 struct CSVChargingWizardView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var entriesStore: EntriesStore
-    @EnvironmentObject private var appearance: AppAppearance
-    @Environment(\.colorScheme) private var scheme
 
     enum Step: Int { case select, map, options, `import` }
     @State private var step: Step = .select
@@ -50,36 +48,47 @@ struct CSVChargingWizardView: View {
 
     @State private var showHelp: Bool = false
     @State private var showSuccessToast: Bool = false
+    @State private var isLoadingCSV: Bool = false
+    @State private var showImportedReview: Bool = false
 
     @State private var importedIDs: [UUID] = []
     @State private var missingKWhCount: Int = 0
     @State private var backfillUndo: [(UUID, Double?)] = []
     @State private var showBackfillConfirm: Bool = false
     @State private var backfillMessage: String? = nil
+    @State private var validationTask: Task<Void, Never>? = nil
 
     // Structural / header-level warnings (e.g., column count mismatches)
     @State private var warnings: [String] = []
 
+    // Row-level validation (CSVRowValidator)
+    @State private var validationSummary: ValidationSummary? = nil
+
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                header
-                Divider()
-                content
-            }
+        content
             .background(Color(uiColor: .systemGroupedBackground))
-            .navigationTitle("Import Supercharging CSV")
+            .contentMargins(.top, 88, for: .scrollContent)
+            .navigationTitle(navigationTitleForStep(step))
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(Color(uiColor: .systemGroupedBackground), for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
+                ToolbarItem(placement: .principal) {
+                    StepIndicator(current: step)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showHelp = true
+                    } label: {
+                        Label("Help", systemImage: "questionmark.circle")
+                    }
                 }
             }
             .fileImporter(
                 isPresented: $isImporterPresented,
                 allowedContentTypes: [
                     .commaSeparatedText,
-                    .plainText,        // broader than .text, better match for CSVs
+                    .plainText,
                     .data
                 ],
                 allowsMultipleSelection: false
@@ -91,11 +100,9 @@ struct CSVChargingWizardView: View {
                     errors.append("File import failed: \(err.localizedDescription)")
                 }
             }
-            .safeAreaInset(edge: .bottom) { bottomBar }
-            .ignoresSafeArea(.keyboard, edges: .bottom)
             .overlay(alignment: .top) {
                 if showSuccessToast {
-                    ToastBanner(text: "Imported successfully. Don’t forget to tap Done.")
+                    ToastBanner(text: "Imported successfully. Don't forget to tap Done.")
                         .padding(.top, 8)
                         .padding(.horizontal)
                         .transition(.move(edge: .top).combined(with: .opacity))
@@ -103,76 +110,94 @@ struct CSVChargingWizardView: View {
                         .accessibilityLabel("Import successful")
                 }
             }
-            .alert("Backfill kWh?", isPresented: $showBackfillConfirm) {
+            .alert("Fill in missing energy?", isPresented: $showBackfillConfirm) {
                 Button("Cancel", role: .cancel) {}
-                Button("Backfill", action: backfillKWh)
+                Button("Fill In", action: backfillKWh)
             } message: {
-                Text("Compute kWh = Amount ÷ Price/kWh for \(missingKWhCount) session\(missingKWhCount == 1 ? "" : "s"). You can undo this action.")
+                Text("\(missingKWhCount) session\(missingKWhCount == 1 ? "" : "s") are missing energy, but the file includes enough pricing details for us to calculate it. You can undo this later.")
             }
-            .tint(appearance.accentColor)
-        }
-    }
-
-    // MARK: - Header
-
-    private var header: some View {
-        let accent = appearance.accentColor
-
-        return HStack(spacing: 12) {
-            ZStack {
-                Circle().fill(accent.opacity(0.12))
-                Image(systemName: "bolt.car.fill").font(.title2)
+            .sheet(isPresented: $showHelp) { HelpSheet(step: step) }
+            .sheet(isPresented: $showImportedReview) {
+                ImportedEntriesReviewView(importedIDs: importedIDs)
+                    .environmentObject(entriesStore)
             }
-            .frame(width: 36, height: 36)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(titleForStep(step)).font(.headline)
-                Text(subtitleForStep(step))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-            }
-            Spacer()
-            if step != .select { StepIndicator(current: step) }
-        }
-        .padding()
-        .background(
-            ZStack {
-                LinearGradient(
-                    colors: [
-                        accent.opacity(scheme == .dark ? 0.30 : 0.22),
-                        .clear
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .blendMode(.plusLighter)
-                Color.clear.background(.thinMaterial)
-            }
-        )
+            .tint(.accentColor)
+            .toolbar(.hidden, for: .tabBar)
     }
 
     // MARK: - Content
+    //
+    // FIX: Each step is now responsible for its own scrollability and bottom
+    // padding so content never hides under the safeAreaInset bottom bar.
+    // - .select  → ScrollView wrapper with bottom padding
+    // - .map     → Form handles its own insets (no change needed)
+    // - .options → Form handles its own insets (no change needed)
+    // - .import  → ScrollView wrapper with bottom padding (was a bare VStack)
+
+    // Expose accentColor for child views that can't safely use @EnvironmentObject
+    // (e.g. when embedded in Form where environment injection may be incomplete).
+    @EnvironmentObject private var appearance: AppAppearance
 
     @ViewBuilder private var content: some View {
         switch step {
         case .select:
-            SelectCSVStep(selectAction: { isImporterPresented = true })
+            // 🔧 FIX: SelectCSVTextStep replaced with SelectCSVStepWithDrop.
+            // The old SelectCSVTextStep called CSVDropTargetModifier which required
+            // @EnvironmentObject AppAppearance — but didn't inject it, causing a crash.
+            // SelectCSVStepWithDrop accepts accentColor as a plain parameter and also
+            // displays the selected filename for better user feedback.
+            SelectCSVStepWithDrop(
+                selectAction: { isImporterPresented = true },
+                onFileDrop: { url in loadCSV(from: url) },
+                selectedFileName: pickedURL?.lastPathComponent,
+                accentColor: appearance.accentColor
+            )
+            .safeAreaInset(edge: .bottom) {
+                selectStepBottomBar
+            }
+            .overlay(alignment: .top) {
+                if !errors.isEmpty {
+                    VStack(spacing: 6) {
+                        ForEach(Array(errors.enumerated()), id: \.0) { _, msg in
+                            HStack(spacing: 8) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                Text(msg).font(.footnote)
+                                Spacer()
+                            }
+                            .foregroundStyle(.red)
+                            .padding(10)
+                            .background(RoundedRectangle(cornerRadius: 10).fill(Color.red.opacity(0.10)))
+                            .padding(.horizontal)
+                        }
+                    }
+                    .padding(.top, 8)
+                }
+            }
+
         case .map:
             MapColumnsStep(
                 headers: headers,
                 firstRow: rows.first ?? [],
                 mapping: $mapping,
                 notes: autoMapNotes,
-                warnings: warnings
+                warnings: warnings,
+                validationSummary: validationSummary,
+                canContinue: mapping.hasMinimumRequirements,
+                onBack: goBack,
+                onContinue: next
             )
+            .onChange(of: mapping) { _, _ in revalidate() }
+
         case .options:
             OptionsStep(
                 currencyCode: $currencyCode,
                 defaultVATText: $defaultVATText,
                 invoicePrefix: $invoicePrefix,
-                dedupeEnabled: $dedupeEnabled
+                dedupeEnabled: $dedupeEnabled,
+                onBack: goBack,
+                onContinue: next
             )
+
         case .import:
             ImportStep(
                 isImporting: isImporting,
@@ -184,64 +209,58 @@ struct CSVChargingWizardView: View {
                 onBackfillTap: { showBackfillConfirm = true },
                 canUndo: !backfillUndo.isEmpty,
                 onUndo: undoBackfill,
-                message: backfillMessage
+                message: backfillMessage,
+                canReviewImported: imported > 0,
+                onReviewImported: { showImportedReview = true },
+                onBack: goBack,
+                onDone: next
             )
         }
     }
 
-    // MARK: - Bottom bar
-
-    private var bottomBar: some View {
-        VStack(spacing: 8) {
-            Divider()
-            HStack(spacing: 12) {
-                if step != .select { Button("Back", action: goBack) }
-
-                Button {
-                    showHelp = true
-                } label: {
-                    Label("Help", systemImage: "questionmark.circle")
-                }
-                .buttonStyle(.bordered)
-
-                Spacer()
-
-                Button(primaryButtonTitle(), action: next)
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!canProceed())
-            }
-            .padding(.horizontal)
-            .padding(.bottom, 8)
-
-            if step == .map && !mapping.hasMinimumRequirements {
-                Text("Map ChargeStartDateTime, QuantityBase, and either Total Inc. VAT or UnitCostBase to continue.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding([.horizontal, .bottom])
-            }
-        }
-        .background(.ultraThinMaterial)
-        .sheet(isPresented: $showHelp) { HelpSheet(step: step) }
-    }
-
     // MARK: - Step helpers
 
-    private func titleForStep(_ s: Step) -> String {
-        switch s {
-        case .select: return "Select CSV"
-        case .map:    return "Map Columns"
-        case .options:return "Options"
-        case .import: return "Import"
+    /// Bottom bar shown on the select step — provides loading feedback and Continue.
+    @ViewBuilder private var selectStepBottomBar: some View {
+        VStack(spacing: 0) {
+            Divider()
+            HStack(spacing: 12) {
+                if isLoadingCSV {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .scaleEffect(0.85)
+                        Text("Reading file…")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                } else if let name = pickedURL?.lastPathComponent {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                        Text(name)
+                            .font(.subheadline)
+                            .lineLimit(1)
+                    }
+                }
+                Spacer()
+                Button("Continue", action: next)
+                    .buttonStyle(.borderedProminent)
+                    .tint(appearance.accentColor)
+                    .disabled(!canProceed())
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(.ultraThinMaterial)
         }
     }
 
-    private func subtitleForStep(_ s: Step) -> String {
+    private func navigationTitleForStep(_ s: Step) -> String {
         switch s {
-        case .select: return "Choose your official Supercharging CSV."
-        case .map:    return "Confirm which CSV columns correspond to charging fields."
-        case .options:return "Currency, VAT, invoice, and duplicate handling."
-        case .import: return "We’ll create entries and skip duplicates automatically."
+        case .select: return "Import CSV"
+        case .map:    return "Match Columns"
+        case .options:return "Import Options"
+        case .import: return "Import"
         }
     }
 
@@ -256,7 +275,7 @@ struct CSVChargingWizardView: View {
     private func canProceed() -> Bool {
         switch step {
         case .select:
-            return !headers.isEmpty && !rows.isEmpty
+            return !isLoadingCSV && !headers.isEmpty && !rows.isEmpty
         case .map:
             return mapping.hasMinimumRequirements
         case .options:
@@ -279,7 +298,7 @@ struct CSVChargingWizardView: View {
         switch step {
         case .select: step = .map
         case .map:    step = .options
-        case .options:startImport()
+        case .options: Task { await startImport() }
         case .import: dismiss()
         }
     }
@@ -288,53 +307,124 @@ struct CSVChargingWizardView: View {
 
     private func loadCSV(from url: URL) {
         pickedURL = url
+        errors.removeAll()
         warnings.removeAll()
+        isLoadingCSV = true
 
-        do {
-            _ = url.startAccessingSecurityScopedResource()
-            defer { url.stopAccessingSecurityScopedResource() }
+        Task {
+            defer { isLoadingCSV = false }
 
-            let data = try Data(contentsOf: url)
-            guard let text = String(data: data, encoding: .utf8)
-                ?? String(data: data, encoding: .utf16)
-                ?? String(data: data, encoding: .windowsCP1252) // fallback for some regional exports
-            else {
-                errors.append("Unable to decode CSV as UTF-8/UTF-16/CP1252")
-                return
+            do {
+                let parsed = try await loadCSVContents(from: url)
+                guard !parsed.rows.isEmpty else {
+                    errors.append("No rows found in CSV")
+                    return
+                }
+                headers = parsed.headers
+
+                let headerCount = parsed.headers.count
+                let mismatched = parsed.rows.enumerated().filter { $0.element.count != headerCount }
+                if !mismatched.isEmpty {
+                    let sample = mismatched.prefix(3)
+                        .map { "#\($0.offset + 2)" }
+                        .joined(separator: ", ")
+                    warnings.append(
+                        "Warning: \(mismatched.count) row(s) have a different number of columns than the header (\(headerCount)). Sample affected line numbers: \(sample)."
+                    )
+                }
+                rows = OfficialTeslaCSVRowShape.paddedRows(parsed.rows, headerCount: headerCount)
+
+                var m = ColumnMapping()
+                _ = m.autoMap(with: headers)
+                autoMapNotes = autoMapSummary(for: m)
+                mapping = m
+                step = .map
+                revalidate()
+            } catch let error as CSVWizardLoadError {
+                errors.append(error.localizedDescription)
+            } catch {
+                errors.append("Failed reading CSV: \(error.localizedDescription)")
             }
+        }
+    }
 
-            let parsed = CSVParser.parse(text)
-            guard !parsed.rows.isEmpty else {
-                errors.append("No rows found in CSV")
-                return
+    private func revalidate() {
+        guard !rows.isEmpty else { validationSummary = nil; return }
+        validationTask?.cancel()
+        let vmap = ValidatorColumnMapping(
+            startDate:      mapping.startDate,
+            energyAddedKWh: mapping.energyAddedKWh,
+            pricePerKWh:    mapping.pricePerKWh,
+            totalIncVAT:    mapping.totalIncVAT,
+            totalExcVAT:    mapping.totalExcVAT,
+            vatAmount:      mapping.vatAmount
+        )
+        validationTask = Task<Void, Never>(priority: .userInitiated) { [rows] in
+            try? await Task.sleep(nanoseconds: 180_000_000)
+            guard !Task.isCancelled else { return }
+            let result = CSVRowValidator.validate(rows: rows, mapping: vmap)
+            guard !Task.isCancelled else { return }
+            validationSummary = result
+        }
+    }
+
+    private func autoMapSummary(for mapping: ColumnMapping) -> String? {
+        var matches: [String] = []
+        if mapping.startDate != nil { matches.append("date and time") }
+        if mapping.energyAddedKWh != nil { matches.append("energy added") }
+        if mapping.totalIncVAT != nil { matches.append("total paid") }
+        if mapping.pricePerKWh != nil { matches.append("price per kWh") }
+        if mapping.siteName != nil { matches.append("location") }
+        if mapping.invoiceNumber != nil { matches.append("invoice number") }
+        if mapping.vatAmount != nil { matches.append("tax") }
+        if mapping.totalExcVAT != nil { matches.append("pre-tax total") }
+        if mapping.vehicleName != nil { matches.append("vehicle name") }
+        if mapping.vin != nil { matches.append("VIN") }
+        if mapping.notes != nil { matches.append("notes") }
+        guard !matches.isEmpty else { return nil }
+        return "We matched these for you: \(matches.joined(separator: ", ")). Please give them a quick review before importing."
+    }
+
+    private func loadCSVContents(from url: URL) async throws -> (headers: [String], rows: [[String]]) {
+        try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let started = url.startAccessingSecurityScopedResource()
+                defer { if started { url.stopAccessingSecurityScopedResource() } }
+
+                do {
+                    let data = try Data(contentsOf: url)
+                    guard let text = decodedWizardCSVText(from: data) else {
+                        throw CSVWizardLoadError.unreadableText
+                    }
+                    continuation.resume(returning: CSVParser.parse(text))
+                } catch {
+                    continuation.resume(throwing: error)
+                }
             }
-            headers = parsed.headers
-            rows = parsed.rows
-
-            // Structural sanity-check: every row should have same column count as headers.
-            let headerCount = headers.count
-            let mismatched = rows.enumerated().filter { $0.element.count != headerCount }
-            if !mismatched.isEmpty {
-                let sample = mismatched.prefix(3)
-                    .map { "#\($0.offset + 2)" }    // +2 (1-based line number, plus header line)
-                    .joined(separator: ", ")
-                warnings.append(
-                    "Warning: \(mismatched.count) row(s) have a different number of columns than the header (\(headerCount)). Sample affected line numbers: \(sample)."
-                )
-            }
-
-            var m = ColumnMapping()
-            autoMapNotes = m.autoMap(with: headers)
-            mapping = m
-            step = .map
-        } catch {
-            errors.append("Failed reading CSV: \(error.localizedDescription)")
         }
     }
 
     // MARK: - Import
 
-    private func startImport() {
+    /// Imports the parsed rows.
+    ///
+    /// PERF: this used to be a synchronous loop that called
+    /// `entriesStore.addOrReplace(_:)` once per row. Three things went wrong:
+    ///
+    ///  1. Every one of those calls re-encoded the *entire* entries array to
+    ///     JSON on the main thread (see `EntriesStore.persistAsync()`), so a
+    ///     3,000-row import spent ~23 s of solid main-thread time — measured,
+    ///     on a desktop CPU. On device it is far worse. That is the freeze.
+    ///  2. `addOrReplace` linear-scans for an existing id, so the loop was also
+    ///     O(n²) in its own right.
+    ///  3. The loop never returned to the run loop, so the progress bar it
+    ///     writes to could not draw. The UI sat at 0 % and then jumped to done
+    ///     — the import looked hung even while it was working.
+    ///
+    /// Now rows are built into a local array, progress is published in
+    /// throttled steps with a real suspension point so the bar animates, and
+    /// the store is mutated exactly once at the end via `upsertMany(_:)`.
+    private func startImport() async {
         step = .import
         isImporting = true
         imported = 0
@@ -351,10 +441,21 @@ struct CSVChargingWizardView: View {
         let defaultVAT: Double? = Double(
             defaultVATText
                 .replacingOccurrences(of: ",", with: "")
-                .trimmingCharacters(in: .whitespaces)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
         )
 
         let total = rows.count
+        // Publish progress every ~1 % rather than once per row; 3,000 rows
+        // meant 3,000 `@State` writes and as many view invalidations.
+        let progressStride = max(1, total / 100)
+
+        var built: [ExpenseEntry] = []
+        built.reserveCapacity(total)
+        var newIDs: [UUID] = []
+        newIDs.reserveCapacity(total)
+        var importedCount = 0
+        var skippedCount = 0
+
         for (idx, row) in rows.enumerated() {
             if let entry = buildEntry(
                 from: row,
@@ -363,28 +464,48 @@ struct CSVChargingWizardView: View {
             ) {
                 let key = entry.dedupeKey()
                 if dedupeEnabled && seen.contains(key) {
-                    skipped += 1
+                    skippedCount += 1
                 } else {
-                    entriesStore.addOrReplace(entry)
-                    imported += 1
+                    built.append(entry)
+                    importedCount += 1
                     seen.insert(key)
-                    importedIDs.append(entry.id)
+                    newIDs.append(entry.id)
                 }
             } else {
-                skipped += 1
+                skippedCount += 1
             }
-            progress = Double(idx + 1) / Double(max(total, 1))
+
+            if idx % progressStride == 0 || idx == total - 1 {
+                imported = importedCount
+                skipped = skippedCount
+                progress = Double(idx + 1) / Double(max(total, 1))
+                // Hand the main actor back so SwiftUI can commit a frame —
+                // this is what makes the progress bar actually move.
+                await Task.yield()
+            }
         }
 
+        imported = importedCount
+        skipped = skippedCount
+        importedIDs = newIDs
+
+        // Single store mutation: one change notification, one save.
+        entriesStore.upsertMany(built)
+
+        progress = 1
         missingKWhCount = computeMissingKWhCount()
         isImporting = false
         if imported > 0 { presentSuccessToast() }
     }
 
     private func computeMissingKWhCount() -> Int {
+        let indexByID = Dictionary(
+            uniqueKeysWithValues: entriesStore.entries.enumerated().map { ($0.element.id, $0.offset) }
+        )
         var count = 0
         for id in importedIDs {
-            if let e = entriesStore.entries.first(where: { $0.id == id }) {
+            if let idx = indexByID[id] {
+                let e = entriesStore.entries[idx]
                 let hasKWh = (e.energyAddedKWh ?? 0) > 0
                 let price = e.charging?.pricePerKWh ?? 0
                 if !hasKWh && price > 0 { count += 1 }
@@ -398,9 +519,12 @@ struct CSVChargingWizardView: View {
         backfillUndo.removeAll()
         var updated = 0
         var totalKWh: Double = 0
+        let indexByID = Dictionary(
+            uniqueKeysWithValues: entriesStore.entries.enumerated().map { ($0.element.id, $0.offset) }
+        )
 
         for id in importedIDs {
-            guard let idx = entriesStore.entries.firstIndex(where: { $0.id == id }) else { continue }
+            guard let idx = indexByID[id] else { continue }
             var e = entriesStore.entries[idx]
             let hasKWh = (e.energyAddedKWh ?? 0) > 0
             if !hasKWh,
@@ -420,22 +544,25 @@ struct CSVChargingWizardView: View {
         missingKWhCount = computeMissingKWhCount()
         if updated > 0 {
             let avg = (totalKWh / Double(updated)).rounded(to: 2)
-            backfillMessage = "Backfilled \(updated) session\(updated == 1 ? "" : "s") (avg \(avg) kWh)."
+            backfillMessage = "Filled in energy for \(updated) session\(updated == 1 ? "" : "s"). Average added: \(avg) kWh."
         } else {
-            backfillMessage = "No sessions required backfill or lacked valid Price/kWh."
+            backfillMessage = "We couldn't fill in any missing energy from the available pricing details."
         }
     }
 
     private func undoBackfill() {
         guard !backfillUndo.isEmpty else { return }
+        let indexByID = Dictionary(
+            uniqueKeysWithValues: entriesStore.entries.enumerated().map { ($0.element.id, $0.offset) }
+        )
         for (id, old) in backfillUndo {
-            guard let idx = entriesStore.entries.firstIndex(where: { $0.id == id }) else { continue }
+            guard let idx = indexByID[id] else { continue }
             var e = entriesStore.entries[idx]
             e.energyAddedKWh = old
             entriesStore.entries[idx] = e
         }
         backfillUndo.removeAll()
-        backfillMessage = "Restored original kWh values."
+        backfillMessage = "Restored the original energy values."
         missingKWhCount = computeMissingKWhCount()
     }
 
@@ -593,38 +720,37 @@ private struct ColumnMapping: Equatable {
     }
 }
 
-private enum CSVParser {
+enum CSVParser {
     static func parse(_ text: String) -> (headers: [String], rows: [[String]]) {
-        // Normalize CRLF → LF to avoid blank-field artifacts on Windows CSVs
-        let normalized = text.replacingOccurrences(of: "\r\n", with: "\n")
-        var lines: [String] = []
-        normalized.enumerateLines { line, _ in lines.append(line) }
-        guard let first = lines.first else { return ([], []) }
-
-        let headers = parseLine(first)
-        var rows: [[String]] = []
-        for line in lines.dropFirst() {
-            let fields = parseLine(line)
-            if fields.allSatisfy({ $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) {
-                continue
-            }
-            rows.append(fields)
+        let normalized = text
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+        let records = parseRecords(normalized).filter { record in
+            !record.allSatisfy { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         }
-        return (headers, rows)
+        guard let first = records.first else { return ([], []) }
+        var headers = first
+        if let firstHeader = headers.first {
+            headers[0] = stripByteOrderMark(from: firstHeader)
+        }
+        return (headers, Array(records.dropFirst()))
     }
 
-    private static func parseLine(_ line: String) -> [String] {
-        var out: [String] = []
+    /// Parse the full document so quoted Tesla description fields can contain commas
+    /// and line breaks without turning one session into several malformed rows.
+    private static func parseRecords(_ text: String) -> [[String]] {
+        var records: [[String]] = []
+        var row: [String] = []
         var cur = ""
         var inQ = false
-        var i = line.startIndex
+        var i = text.startIndex
 
-        while i < line.endIndex {
-            let ch = line[i]
+        while i < text.endIndex {
+            let ch = text[i]
             if ch == "\"" {
                 if inQ {
-                    let next = line.index(after: i)
-                    if next < line.endIndex && line[next] == "\"" {
+                    let next = text.index(after: i)
+                    if next < text.endIndex && text[next] == "\"" {
                         cur.append("\"")
                         i = next
                     } else {
@@ -634,48 +760,109 @@ private enum CSVParser {
                     inQ = true
                 }
             } else if ch == "," && !inQ {
-                out.append(cur)
+                row.append(cur)
+                cur = ""
+            } else if ch == "\n" && !inQ {
+                row.append(cur)
+                records.append(row)
+                row = []
                 cur = ""
             } else {
                 cur.append(ch)
             }
-            i = line.index(after: i)
+            i = text.index(after: i)
         }
-        out.append(cur)
-        return out
+        if !cur.isEmpty || !row.isEmpty {
+            row.append(cur)
+            records.append(row)
+        }
+        return records
+    }
+
+    private static func stripByteOrderMark(from value: String) -> String {
+        guard value.first == "\u{FEFF}" else { return value }
+        return String(value.dropFirst())
     }
 }
 
+enum OfficialTeslaCSVRowShape {
+    static func paddedRows(_ rows: [[String]], headerCount: Int) -> [[String]] {
+        rows.map { row in
+            guard row.count < headerCount else { return row }
+            return row + Array(repeating: "", count: headerCount - row.count)
+        }
+    }
+}
+
+private enum CSVWizardLoadError: LocalizedError {
+    case unreadableText
+
+    var errorDescription: String? {
+        switch self {
+        case .unreadableText:
+            return "Unable to decode CSV as UTF-8, UTF-16, or CP1252."
+        }
+    }
+}
+
+private func decodedWizardCSVText(from data: Data) -> String? {
+    String(data: data, encoding: .utf8)
+        ?? String(data: data, encoding: .utf16)
+        ?? String(data: data, encoding: .utf16LittleEndian)
+        ?? String(data: data, encoding: .utf16BigEndian)
+        ?? String(data: data, encoding: .windowsCP1252)
+}
+
 private enum DateParser {
+    private static let posixLocale = Locale(identifier: "en_US_POSIX")
+    private static let isoWithFractionalSeconds: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+    private static let isoStandard: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+    private static let fallbackFormatters: [DateFormatter] = [
+        "yyyy-MM-dd HH:mm:ss",
+        "yyyy-MM-dd HH:mm",
+        "M/d/yyyy H:mm",
+        "M/d/yy H:mm",
+        "MM/dd/yyyy HH:mm",
+        "dd/MM/yyyy HH:mm"
+    ].map { format in
+        let formatter = DateFormatter()
+        formatter.locale = posixLocale
+        formatter.dateFormat = format
+        return formatter
+    }
+
     static func parse(_ s: String) -> Date? {
         let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
         if let secs = Double(t) {
             return Date(timeIntervalSince1970: secs)
         }
 
-        let iso1 = ISO8601DateFormatter()
-        iso1.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let d = iso1.date(from: t) { return d }
+        if let d = isoWithFractionalSeconds.date(from: t) { return d }
 
-        let iso2 = ISO8601DateFormatter()
-        iso2.formatOptions = [.withInternetDateTime]
-        if let d = iso2.date(from: t) { return d }
+        if let d = isoStandard.date(from: t) { return d }
 
-        for fmt in [
-            "yyyy-MM-dd HH:mm:ss",
-            "yyyy-MM-dd HH:mm",
-            "M/d/yyyy H:mm",
-            "M/d/yy H:mm",
-            "MM/dd/yyyy HH:mm",
-            "dd/MM/yyyy HH:mm"
-        ] {
-            let df = DateFormatter()
-            df.locale = Locale(identifier: "en_US_POSIX")
-            df.dateFormat = fmt
-            if let d = df.date(from: t) { return d }
+        for formatter in fallbackFormatters {
+            if let d = formatter.date(from: t) { return d }
         }
         return nil
     }
+}
+
+private enum CSVWizardDisplayFormatter {
+    static let previewDateTime: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter
+    }()
 }
 
 private enum NumberParser {
@@ -694,17 +881,14 @@ private enum NumberParser {
             if let lc = t.lastIndex(of: ","),
                let ld = t.lastIndex(of: ".") {
                 if lc > ld {
-                    // comma as decimal separator, dot as thousands
                     t = t
                         .replacingOccurrences(of: ".", with: "")
                         .replacingOccurrences(of: ",", with: ".")
                 } else {
-                    // dot as decimal, comma as thousands
                     t = t.replacingOccurrences(of: ",", with: "")
                 }
             }
         } else if hasComma {
-            // If only comma present, treat as decimal separator for EU locales
             t = t.replacingOccurrences(of: ",", with: ".")
         }
 
@@ -727,39 +911,75 @@ private struct ToastBanner: View {
     let text: String
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: "checkmark.seal.fill").imageScale(.large)
+            Image(systemName: "checkmark.seal.fill")
+                .foregroundStyle(.green)
+                .imageScale(.large)
             Text(text)
-                .font(.subheadline)
+                .font(.subheadline.weight(.medium))
                 .multilineTextAlignment(.leading)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(.thinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .shadow(radius: 8, x: 0, y: 4)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(.ultraThickMaterial, in: Capsule())
+        .overlay(Capsule().strokeBorder(Color.green.opacity(0.25), lineWidth: 1))
+        .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 4)
     }
 }
 
 private struct StepIndicator: View {
-    @EnvironmentObject private var appearance: AppAppearance
-
     let current: CSVChargingWizardView.Step
 
-    private func dot(_ on: Bool) -> some View {
-        Circle()
-            .fill(on ? appearance.accentColor : Color.secondary.opacity(0.25))
-            .frame(width: 8, height: 8)
-    }
+    private let labels = ["Select", "Map", "Options", "Import"]
 
     var body: some View {
-        HStack(spacing: 6) {
-            dot(current.rawValue >= 0)
-            dot(current.rawValue >= 1)
-            dot(current.rawValue >= 2)
-            dot(current.rawValue >= 3)
+        HStack(spacing: 4) {
+            ForEach(0..<4, id: \.self) { index in
+                let isComplete = index < current.rawValue
+                let isCurrent  = index == current.rawValue
+
+                HStack(spacing: 5) {
+                    ZStack {
+                        Circle()
+                            .fill(isComplete ? Color.accentColor : (isCurrent ? Color.accentColor : Color.secondary.opacity(0.22)))
+                            .frame(width: 18, height: 18)
+                        if isComplete {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(.white)
+                        } else {
+                            Text("\(index + 1)")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(isCurrent ? .white : .secondary)
+                        }
+                    }
+                    if isCurrent {
+                        Text(labels[index])
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.primary)
+                    }
+                }
+                .padding(.horizontal, isCurrent ? 8 : 4)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule()
+                        .fill(isCurrent
+                              ? Color.accentColor.opacity(0.12)
+                              : Color.clear)
+                )
+
+                if index < 3 {
+                    Rectangle()
+                        .fill(index < current.rawValue ? Color.accentColor : Color.secondary.opacity(0.18))
+                        .frame(height: 1.5)
+                        .frame(maxWidth: .infinity)
+                }
+            }
         }
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: current)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 8)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Step \(current.rawValue + 1) of 4")
+        .accessibilityLabel("Step \(current.rawValue + 1) of 4: \(labels[current.rawValue])")
     }
 }
 
@@ -781,8 +1001,6 @@ private struct InfoBanner: View {
 }
 
 private struct StatChip: View {
-    @EnvironmentObject private var appearance: AppAppearance
-
     let title: String
     let value: String
     let systemImage: String
@@ -805,7 +1023,7 @@ private struct StatChip: View {
                 .fill(Color(uiColor: .secondarySystemBackground))
                 .overlay(
                     RoundedRectangle(cornerRadius: 14)
-                        .strokeBorder(appearance.accentColor.opacity(0.15))
+                        .strokeBorder(Color.accentColor.opacity(0.15))
                 )
         )
     }
@@ -813,6 +1031,7 @@ private struct StatChip: View {
 
 private struct MapRow: View {
     let title: String
+    let subtitle: String?
     @Binding var selection: Int?
     let headers: [String]
 
@@ -826,63 +1045,22 @@ private struct MapRow: View {
             }
             .pickerStyle(.navigationLink)
         } label: {
-            Text(title)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                if let subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
     }
 }
 
 // MARK: - Steps UI
 
-private struct SelectCSVStep: View {
-    @EnvironmentObject private var appearance: AppAppearance
-    @Environment(\.colorScheme) private var scheme
-
-    var selectAction: () -> Void
-
-    var body: some View {
-        let accent = appearance.accentColor
-
-        return VStack(spacing: 20) {
-            RoundedRectangle(cornerRadius: 20)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            accent.opacity(scheme == .dark ? 0.22 : 0.16),
-                            .clear
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .overlay(
-                    VStack(spacing: 14) {
-                        Image(systemName: "doc.badge.plus")
-                            .font(.system(size: 40))
-                        Text("Import your Supercharging CSV")
-                            .font(.title3).bold()
-                        Text("Follow these steps:")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        VStack(alignment: .leading, spacing: 8) {
-                            Label("Download the official CSV from Tesla.", systemImage: "1.circle")
-                            Label("Tap **Select CSV** and pick the file.", systemImage: "2.circle")
-                            Label("On the next screen, map the required headers.", systemImage: "3.circle")
-                            Label("Review options, then import.", systemImage: "4.circle")
-                        }
-                        .labelStyle(.titleAndIcon)
-                        .frame(maxWidth: 520, alignment: .leading)
-                        Button("Select CSV", action: selectAction)
-                            .buttonStyle(.borderedProminent)
-                            .padding(.top, 6)
-                            .accessibilityLabel("Select CSV file")
-                    }
-                    .padding(28)
-                )
-                .frame(maxWidth: .infinity, minHeight: 280)
-        }
-        .padding(.horizontal)
-    }
-}
+// SelectCSVTextStep has been replaced by SelectCSVStepWithDrop from CSVDropTargetModifier.swift.
+// See the .select case in CSVChargingWizardView.content for usage.
 
 private struct MapColumnsStep: View {
     let headers: [String]
@@ -890,6 +1068,10 @@ private struct MapColumnsStep: View {
     @Binding var mapping: ColumnMapping
     var notes: String?
     var warnings: [String]
+    var validationSummary: ValidationSummary? = nil
+    let canContinue: Bool
+    let onBack: () -> Void
+    let onContinue: () -> Void
 
     private func val(_ idx: Int?) -> String? {
         guard let i = idx,
@@ -899,20 +1081,19 @@ private struct MapColumnsStep: View {
         return v.isEmpty ? nil : v
     }
 
-    /// For a given header index, describe how it's used in the mapping (if at all).
     private func usageForHeader(index: Int) -> String? {
         var roles: [String] = []
-        if mapping.startDate       == index { roles.append("ChargeStartDateTime") }
-        if mapping.energyAddedKWh  == index { roles.append("QuantityBase") }
-        if mapping.totalIncVAT     == index { roles.append("Total Inc. VAT") }
-        if mapping.pricePerKWh     == index { roles.append("UnitCostBase") }
-        if mapping.siteName        == index { roles.append("SiteLocationName") }
-        if mapping.invoiceNumber   == index { roles.append("InvoiceNumber") }
-        if mapping.vatAmount       == index { roles.append("VAT") }
-        if mapping.totalExcVAT     == index { roles.append("Total Exc. VAT") }
-        if mapping.vehicleName     == index { roles.append("Name") }
-        if mapping.vin             == index { roles.append("Vin") }
-        if mapping.notes           == index { roles.append("Description") }
+        if mapping.startDate       == index { roles.append("Date & time") }
+        if mapping.energyAddedKWh  == index { roles.append("Energy added") }
+        if mapping.totalIncVAT     == index { roles.append("Total paid") }
+        if mapping.pricePerKWh     == index { roles.append("Price per kWh") }
+        if mapping.siteName        == index { roles.append("Location name") }
+        if mapping.invoiceNumber   == index { roles.append("Invoice number") }
+        if mapping.vatAmount       == index { roles.append("Tax amount") }
+        if mapping.totalExcVAT     == index { roles.append("Pre-tax total") }
+        if mapping.vehicleName     == index { roles.append("Vehicle name") }
+        if mapping.vin             == index { roles.append("VIN") }
+        if mapping.notes           == index { roles.append("Notes") }
         return roles.isEmpty ? nil : roles.joined(separator: ", ")
     }
 
@@ -926,116 +1107,123 @@ private struct MapColumnsStep: View {
                 }
             }
 
+            if let summary = validationSummary, !summary.isEmpty {
+                Section {
+                    MappingValidationBanner(summary: summary)
+                }
+            }
+
             if let notes, !notes.isEmpty {
                 Section {
                     InfoBanner(text: notes)
                 }
             }
 
-            Section("Status") {
-                HStack(spacing: 8) {
-                    StatusPill(
-                        title: "ChargeStartDateTime",
-                        ok: mapping.startDate != nil
-                    )
-                    StatusPill(
-                        title: "QuantityBase",
-                        ok: mapping.energyAddedKWh != nil
-                    )
-                    StatusPill(
-                        title: "Total Inc. VAT or UnitCostBase",
-                        ok: mapping.totalIncVAT != nil || mapping.pricePerKWh != nil
-                    )
-                }
-                Text("Every header from your CSV is listed below. The pills above show mapping status for the required Tesla fields.")
-                    .font(.footnote)
+            Section {
+                InfoBanner(text: "Check the matches below and change anything that doesn’t look right.")
+            }
+
+            Section("Required to Import") {
+                Text(mapping.startDate != nil ? "Date & time: Ready" : "Date & time: Needed")
+                Text(mapping.energyAddedKWh != nil ? "Energy added: Ready" : "Energy added: Needed")
+                Text(mapping.totalIncVAT != nil || mapping.pricePerKWh != nil ? "Total paid or price per kWh: Ready" : "Total paid or price per kWh: Needed")
+                    .foregroundColor((mapping.totalIncVAT != nil || mapping.pricePerKWh != nil) ? .primary : .orange)
+                Text("Everything we found in your file is listed below.")
                     .foregroundStyle(.secondary)
             }
 
-            Section("Required") {
+            Section("Needed Fields") {
                 MapRow(
-                    title: "ChargeStartDateTime",
+                    title: "Date & time",
+                    subtitle: "Tesla column: ChargeStartDateTime",
                     selection: $mapping.startDate,
                     headers: headers
                 )
                 MapRow(
-                    title: "QuantityBase",
+                    title: "Energy added (kWh)",
+                    subtitle: "Tesla column: QuantityBase",
                     selection: $mapping.energyAddedKWh,
                     headers: headers
                 )
                 MapRow(
-                    title: "Total Inc. VAT",
+                    title: "Total paid",
+                    subtitle: "Tesla column: Total Inc. VAT",
                     selection: $mapping.totalIncVAT,
                     headers: headers
                 )
                 MapRow(
-                    title: "UnitCostBase",
+                    title: "Price per kWh",
+                    subtitle: "Tesla column: UnitCostBase",
                     selection: $mapping.pricePerKWh,
                     headers: headers
                 )
             }
 
-            Section("Optional") {
+            Section("Extra Details") {
                 MapRow(
-                    title: "SiteLocationName",
+                    title: "Location name",
+                    subtitle: "Tesla column: SiteLocationName",
                     selection: $mapping.siteName,
                     headers: headers
                 )
                 MapRow(
-                    title: "InvoiceNumber",
+                    title: "Invoice number",
+                    subtitle: "Tesla column: InvoiceNumber",
                     selection: $mapping.invoiceNumber,
                     headers: headers
                 )
                 MapRow(
-                    title: "VAT",
+                    title: "Tax amount",
+                    subtitle: "Tesla column: VAT",
                     selection: $mapping.vatAmount,
                     headers: headers
                 )
                 MapRow(
-                    title: "Total Exc. VAT",
+                    title: "Pre-tax total",
+                    subtitle: "Tesla column: Total Exc. VAT",
                     selection: $mapping.totalExcVAT,
                     headers: headers
                 )
                 MapRow(
-                    title: "Name",
+                    title: "Vehicle name",
+                    subtitle: "Tesla column: Name",
                     selection: $mapping.vehicleName,
                     headers: headers
                 )
                 MapRow(
-                    title: "Vin",
+                    title: "VIN",
+                    subtitle: "Tesla column: Vin",
                     selection: $mapping.vin,
                     headers: headers
                 )
                 MapRow(
-                    title: "Description",
+                    title: "Notes",
+                    subtitle: "Tesla column: Description",
                     selection: $mapping.notes,
                     headers: headers
                 )
             }
 
             if !firstRow.isEmpty {
-                Section("Preview (first row)") {
+                Section("Preview") {
                     let dateStr: String = {
                         if let s = val(mapping.startDate),
                            let d = DateParser.parse(s) {
-                            let f = DateFormatter()
-                            f.dateStyle = .medium
-                            f.timeStyle = .short
-                            return f.string(from: d)
+                            return CSVWizardDisplayFormatter.previewDateTime.string(from: d)
                         }
                         return "—"
                     }()
-                    LabeledContent("Date", value: dateStr)
-                    LabeledContent("kWh", value: val(mapping.energyAddedKWh) ?? "—")
-                    LabeledContent("Price/kWh", value: val(mapping.pricePerKWh) ?? "—")
-                    LabeledContent("Total Inc. VAT", value: val(mapping.totalIncVAT) ?? "—")
-                    LabeledContent("VAT", value: val(mapping.vatAmount) ?? "—")
-                    LabeledContent("Site", value: val(mapping.siteName) ?? "—")
+                    LabeledContent("Date & time", value: dateStr)
+                    LabeledContent("Energy added", value: val(mapping.energyAddedKWh) ?? "—")
+                    LabeledContent("Price per kWh", value: val(mapping.pricePerKWh) ?? "—")
+                    LabeledContent("Total paid", value: val(mapping.totalIncVAT) ?? "—")
+                    LabeledContent("Tax", value: val(mapping.vatAmount) ?? "—")
+                    LabeledContent("Location", value: val(mapping.siteName) ?? "—")
                     LabeledContent("Invoice", value: val(mapping.invoiceNumber) ?? "—")
                 }
             }
 
-            Section("Detected Headers (\(headers.count))") {
+            Section("Columns in Your File (\(headers.count))") {
                 ForEach(Array(headers.enumerated()), id: \.0) { idx, name in
                     HStack {
                         Text(name)
@@ -1050,7 +1238,7 @@ private struct MapColumnsStep: View {
                                         .fill(Color.green.opacity(0.18))
                                 )
                         } else {
-                            Text("Not mapped")
+                            Text("Not used")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
@@ -1064,7 +1252,22 @@ private struct MapColumnsStep: View {
                     _ = m.autoMap(with: headers)
                     mapping = m
                 } label: {
-                    Label("Auto-map again", systemImage: "wand.and.stars")
+                    Label("Match Again", systemImage: "wand.and.stars")
+                }
+            }
+
+            Section {
+                if !canContinue {
+                    Text("Choose a date and time column, an energy column, and either a total paid column or a price per kWh column to continue.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                HStack {
+                    Button("Back", action: onBack)
+                    Spacer()
+                    Button("Continue", action: onContinue)
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!canContinue)
                 }
             }
         }
@@ -1078,30 +1281,40 @@ private struct OptionsStep: View {
     @Binding var defaultVATText: String
     @Binding var invoicePrefix: String
     @Binding var dedupeEnabled: Bool
+    let onBack: () -> Void
+    let onContinue: () -> Void
 
     var body: some View {
         Form {
-            Section("Currency & VAT") {
-                TextField("Currency Code (e.g., USD, EUR)", text: $currencyCode)
+            Section("Currency") {
+                TextField("Currency code (for example, USD or EUR)", text: $currencyCode)
                     .textInputAutocapitalization(.characters)
                     .autocorrectionDisabled()
-                TextField("Default VAT Amount (optional)", text: $defaultVATText)
+                TextField("Default tax amount (optional)", text: $defaultVATText)
                     .keyboardType(.decimalPad)
-                Text("If your CSV includes VAT/Tax per row, that will override the default above.")
+                Text("If your file already includes tax for a session, we’ll use that value instead.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
             Section("Invoice") {
-                TextField("Invoice Prefix (optional)", text: $invoicePrefix)
-                Text("If a row has no Invoice column, we’ll use `prefix + chargeId` when available.")
+                TextField("Invoice prefix (optional)", text: $invoicePrefix)
+                Text("If a row is missing an invoice number, we’ll try to build one from this prefix.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
             Section("Duplicates") {
                 Toggle("Skip duplicates (recommended)", isOn: $dedupeEnabled)
-                Text("Duplicate detection uses a key of start-minute + kWh + site.")
+                Text("We compare the session time, energy amount, and location to avoid importing the same stop twice.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+            }
+            Section {
+                HStack {
+                    Button("Back", action: onBack)
+                    Spacer()
+                    Button("Start Import", action: onContinue)
+                        .buttonStyle(.borderedProminent)
+                }
             }
         }
         .scrollContentBackground(.hidden)
@@ -1120,126 +1333,148 @@ private struct ImportStep: View {
     let canUndo: Bool
     let onUndo: () -> Void
     let message: String?
+    let canReviewImported: Bool
+    let onReviewImported: () -> Void
+    let onBack: () -> Void
+    let onDone: () -> Void
 
     var body: some View {
-        VStack(spacing: 16) {
+        Form {
             if isImporting {
-                ProgressView(value: progress)
-                    .progressViewStyle(.linear)
-                Text("Importing… \(Int((progress * 100).rounded()))%")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                Section {
+                    VStack(spacing: 20) {
+                        // Circular progress ring
+                        ZStack {
+                            Circle()
+                                .stroke(Color.secondary.opacity(0.15), lineWidth: 8)
+                            Circle()
+                                .trim(from: 0, to: progress)
+                                .stroke(
+                                    Color.accentColor,
+                                    style: StrokeStyle(lineWidth: 8, lineCap: .round)
+                                )
+                                .rotationEffect(.degrees(-90))
+                                .animation(.linear(duration: 0.1), value: progress)
+                            Text("\(Int((progress * 100).rounded()))%")
+                                .font(.title3.weight(.bold).monospacedDigit())
+                        }
+                        .frame(width: 80, height: 80)
+                        .padding(.top, 8)
+
+                        Text("Importing your sessions…")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                }
             } else {
-                HStack(spacing: 18) {
-                    StatChip(
-                        title: "Imported",
-                        value: "\(imported)",
-                        systemImage: "tray.and.arrow.down.fill"
-                    )
-                    StatChip(
-                        title: "Skipped",
-                        value: "\(skipped)",
-                        systemImage: "arrow.uturn.left.circle.fill"
-                    )
+                Section {
+                    // Results summary row
+                    HStack(spacing: 0) {
+                        importResultStat(
+                            value: "\(imported)",
+                            label: "Imported",
+                            icon: "checkmark.circle.fill",
+                            color: imported > 0 ? .green : .secondary
+                        )
+                        Divider().frame(height: 50).padding(.horizontal, 16)
+                        importResultStat(
+                            value: "\(skipped)",
+                            label: "Skipped",
+                            icon: "minus.circle.fill",
+                            color: .secondary
+                        )
+                    }
+                } header: {
+                    Text("Results")
                 }
 
                 if let msg = message, !msg.isEmpty {
-                    Text(msg)
-                        .font(.subheadline)
-                        .padding(10)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color(uiColor: .tertiarySystemBackground))
-                        )
+                    Section {
+                        Text(msg)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                if canReviewImported {
+                    Section("Next Steps") {
+                        Text("Spot-check the imported sessions now to confirm prices, energy, and locations look right.")
+                            .foregroundStyle(.secondary)
+                        Button(action: onReviewImported) {
+                            Label("Review Imported Sessions", systemImage: "list.bullet.rectangle")
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
                 }
 
                 if missingKWhCount > 0 {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Additional step available")
-                            .font(.headline)
+                    // 🔧 FIX: Removed duplicate Text("Missing energy found") label —
+                    // it appeared twice (once as plain Text, once as Section header).
+                    Section("Missing Energy Found") {
                         Text(
-                            "\(missingKWhCount) imported sessions are missing Energy (kWh) but include Price/kWh. We can derive kWh = Amount ÷ Price/kWh."
+                            "\(missingKWhCount) imported session\(missingKWhCount == 1 ? "" : "s") are missing the energy amount, but include enough pricing details for us to calculate it."
                         )
-                        .font(.subheadline)
                         .foregroundStyle(.secondary)
                         Button(action: onBackfillTap) {
                             Label(
-                                "Backfill kWh (\(missingKWhCount))",
+                                "Fill In Energy (\(missingKWhCount))",
                                 systemImage: "wand.and.stars"
                             )
                         }
                         .buttonStyle(.borderedProminent)
                     }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 14)
-                            .fill(Color(uiColor: .secondarySystemBackground))
-                    )
                 }
 
                 if canUndo {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Undo available")
-                            .font(.headline)
-                        Text("Restore original Energy (kWh) values for the sessions we just backfilled.")
-                            .font(.subheadline)
+                    // 🔧 FIX: Removed duplicate Text("Undo available") label.
+                    Section("Undo") {
+                        Text("Restore the original energy values for the sessions we just updated.")
                             .foregroundStyle(.secondary)
                         Button(action: onUndo) {
-                            Label("Undo Backfill", systemImage: "arrow.uturn.backward.circle")
+                            Label("Undo Changes", systemImage: "arrow.uturn.backward.circle")
                         }
                         .buttonStyle(.bordered)
                     }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 14)
-                            .fill(Color(uiColor: .secondarySystemBackground))
-                    )
                 }
             }
 
             if !errors.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Issues")
-                        .font(.headline)
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 6) {
-                            ForEach(Array(errors.enumerated()), id: \.0) { _, msg in
-                                Text("• " + msg)
-                                    .font(.footnote)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                Section("Issues") {
+                    ForEach(Array(errors.enumerated()), id: \.0) { _, msg in
+                        Text("• " + msg)
+                            .font(.footnote)
                     }
-                    .frame(maxHeight: 160)
                 }
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(Color(uiColor: .secondarySystemBackground))
-                )
+            }
+
+            Section {
+                HStack {
+                    if !isImporting {
+                        Button("Back", action: onBack)
+                    }
+                    Spacer()
+                    Button("Done", action: onDone)
+                        .buttonStyle(.borderedProminent)
+                        .disabled(isImporting)
+                }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(Color(uiColor: .systemGroupedBackground))
     }
-}
-
-private struct StatusPill: View {
-    let title: String
-    let ok: Bool
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-            Text(title)
+    private func importResultStat(value: String, label: String, icon: String, color: Color) -> some View {
+        VStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundStyle(color)
+            Text(value)
+                .font(.title2.weight(.bold).monospacedDigit())
+            Text(label)
                 .font(.caption)
+                .foregroundStyle(.secondary)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(
-            Capsule()
-                .fill(ok ? Color.green.opacity(0.18) : Color.orange.opacity(0.18))
-        )
-        .foregroundStyle(ok ? .green : .orange)
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -1252,31 +1487,31 @@ private struct HelpSheet: View {
                 switch step {
                 case .select:
                     Section("What file do I need?") {
-                        Text("Download the **official Supercharging CSV** from Tesla. This importer only lists those headers.")
+                        Text("Download your charging history CSV from Tesla, then choose it here.")
                     }
                     Section("Quick steps") {
                         Label("Tap **Select CSV**.", systemImage: "1.circle")
                         Label("Pick the CSV file.", systemImage: "2.circle")
-                        Label("Map required headers.", systemImage: "3.circle")
+                        Label("Match the key items.", systemImage: "3.circle")
                         Label("Review options and import.", systemImage: "4.circle")
                     }
                 case .map:
-                    Section("Required headers") {
-                        Text("Map **ChargeStartDateTime**, **QuantityBase**, and either **Total Inc. VAT** or **UnitCostBase**. Optional fields like **VAT**, **InvoiceNumber**, **SiteLocationName** improve analytics.")
+                    Section("What matters most") {
+                        Text("Make sure the app knows which columns contain the session date and time, the energy added, and either the total paid or the price per kWh.")
                     }
-                    Section("Header integrity") {
-                        Text("Every header from your CSV is imported and listed. The Detected Headers section shows which columns are mapped to which charging fields, so you can verify there’s no missing or mis-linked column before importing.")
+                    Section("Double-check the matches") {
+                        Text("Every column from your file is shown on this screen so you can quickly confirm nothing important was matched incorrectly.")
                     }
                 case .options:
-                    Section("Currency & VAT") {
-                        Text("Set your currency code and an optional default VAT amount. If the CSV row includes VAT, that value takes precedence.")
+                    Section("Currency and tax") {
+                        Text("Choose your currency and, if needed, a default tax amount. Session-level tax from the file will override the default.")
                     }
                     Section("Duplicates") {
-                        Text("We skip likely duplicates using **start minute + kWh + site**. You can turn this off, but it’s recommended.")
+                        Text("We skip likely duplicates automatically. You can turn that off, but most people should leave it on.")
                     }
                 case .import:
-                    Section("What’s next?") {
-                        Text("Close this sheet when finished. Your imported sessions will appear in your log and analytics.")
+                    Section("What's next?") {
+                        Text("When the import finishes, you can review the imported sessions first or tap Done to return to your charging history.")
                     }
                 }
             }
@@ -1296,3 +1531,74 @@ private struct HelpSheet: View {
         .environmentObject(appearance)
 }
 #endif
+
+private struct ImportedEntriesReviewView: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var entriesStore: EntriesStore
+
+    let importedIDs: [UUID]
+
+    @State private var selectedEntry: ExpenseEntry?
+
+    private var importedEntries: [ExpenseEntry] {
+        let importedSet = Set(importedIDs)
+        return entriesStore.entries
+            .filter { importedSet.contains($0.id) }
+            .sorted { $0.date > $1.date }
+    }
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if importedEntries.isEmpty {
+                    ContentUnavailableView(
+                        "Nothing to Review",
+                        systemImage: "tray",
+                        description: Text("Imported sessions will appear here after the wizard finishes.")
+                    )
+                } else {
+                    List(importedEntries) { entry in
+                        Button {
+                            selectedEntry = entry
+                        } label: {
+                            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(entry.location ?? entry.charging?.siteName ?? "Charging session")
+                                        .font(.subheadline.weight(.semibold))
+                                    Text(entry.date.formatted(date: .abbreviated, time: .shortened))
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                VStack(alignment: .trailing, spacing: 4) {
+                                    Text(entry.amount, format: .currency(code: entry.currencyCode ?? Locale.current.currency?.identifier ?? "USD"))
+                                        .monospacedDigit()
+                                    if let kWh = entry.energyAddedKWh, kWh > 0 {
+                                        Text("\(kWh.formatted(.number.precision(.fractionLength(1)))) kWh")
+                                            .font(.footnote)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .navigationTitle("Imported Sessions")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Done") { dismiss() }
+                }
+            }
+            .sheet(item: $selectedEntry) { entry in
+                AddEditEntryView(entry: entry) { updated in
+                    entriesStore.upsert(updated)
+                    selectedEntry = nil
+                }
+                .environmentObject(entriesStore)
+            }
+        }
+    }
+}

@@ -2,67 +2,97 @@
 //  DashboardView.swift
 //  My KWh Companion
 //
-//  Swift 6 • iOS 17+
+//  Swift 6 · iOS 17+
 //
-//  Regenerated (reduced top empty space + polished):
-//  ✅ Uses inline nav title (removes large-title “dead air”)
-//  ✅ Scroll content uses contentMargins (less top padding, cleaner)
-//  ✅ Optional glass cards when uiStyle == "glass"/"teslaglass"
-//  ✅ AppThemeSpec drives background/cards/separators/spacing/corners/elevation
-//  ✅ Keeps your bucket logic + budget editor sheet intact
+//  Revision history
+//  ─────────────────────────────────────────────────────────────
+//  • Tesla-inspired redesign: hero card, SOC ring, alert banner,
+//    stat tiles, quick-action grid, section labels.
+//  • Performance: snapshots promoted to @State, recomputed only
+//    on explicit recomputeSnapshots() calls (not every render).
+//  • Formatters: static cached NumberFormatter / DateFormatter.
+//  • CardPolish: scrollTransition gated behind .full motion pref.
 //
 
 import SwiftUI
 import Foundation
 
+// MARK: - DashboardView
+
 @MainActor
 struct DashboardView: View {
 
-    // MARK: - Environment
+    // MARK: Environment
 
     @EnvironmentObject private var entriesStore: EntriesStore
     @EnvironmentObject private var teslaFiStore: TeslaFiSessionStore
-    @StateObject private var teslaFiUnlock = TeslaFiEntitlementStore.shared
+    @EnvironmentObject private var profileStore: ProfileStore
+    @StateObject  private var teslaFiUnlock = TeslaFiEntitlementStore.shared
     @EnvironmentObject private var appearance: AppAppearance
     @EnvironmentObject private var uiSettings: AppUISettings
 
-    @Environment(\.appThemeBox) private var themeBox
-    @Environment(\.colorScheme) private var scheme
+    @Environment(\.appThemeBox)        private var themeBox
+    @Environment(\.brandTheme)         private var brandTheme
+    @Environment(\.colorScheme)        private var scheme
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.dynamicTypeSize)    private var dynamicTypeSize
+
     private var theme: any AppThemeSpec { themeBox.base }
 
-    // MARK: - Settings / Storage
+    // MARK: Persistent storage
 
-    @AppStorage("defaultCurrencyCode") private var defaultCurrencyCode: String =
-        (Locale.current.currency?.identifier ?? "USD")
+    @AppStorage("defaultCurrencyCode")       private var defaultCurrencyCode =
+        Locale.current.currency?.identifier ?? "USD"
+    @AppStorage("uiStyle")                   private var uiStyleRaw = "teslaGlass"
+    @AppStorage("budget_useCategoryBudgets") private var useCategoryBudgets = true
+    @AppStorage("monthlyBudgetLimit")        private var monthlyBudgetLimit: Double = 0
+    @AppStorage("budget_supercharging")      private var budgetSupercharging: Double = 0
+    @AppStorage("budget_lease")              private var budgetLease: Double = 0
+    @AppStorage("budget_insurance")          private var budgetInsurance: Double = 0
+    @AppStorage("budget_misc")              private var budgetMisc: Double = 0
 
-    // Mirrors SettingsView key
-    @AppStorage("uiStyle") private var uiStyleRaw: String = "teslaGlass"
+    // Shared with GasToKWhConverterView so the dashboard card reflects the
+    // user's last-entered gas price / MPG.
+    @AppStorage("gasToKwh.lastGasPrice")     private var persistedGasPrice: Double = 0
+    @AppStorage("gasToKwh.lastMPG")          private var persistedMPG: Double = 30
 
-    // Budget settings
-    @AppStorage("budget_useCategoryBudgets") private var useCategoryBudgets: Bool = true
-    @AppStorage("monthlyBudgetLimit") private var monthlyBudgetLimit: Double = 0
-
-    @AppStorage("budget_supercharging") private var budgetSupercharging: Double = 0
-    @AppStorage("budget_lease") private var budgetLease: Double = 0
-    @AppStorage("budget_insurance") private var budgetInsurance: Double = 0
-    @AppStorage("budget_misc") private var budgetMisc: Double = 0
-
-    @AppStorage("dashboard.moreCardsPrompted") private var moreCardsPrompted: Bool = false
-
-    // MARK: - UI State
+    // MARK: UI state
 
     @State private var showingBudgetEditor = false
     @State private var showingLayoutEditor = false
-    @State private var showMoreCardsPrompt = false
-    @State private var showAllActions = false
+    @State private var showAllActions      = false
 
-    @StateObject private var layout = DashboardLayoutStore()
+    @StateObject private var layout       = DashboardLayoutStore()
     @StateObject private var watchlistStore = PriceWatchlistStore()
-    @StateObject private var adsStore = AdsEntitlementStore.shared
+    @StateObject private var adsStore     = AdsEntitlementStore.shared
 
-    // MARK: - Theme helpers
+    // MARK: Cached snapshots
+    //
+    // All expensive derivations live here and are refreshed only
+    // via recomputeSnapshots(), never on every SwiftUI render pass.
+
+    @State private var cachedSnapshot    = DashboardSnapshot.empty
+    @State private var cachedActionItems: [ActionItem] = []
+
+    // Convenience accessors – zero-cost computed vars over the snapshot.
+    private var snapshot: DashboardSnapshot { cachedSnapshot }
+
+    private var cachedEntriesThisMonth:       [ExpenseEntry]  { snapshot.entriesThisMonth }
+    private var cachedTeslaFiThisMonth:       [TeslaFiSession] { snapshot.importedSessionsThisMonth }
+    private var cachedSpending:               DashboardSpending { snapshot.spending }
+    private var cachedMonthEnergyKWh:         Double           { snapshot.monthEnergyKWh }
+    private var cachedAvgCostPerKWh:          Double?          { snapshot.averageCostPerKWh }
+    private var cachedMissingCostTeslaFiCount: Int             { snapshot.missingImportedCostCount }
+    private var cachedMissingCostEntryCount:  Int             { snapshot.missingEntryCostCount }
+    private var cachedDataQualityIssueCount:  Int             { snapshot.dataQualityIssueCount }
+    private var cachedTrackedEnergyMonths:    Int             { snapshot.trackedEnergyMonths }
+    private var cachedLatestCharge:           DashboardLatestChargeSnapshot? { snapshot.latestCharge }
+    private var cachedTripInsights:           TripInsightsSnapshot { snapshot.tripInsights }
+    private var cachedPrevMonthSpent:         Double           { snapshot.previousMonthSpentTotal }
+    private var cachedPrevMonthEnergyKWh:     Double           { snapshot.previousMonthEnergyKWh }
+    private var cachedMonthEnergyCost:        Double           { snapshot.monthEnergyCost }
+
+    // MARK: Theme helpers
 
     private var isGlass: Bool {
         let v = uiStyleRaw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -70,97 +100,223 @@ struct DashboardView: View {
     }
 
     private var cardSurface: AnyShapeStyle {
-        isGlass ? AnyShapeStyle(.thinMaterial) : AnyShapeStyle(theme.cardBackground)
+        isGlass
+            ? AnyShapeStyle(.thinMaterial)
+            : AnyShapeStyle(theme.cardBackground)
     }
 
-    // MARK: - Body
+    /// True-black / true-white surface used by the vehicle hero card.
+    private var teslaDarkSurface: AnyShapeStyle {
+        scheme == .dark
+            ? AnyShapeStyle(Color(hex: "#111111"))
+            : AnyShapeStyle(Color(hex: "#FFFFFF"))
+    }
+
+    private var dashboardCardStyle: DashboardCardStyle {
+        DashboardCardStyle(
+            surface:   cardSurface,
+            spacing:   theme.spacing,
+            corner:    theme.corner,
+            pillTint:  theme.pillTint,
+            separator: theme.separator,
+            accent:    appearance.accentColor
+        )
+    }
+
+    // MARK: Formatters  (static – rebuilt only when currency changes)
+
+    private static func makeCurrencyFormatter(_ code: String) -> NumberFormatter {
+        let nf = NumberFormatter()
+        nf.numberStyle = .currency
+        nf.currencyCode = code
+        nf.maximumFractionDigits = 2
+        return nf
+    }
+
+    private static var _lastCurrencyCode = ""
+    private static var _currencyFormatter = makeCurrencyFormatter("USD")
+
+    private func currencyFormatter() -> NumberFormatter {
+        guard Self._lastCurrencyCode != defaultCurrencyCode else {
+            return Self._currencyFormatter
+        }
+        Self._lastCurrencyCode = defaultCurrencyCode
+        Self._currencyFormatter = Self.makeCurrencyFormatter(defaultCurrencyCode)
+        return Self._currencyFormatter
+    }
+
+    private static let decimalFormatter: NumberFormatter = {
+        let nf = NumberFormatter()
+        nf.numberStyle = .decimal
+        nf.maximumFractionDigits = 1
+        nf.minimumFractionDigits = 0
+        return nf
+    }()
+
+    // MARK: - body
 
     var body: some View {
         GeometryReader { proxy in
-            let layoutSpec = dashboardLayoutSpec(for: proxy.size.width)
+            let spec = dashboardLayoutSpec(for: proxy.size.width)
 
             ScrollView {
-                VStack(spacing: theme.spacing) {
-                    LazyVGrid(columns: layoutSpec.columns, spacing: theme.spacing) {
-                        ForEach(layout.visibleOrder, id: \.self) { kind in
-                            let spec = cardSpec(for: kind)
-                            spec.view
-                                .modifier(CardPolish())
-                                .gridCellColumns(spec.columns)
-                        }
+                VStack(spacing: 10) {
+                    // 1 · Vehicle hero – always first, full-width.
+                    vehicleHeroCard
+                        .modifier(CardPolish())
+                        .padding(.horizontal, spec.horizontalPadding)
+
+                    // 2 · Alert banner – shown only when actionable issues exist.
+                    if totalAlertCount > 0 {
+                        alertBannerCard
+                            .modifier(CardPolish())
+                            .padding(.horizontal, spec.horizontalPadding)
                     }
-                    .padding(.horizontal, layoutSpec.horizontalPadding)
-                    .frame(maxWidth: layoutSpec.maxWidth)
-                    .frame(maxWidth: .infinity)
+
+                    if hasAnyData {
+                        // 3 · Month-at-a-glance stat tiles.
+                        sectionLabel("This month")
+                            .padding(.horizontal, spec.horizontalPadding)
+                        monthStatTiles
+                            .padding(.horizontal, spec.horizontalPadding)
+
+                        // 4 · User-ordered card grid.
+                        LazyVGrid(columns: spec.columns, spacing: 10) {
+                            ForEach(layout.visibleOrder, id: \.self) { kind in
+                                let cardSpec = cardSpec(for: kind)
+                                cardSpec.view
+                                    .modifier(CardPolish())
+                                    .gridCellColumns(cardSpec.columns)
+                            }
+                        }
+                        .padding(.horizontal, spec.horizontalPadding)
+                        .frame(maxWidth: spec.maxWidth)
+                        .frame(maxWidth: .infinity)
+                    } else {
+                        // 3′ · First-run onboarding replaces the empty grid.
+                        onboardingCard
+                            .modifier(CardPolish())
+                            .padding(.horizontal, spec.horizontalPadding)
+                    }
+
+                    // 5 · Quick-action grid – always visible at the bottom.
+                    sectionLabel("Quick actions")
+                        .padding(.horizontal, spec.horizontalPadding)
+                    quickActionGrid
+                        .padding(.horizontal, spec.horizontalPadding)
 
                     if !adsStore.hasRemovedAds {
-                        adBannerCard
+                        AdBannerCard(adsStore: adsStore)
                             .modifier(CardPolish())
-                            .padding(.horizontal, layoutSpec.horizontalPadding)
-                            .frame(maxWidth: layoutSpec.maxWidth)
+                            .padding(.horizontal, spec.horizontalPadding)
                     }
                 }
+                .padding(.bottom, 24)
             }
         }
-        // ✅ less “dead air” at top than manual .padding(.top, 12)
         .contentMargins(.top, 6, for: .scrollContent)
-        .contentMargins(.bottom, 22, for: .scrollContent)
         .scrollIndicators(.hidden)
+        .refreshable { recomputeSnapshots() }
         .navigationTitle("Dashboard")
-        .navigationBarTitleDisplayMode(.inline) // ✅ big reduction in top whitespace
+        .navigationBarTitleDisplayMode(.inline)
         .background(dashboardBackground)
         .tint(appearance.accentColor)
-        .sheet(isPresented: $showingBudgetEditor) {
-            BudgetSettingsSheet(
-                currencyCode: defaultCurrencyCode,
-                useCategoryBudgets: $useCategoryBudgets,
-                overallBudget: $monthlyBudgetLimit,
-                budgetSupercharging: $budgetSupercharging,
-                budgetLease: $budgetLease,
-                budgetInsurance: $budgetInsurance,
-                budgetMisc: $budgetMisc,
-                spentSupercharging: spending.superchargingTotal,
-                spentLease: spending.lease,
-                spentInsurance: spending.insurance,
-                spentMisc: spending.misc
-            )
-        }
+        .sheet(isPresented: $showingBudgetEditor) { budgetSheet }
         .sheet(isPresented: $showingLayoutEditor) {
             DashboardLayoutEditorView(layout: layout)
         }
-        .onAppear {
-            let any = (budgetSupercharging + budgetLease + budgetInsurance + budgetMisc) > 0
-            if any { useCategoryBudgets = true }
-
-            if !moreCardsPrompted {
-                moreCardsPrompted = true
-                showMoreCardsPrompt = true
-            }
-        }
+        .onAppear(perform: handleAppear)
+        .onChange(of: entriesStore.entries.count)       { _, _ in recomputeSnapshots() }
+        .onChange(of: teslaFiStore.sessionCount)        { _, _ in recomputeSnapshots() }
+        .onChange(of: teslaFiUnlock.hasTeslaFiUnlock)   { _, _ in recomputeSnapshots() }
+        .onChange(of: profileStore.selectedVehicleID)   { _, _ in recomputeSnapshots() }
         .task {
             await adsStore.load()
             await teslaFiUnlock.load()
-        }
-        .alert("More cards are available", isPresented: $showMoreCardsPrompt) {
-            Button("Customize") { showingLayoutEditor = true }
-            Button("Not now", role: .cancel) { }
-        } message: {
-            Text("We’re showing a focused set to keep scrolling fast. You can turn on more cards anytime from Customize.")
+            recomputeSnapshots()
         }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    showingLayoutEditor = true
-                } label: {
+                Button { showingLayoutEditor = true } label: {
                     Label("Customize", systemImage: "slider.horizontal.3")
                 }
             }
         }
     }
 
-    private var isAccessibilitySize: Bool {
-        dynamicTypeSize.isAccessibilitySize
+    // MARK: Lifecycle
+
+    private func handleAppear() {
+        let hasAnyCategoryBudget =
+            (budgetSupercharging + budgetLease + budgetInsurance + budgetMisc) > 0
+        if hasAnyCategoryBudget {
+            useCategoryBudgets = true
+        }
+        recomputeSnapshots()
     }
+
+    private func recomputeSnapshots() {
+        cachedSnapshot = DashboardSnapshotCalculator.make(
+            entries: entriesStore.entries,
+            energyEntries: entriesStore.energyEntries(),
+            importedSessions: teslaFiStore.sessions,
+            selectedVehicle: profileStore.selectedVehicle,
+            includeImportedSessions: teslaFiUnlock.hasTeslaFiUnlock
+        )
+        cachedActionItems = buildActionItems()
+
+        if showAllActions && cachedActionItems.count <= 4 {
+            showAllActions = false
+        }
+    }
+
+    // MARK: Derived values
+
+    private var isAccessibilitySize: Bool { dynamicTypeSize.isAccessibilitySize }
+
+    private var totalAlertCount: Int {
+        cachedMissingCostTeslaFiCount
+            + cachedMissingCostEntryCount
+            + cachedDataQualityIssueCount
+    }
+
+    /// True once the user has any logged entry or imported session. Drives the
+    /// first-run onboarding card versus the full dashboard.
+    private var hasAnyData: Bool {
+        !entriesStore.entries.isEmpty || !teslaFiStore.sessions.isEmpty
+    }
+
+    // MARK: Budget helpers
+
+    private var totalCategoryBudget: Double {
+        max(0, budgetSupercharging)
+            + max(0, budgetLease)
+            + max(0, budgetInsurance)
+            + max(0, budgetMisc)
+    }
+
+    private var effectiveBudgetTotal: Double {
+        useCategoryBudgets ? totalCategoryBudget : max(0, monthlyBudgetLimit)
+    }
+
+    private var effectiveSpentTotal: Double { cachedSpending.totalBuckets }
+
+    private var daysInMonth: Int {
+        Calendar.current.range(of: .day, in: .month, for: Date())?.count ?? 30
+    }
+
+    private var daysElapsed: Int {
+        max(1, Calendar.current.component(.day, from: Date()))
+    }
+
+    private var daysRemaining: Int { max(0, daysInMonth - daysElapsed) }
+
+    private var projectedMonthlySpend: Double? {
+        guard effectiveSpentTotal > 0 else { return nil }
+        return (effectiveSpentTotal / Double(daysElapsed)) * Double(daysInMonth)
+    }
+
+    // MARK: - Layout spec
 
     private struct DashboardLayoutSpec {
         let columns: [GridItem]
@@ -169,25 +325,29 @@ struct DashboardView: View {
     }
 
     private func dashboardLayoutSpec(for width: CGFloat) -> DashboardLayoutSpec {
-        let minCardWidth: CGFloat = isAccessibilitySize ? 420 : 340
-        let basePadding: CGFloat = horizontalSizeClass == .regular ? 24 : 16
-        let contentWidth = max(0, width - basePadding * 2)
-        let possibleColumns = max(1, Int((contentWidth + theme.spacing) / (minCardWidth + theme.spacing)))
-        let columnCount = min(possibleColumns, horizontalSizeClass == .regular ? 3 : 1)
+        let minCardWidth: CGFloat = isAccessibilitySize ? 300 : 280
+        let basePadding: CGFloat  = horizontalSizeClass == .regular ? 24 : 16
+        let contentWidth          = max(0, width - basePadding * 2)
+        let possibleColumns       = max(1, Int((contentWidth + theme.spacing) / (minCardWidth + theme.spacing)))
+        let columnCount           = min(possibleColumns, horizontalSizeClass == .regular ? 3 : 1)
 
         let columns = Array(
-            repeating: GridItem(.flexible(minimum: minCardWidth, maximum: 560), spacing: theme.spacing, alignment: .top),
+            repeating: GridItem(
+                .flexible(minimum: minCardWidth, maximum: 560),
+                spacing: 10,
+                alignment: .top
+            ),
             count: columnCount
         )
 
-        let maxWidth: CGFloat = columnCount > 1 ? 1100 : .infinity
-        return DashboardLayoutSpec(columns: columns, horizontalPadding: basePadding, maxWidth: maxWidth)
+        return DashboardLayoutSpec(
+            columns: columns,
+            horizontalPadding: basePadding,
+            maxWidth: columnCount > 1 ? 1100 : .infinity
+        )
     }
 
-    private struct DashboardCardSpec {
-        let view: AnyView
-        let columns: Int
-    }
+    // MARK: - CardPolish modifier
 
     private struct CardPolish: ViewModifier {
         @EnvironmentObject private var uiSettings: AppUISettings
@@ -196,9 +356,10 @@ struct DashboardView: View {
             switch uiSettings.motion {
             case .none:
                 content
+
             case .reduced:
-                content
-                    .transition(.opacity)
+                content.transition(.opacity)
+
             case .full:
                 content
                     .scrollTransition(.animated) { view, phase in
@@ -211,637 +372,1096 @@ struct DashboardView: View {
         }
     }
 
-    private func cardSpec(for kind: DashboardCardKind) -> DashboardCardSpec {
-        switch kind {
-        case .greeting:
-            return DashboardCardSpec(view: AnyView(greetingCard), columns: 1)
-        case .actionCenter:
-            return DashboardCardSpec(view: AnyView(actionCenterCard), columns: 1)
-        case .insights:
-            return DashboardCardSpec(view: AnyView(insightsCard), columns: 1)
-        case .savingsScore:
-            return DashboardCardSpec(view: AnyView(savingsScoreCard), columns: 1)
-        case .weeklyForecast:
-            return DashboardCardSpec(view: AnyView(weeklyForecastCard), columns: 1)
-        case .weeklyHealth:
-            return DashboardCardSpec(view: AnyView(weeklyHealthCard), columns: 1)
-        case .schedulePlanner:
-            return DashboardCardSpec(view: AnyView(schedulePlannerCard), columns: 1)
-        case .priceWatchlist:
-            return DashboardCardSpec(view: AnyView(priceWatchlistCard), columns: 1)
-        case .spendingBreakdown:
-            return DashboardCardSpec(view: AnyView(spendingBreakdownCard), columns: 1)
-        case .budget:
-            return DashboardCardSpec(view: AnyView(budgetCard), columns: 1)
-        case .dataSources:
-            return DashboardCardSpec(view: AnyView(dataSourcesCard), columns: 1)
-        case .recentActivity:
-            return DashboardCardSpec(view: AnyView(recentActivityCard), columns: horizontalSizeClass == .regular ? 2 : 1)
-        }
+    // MARK: - Background
+
+    private var dashboardBackground: some View {
+        DashboardBackground(
+            screenBackground: AnyShapeStyle(theme.screenBackground),
+            accent: appearance.accentColor,
+            themeAccent: theme.accent,
+            showGradients: uiSettings.motion == .full,
+            scheme: scheme
+        )
     }
 
+    // MARK: - Section label
+
+    private func sectionLabel(_ text: String) -> some View {
+        Text(text.uppercased())
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .tracking(0.8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 6)
+    }
+
+    // MARK: - Collapse button
+
     private func collapseButton(for kind: DashboardCardKind) -> some View {
-        Button {
-            layout.toggleCollapsed(kind)
-        } label: {
-            Image(systemName: layout.isCollapsed(kind) ? "chevron.down" : "chevron.up")
+        let isCollapsed = layout.isCollapsed(kind)
+        return Button { layout.toggleCollapsed(kind) } label: {
+            Image(systemName: isCollapsed ? "chevron.down" : "chevron.up")
                 .font(.footnote.weight(.semibold))
                 .padding(6)
                 .background(Capsule().fill(theme.pillTint.opacity(0.6)))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(layout.isCollapsed(kind) ? "Expand section" : "Collapse section")
+        .accessibilityLabel(isCollapsed ? "Expand section" : "Collapse section")
     }
 
-    private var dashboardBackground: some View {
-        ZStack {
-            Rectangle()
-                .fill(theme.screenBackground)
-                .ignoresSafeArea()
+    // MARK: - Vehicle hero card
 
-            if uiSettings.motion == .full {
-                // subtle polish (theme-driven, not hardcoded colors)
-                RadialGradient(
-                    colors: [appearance.accentColor.opacity(scheme == .dark ? 0.16 : 0.10), .clear],
-                    center: .topLeading,
-                    startRadius: 0,
-                    endRadius: 560
-                )
-                .blur(radius: 28)
-                .ignoresSafeArea()
+    private var vehicleHeroCard: some View {
+        let vehicle     = profileStore.selectedVehicle
+        let latestCharge = cachedLatestCharge
 
-                RadialGradient(
-                    colors: [theme.accent.opacity(scheme == .dark ? 0.10 : 0.06), .clear],
-                    center: .bottomTrailing,
-                    startRadius: 0,
-                    endRadius: 640
+        return VStack(spacing: 0) {
+            heroHeader(vehicle: vehicle, latestCharge: latestCharge)
+                .padding(.bottom, layout.isCollapsed(.greeting) ? 0 : 6)
+
+            if !layout.isCollapsed(.greeting) {
+                heroVehicleImage(vehicle: vehicle)
+                    .padding(.top, 6)
+                    .padding(.bottom, 16)
+
+                heroSocRow(vehicle: vehicle, latestCharge: latestCharge)
+                    .padding(.bottom, 20)
+
+                // Tesla-app signature: row of round controls beneath the car.
+                teslaControlBar
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(theme.spacing)
+        .background(heroSurfaceBackground)
+    }
+
+    /// Dark mode (default Tesla look): the car floats directly on the black
+    /// canvas with no card chrome. Light mode: a clean flat card.
+    @ViewBuilder
+    private var heroSurfaceBackground: some View {
+        if scheme == .dark {
+            Color.clear
+        } else {
+            RoundedRectangle(cornerRadius: theme.corner, style: .continuous)
+                .fill(Color.white)
+                .overlay(
+                    RoundedRectangle(cornerRadius: theme.corner, style: .continuous)
+                        .strokeBorder(theme.separator.opacity(0.55), lineWidth: 0.75)
                 )
-                .blur(radius: 34)
-                .ignoresSafeArea()
+                .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 3)
+        }
+    }
+
+    // MARK: - Tesla control bar
+
+    private var teslaControlBar: some View {
+        HStack(alignment: .top, spacing: 4) {
+            controlButton("Charge",   "bolt.fill")                 { ChargingSchedulePlannerView() }
+            controlButton("Forecast", "chart.line.uptrend.xyaxis") { WeeklyChargingForecastView() }
+            controlButton("Locate",   "location.fill")             { NearMeView() }
+            controlButton("Garage",   "car.2.fill")                { VehicleProfileListView() }
+            controlButton("Import",   "square.and.arrow.down")     { ChargingImportHubView() }
+        }
+    }
+
+    private func controlButton<Destination: View>(
+        _ title: String,
+        _ systemImage: String,
+        @ViewBuilder destination: () -> Destination
+    ) -> some View {
+        NavigationLink(destination: destination()) {
+            TeslaControlButtonLabel(systemImage: systemImage, title: title)
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Opens \(title)")
+    }
+
+    private func heroHeader(
+        vehicle: VehicleProfile?,
+        latestCharge: DashboardLatestChargeSnapshot?
+    ) -> some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(vehicle?.displayName ?? "My EV Companion")
+                    .font(.title2.weight(.semibold))
+
+                Text(vehicle == nil
+                     ? "Add a vehicle to get started"
+                     : heroSubtitle(latestCharge: latestCharge))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            vehicleStatusBadge(latestCharge: latestCharge)
+            collapseButton(for: .greeting)
+        }
+    }
+
+    private func heroVehicleImage(vehicle: VehicleProfile?) -> some View {
+        teslaVehicleImage(selectedVehicle: vehicle)
+            .frame(maxWidth: .infinity)
+            .frame(height: horizontalSizeClass == .regular ? 170 : 130)
+    }
+
+    private func heroSocRow(
+        vehicle: VehicleProfile?,
+        latestCharge: DashboardLatestChargeSnapshot?
+    ) -> some View {
+        HStack(alignment: .center, spacing: 20) {
+            socRing(latestCharge: latestCharge)
+            heroRangeInfo(vehicle: vehicle, latestCharge: latestCharge)
+            Spacer()
+        }
+    }
+
+    @ViewBuilder
+    private func heroRangeInfo(
+        vehicle: VehicleProfile?,
+        latestCharge: DashboardLatestChargeSnapshot?
+    ) -> some View {
+        if let soc = latestCharge?.endSOC, soc > 0 {
+            let range = estimatedAvailableRangeMiles(vehicle: vehicle, soc: soc)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(range.map { "\($0) mi" } ?? "—")
+                    .font(.system(size: 28, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                Text("Estimated range")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if latestCharge?.isFastCharge == true {
+                    Label("Fast charging", systemImage: "bolt.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Color.green)
+                }
+            }
+        } else if let cost = latestCharge?.cost {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(formatCurrency(cost, currency: defaultCurrencyCode))
+                    .font(.system(size: 28, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                Text("Last session cost")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("No data")
+                    .font(.system(size: 28, weight: .semibold, design: .rounded))
+                Text("Import or log a session")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
     }
 
-    // MARK: - Greeting
-
-    private var timeOfDayGreeting: String {
-        let hour = Calendar.current.component(.hour, from: Date())
-        switch hour {
-        case 5..<12:  return "Good morning"
-        case 12..<17: return "Good afternoon"
-        default:      return "Good evening"
+    private func heroSubtitle(latestCharge: DashboardLatestChargeSnapshot?) -> String {
+        guard let charge = latestCharge else { return "No recent sessions" }
+        let hours = Calendar.current.dateComponents([.hour], from: charge.date, to: Date()).hour ?? 0
+        switch hours {
+        case ..<1:   return "Just charged"
+        case ..<24:  return "Last charged \(hours)h ago"
+        default:     return "Last charged \(hours / 24)d ago"
         }
     }
 
-    // MARK: - Time window (This month)
+    private func vehicleStatusBadge(latestCharge: DashboardLatestChargeSnapshot?) -> some View {
+        let (label, color): (String, Color) = {
+            guard let charge = latestCharge else {
+                return profileStore.selectedVehicle != nil
+                    ? ("Needs setup", .orange)
+                    : ("Add vehicle", .secondary)
+            }
+            let hours = Calendar.current.dateComponents([.hour], from: charge.date, to: Date()).hour ?? 0
+            if charge.isFastCharge && hours < 2 { return ("Charging", .green) }
+            if hours < 72                        { return ("Active",   appearance.accentColor) }
+            return ("Idle", .orange)
+        }()
 
-    private var monthWindow: ClosedRange<Date> {
-        let cal = Calendar.current
-        let now = Date()
-        let start = cal.date(from: cal.dateComponents([.year, .month], from: now)) ?? now
-        let end = cal.date(byAdding: DateComponents(month: 1), to: start)?
-            .addingTimeInterval(-1) ?? now
-        return start...end
+        return Text(label)
+            .font(.caption.weight(.semibold))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(Capsule().fill(color.opacity(scheme == .dark ? 0.20 : 0.13)))
+            .foregroundStyle(color)
     }
 
-    private var monthTitle: String {
-        let f = DateFormatter()
-        f.dateFormat = "LLLL yyyy"
-        return f.string(from: Date())
-    }
+    private func socRing(latestCharge: DashboardLatestChargeSnapshot?) -> some View {
+        let soc      = latestCharge?.endSOC ?? 0
+        let progress = min(max(soc / 100, 0), 1)
+        let ringColor: Color = {
+            if soc > 50 { return .green }
+            if soc > 20 { return .orange }
+            return .red
+        }()
 
-    // MARK: - Data snapshots (This month)
-
-    private var entriesThisMonth: [ExpenseEntry] {
-        entriesStore.entries
-            .filter { monthWindow.contains($0.date) }
-            .sorted(by: { $0.date > $1.date })
-    }
-
-    private var energyEntriesThisMonth: [ExpenseEntry] {
-        entriesThisMonth.filter { $0.isEnergyEffective }
-    }
-
-    private var teslaFiThisMonth: [TeslaFiSession] {
-        guard teslaFiUnlock.hasTeslaFiUnlock else { return [] }
-        return teslaFiStore.sessions
-            .filter { $0.startDate <= monthWindow.upperBound && $0.endDate >= monthWindow.lowerBound }
-            .sorted(by: { $0.startDate > $1.startDate })
-    }
-
-    private var monthEnergyKWh: Double {
-        energyEntriesThisMonth.reduce(0) { $0 + max(0, $1.energyAddedKWh ?? 0) }
-    }
-
-    private var monthEnergyCost: Double {
-        energyEntriesThisMonth.reduce(0) { $0 + max(0, $1.amount) }
-    }
-
-    private var avgCostPerKWh: Double? {
-        guard monthEnergyKWh > 0, monthEnergyCost > 0 else { return nil }
-        return monthEnergyCost / monthEnergyKWh
-    }
-
-    private var missingCostTeslaFiCount: Int {
-        teslaFiThisMonth.filter { $0.cost == nil }.count
-    }
-
-    private var missingCostEntryCount: Int {
-        energyEntriesThisMonth.filter { ($0.energyAddedKWh ?? 0) > 0 && $0.amount <= 0 }.count
-    }
-
-    private var daysInMonth: Int {
-        let cal = Calendar.current
-        let now = Date()
-        return cal.range(of: .day, in: .month, for: now)?.count ?? 30
-    }
-
-    private var daysElapsed: Int {
-        let cal = Calendar.current
-        let now = Date()
-        let day = cal.component(.day, from: now)
-        return max(1, day)
-    }
-
-    private var daysRemaining: Int {
-        max(0, daysInMonth - daysElapsed)
-    }
-
-    private var projectedMonthlySpend: Double? {
-        guard effectiveSpentTotal > 0 else { return nil }
-        return (effectiveSpentTotal / Double(daysElapsed)) * Double(daysInMonth)
-    }
-
-    // MARK: - Classification helpers
-
-    private func norm(_ s: String?) -> String {
-        (s ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-    }
-
-    private func isSuperchargingEntry(_ e: ExpenseEntry) -> Bool {
-        if e.charging?.isSupercharger == true { return true }
-
-        let cat = norm(e.category)
-        let type = norm(e.chargeType)
-        let loc = norm(e.location) + " " + norm(e.charging?.siteName)
-        let note = norm(e.notes)
-
-        return type.contains("supercharg")
-            || cat.contains("supercharg")
-            || loc.contains("supercharg")
-            || note.contains("supercharg")
-            || cat.contains("dcfc")
-            || cat.contains("fast")
-            || type.contains("dcfc")
-            || type.contains("fast")
-            || loc.contains("electrify america")
-            || loc.contains("evgo")
-            || loc.contains("chargepoint")
-    }
-
-    private func isSuperchargerTeslaFi(_ s: TeslaFiSession) -> Bool {
-        let loc = norm(s.location) + " " + norm(s.displayLocation)
-        return loc.contains("supercharg")
-            || loc.contains("super charger")
-            || loc.contains("dcfc")
-            || loc.contains("electrify america")
-            || loc.contains("evgo")
-            || loc.contains("chargepoint")
-    }
-
-    /// FIX: Lease/Payment must NEVER match supercharging entries,
-    /// and must not trigger on generic “payment” text (common in charger transactions).
-    private func isLeaseOrCarPayment(_ e: ExpenseEntry) -> Bool {
-        if isSuperchargingEntry(e) { return false } // hard guard against cross-bucket bleed
-
-        let cat = norm(e.category)
-        let note = norm(e.notes)
-        let loc = norm(e.location)
-
-        let catHit =
-            cat.contains("lease") ||
-            cat.contains("car payment") ||
-            cat.contains("auto payment") ||
-            cat.contains("vehicle payment") ||
-            cat.contains("auto loan") ||
-            cat.contains("car loan") ||
-            cat.contains("vehicle loan") ||
-            cat.contains("finance") ||
-            cat.contains("financing") ||
-            cat.contains("lender") ||
-            cat.contains("installment")
-
-        let noteHit =
-            note.contains("lease") ||
-            note.contains("car payment") ||
-            note.contains("auto payment") ||
-            note.contains("vehicle payment") ||
-            note.contains("auto loan") ||
-            note.contains("car loan") ||
-            note.contains("vehicle loan") ||
-            note.contains("finance") ||
-            note.contains("financing") ||
-            note.contains("lender") ||
-            note.contains("installment")
-
-        let locHit =
-            loc.contains("toyota financial") ||
-            loc.contains("tesla finance") ||
-            loc.contains("honda financial") ||
-            loc.contains("ford credit") ||
-            loc.contains("gm financial") ||
-            loc.contains("capital one auto") ||
-            loc.contains("ally auto") ||
-            loc.contains("santander") ||
-            loc.contains("chase auto") ||
-            loc.contains("wells fargo auto")
-
-        return catHit || noteHit || locHit
-    }
-
-    private func isInsurance(_ e: ExpenseEntry) -> Bool {
-        let cat = norm(e.category)
-        let note = norm(e.notes)
-        let loc = norm(e.location)
-
-        return cat.contains("insurance")
-            || note.contains("insurance")
-            || loc.contains("geico")
-            || loc.contains("progressive")
-            || loc.contains("state farm")
-            || loc.contains("allstate")
-    }
-
-    // MARK: - Mutually exclusive bucket assignment (Entries)
-
-    private enum EntryBucket {
-        case supercharging, lease, insurance, misc
-    }
-
-    /// One entry → one bucket (prevents supercharging dollars from being counted as lease).
-    private func bucket(for e: ExpenseEntry) -> EntryBucket {
-        if isSuperchargingEntry(e) { return .supercharging }
-        if isLeaseOrCarPayment(e) { return .lease }
-        if isInsurance(e) { return .insurance }
-        return .misc
-    }
-
-    // MARK: - Spending model (This month)
-
-    private struct Spending {
-        let superchargingTeslaFi: Double
-        let superchargingEntries: Double
-        let lease: Double
-        let insurance: Double
-        let misc: Double
-
-        var superchargingTotal: Double { superchargingTeslaFi + superchargingEntries }
-        var totalBuckets: Double { superchargingTotal + lease + insurance + misc }
-        var hasPossibleOverlap: Bool { superchargingTeslaFi > 0 && superchargingEntries > 0 }
-    }
-
-    private var spending: Spending {
-        var scEntries: Double = 0
-        var lease: Double = 0
-        var ins: Double = 0
-        var misc: Double = 0
-
-        for e in entriesThisMonth {
-            switch bucket(for: e) {
-            case .supercharging: scEntries += e.amount
-            case .lease:         lease += e.amount
-            case .insurance:     ins += e.amount
-            case .misc:          misc += e.amount
+        return ZStack {
+            Circle()
+                .stroke(Color.secondary.opacity(0.15), lineWidth: 8)
+            Circle()
+                .trim(from: 0, to: progress)
+                .stroke(ringColor, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .animation(.easeOut(duration: 0.6), value: progress)
+            VStack(spacing: 0) {
+                Text(soc > 0 ? "\(Int(soc.rounded()))%" : "—")
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                Text(soc > 0 ? "LAST SOC" : "SOC")
+                    .font(.system(size: 8, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .tracking(0.4)
             }
         }
-
-        let scTeslaFi = teslaFiThisMonth
-            .filter(isSuperchargerTeslaFi)
-            .compactMap(\.cost)
-            .reduce(0, +)
-
-        return Spending(
-            superchargingTeslaFi: scTeslaFi,
-            superchargingEntries: scEntries,
-            lease: lease,
-            insurance: ins,
-            misc: misc
+        .frame(width: 80, height: 80)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            soc > 0
+                ? "\(Int(soc.rounded())) percent state of charge at last session"
+                : "No state of charge data"
         )
     }
 
-    // MARK: - Budgets
+    // MARK: - Alert banner
 
-    private var totalCategoryBudget: Double {
-        max(0, budgetSupercharging) + max(0, budgetLease) + max(0, budgetInsurance) + max(0, budgetMisc)
-    }
+    private var alertBannerCard: some View {
+        let summary = alertSummaryParts.joined(separator: " · ")
 
-    private var effectiveBudgetTotal: Double {
-        useCategoryBudgets ? totalCategoryBudget : max(0, monthlyBudgetLimit)
-    }
+        return NavigationLink(destination: DataQualityCenterView()) {
+            HStack(spacing: 12) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(Color.red)
 
-    private var effectiveSpentTotal: Double {
-        spending.totalBuckets
-    }
-
-    // MARK: - Cards
-
-    private var greetingCard: some View {
-        themedCard {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Text(timeOfDayGreeting)
-                        .font(.title2.weight(.semibold))
-                    Spacer()
-                    collapseButton(for: .greeting)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Action needed")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.red)
+                    Text(summary)
+                        .font(.caption)
+                        .foregroundStyle(Color.red.opacity(0.75))
+                        .lineLimit(2)
                 }
 
-                if !layout.isCollapsed(.greeting) {
-                    HStack {
-                        Label(monthTitle, systemImage: "calendar")
-                            .font(.headline)
-                        Spacer()
-                        pill("This month")
-                    }
+                Spacer()
 
-                    Text(formatCurrency(effectiveSpentTotal, currency: defaultCurrencyCode))
-                        .font(.title2.weight(.semibold))
-                        .monospacedDigit()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color.red.opacity(0.5))
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(alertBannerBackground)
+        }
+        .buttonStyle(.plain)
+    }
 
-                    Text("Based on your Dashboard buckets: Supercharging, Lease/Payment, Insurance, and Misc.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+    private var alertSummaryParts: [String] {
+        var parts: [String] = []
+        if cachedMissingCostTeslaFiCount > 0 {
+            let n = cachedMissingCostTeslaFiCount
+            parts.append("\(n) imported session\(n == 1 ? "" : "s") missing cost")
+        }
+        if cachedMissingCostEntryCount > 0 {
+            let n = cachedMissingCostEntryCount
+            parts.append("\(n) entr\(n == 1 ? "y" : "ies") missing cost")
+        }
+        if cachedDataQualityIssueCount > 0 {
+            let n = cachedDataQualityIssueCount
+            parts.append("\(n) data quality issue\(n == 1 ? "" : "s")")
+        }
+        return parts
+    }
 
-                    Text("Updated \(dateTime(Date()))")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+    private var alertBannerBackground: some View {
+        RoundedRectangle(cornerRadius: theme.corner, style: .continuous)
+            .fill(Color.red.opacity(scheme == .dark ? 0.10 : 0.06))
+            .overlay(
+                RoundedRectangle(cornerRadius: theme.corner, style: .continuous)
+                    .strokeBorder(Color.red.opacity(0.25), lineWidth: 0.5)
+            )
+    }
+
+    // MARK: - Month-over-month trends
+
+    /// Neutral (gray) energy delta vs the previous calendar month.
+    private var energyMoMTrend: TrendInfo? {
+        guard cachedPrevMonthEnergyKWh > 0, cachedMonthEnergyKWh > 0 else { return nil }
+        let delta = cachedMonthEnergyKWh - cachedPrevMonthEnergyKWh
+        let pct   = delta / cachedPrevMonthEnergyKWh * 100
+        guard abs(pct) >= 1 else {
+            return TrendInfo(text: "About the same as last month", color: .gray, icon: "equal")
+        }
+        let up = delta >= 0
+        return TrendInfo(
+            text:  "\(up ? "+" : "")\(formatNumber(pct, digits: 0))% vs last month",
+            color: .gray,
+            icon:  up ? "arrow.up.right" : "arrow.down.right"
+        )
+    }
+
+    /// Spend delta vs the previous month — up is bad (red), down is good (green).
+    /// Shown on the Total-spent tile only when no budget context is available.
+    private var spentMoMTrend: TrendInfo? {
+        guard cachedPrevMonthSpent > 0, effectiveSpentTotal > 0 else { return nil }
+        let delta = effectiveSpentTotal - cachedPrevMonthSpent
+        let pct   = delta / cachedPrevMonthSpent * 100
+        let up    = delta >= 0
+        return TrendInfo(
+            text:  "\(up ? "+" : "")\(formatNumber(pct, digits: 0))% vs last month",
+            color: up ? .red : .green,
+            icon:  up ? "arrow.up.right" : "arrow.down.right"
+        )
+    }
+
+    // MARK: - Month stat tiles
+
+    private var monthStatTiles: some View {
+        let budget    = effectiveBudgetTotal
+        let spent     = effectiveSpentTotal
+        let remaining = budget > 0 ? budget - spent : nil as Double?
+
+        return LazyVGrid(
+            columns: [
+                GridItem(.flexible(minimum: 130), spacing: 8),
+                GridItem(.flexible(minimum: 130), spacing: 8)
+            ],
+            spacing: 8
+        ) {
+            statTileLink(destination: expenseLogView) {
+                statTile(
+                    label: "Total spent",
+                    value: formatCurrency(spent, currency: defaultCurrencyCode),
+                    sub:   budget > 0
+                        ? "of \(formatCurrency(budget, currency: defaultCurrencyCode)) budget"
+                        : "No budget set",
+                    trend: remaining.map { r in
+                        r >= 0
+                            ? TrendInfo(
+                                text:  "\(formatCurrency(r, currency: defaultCurrencyCode)) left",
+                                color: .green,
+                                icon:  "checkmark.circle.fill")
+                            : TrendInfo(
+                                text:  "Over by \(formatCurrency(abs(r), currency: defaultCurrencyCode))",
+                                color: .red,
+                                icon:  "exclamationmark.circle.fill")
+                    } ?? spentMoMTrend
+                )
+            }
+
+            statTileLink(destination: HomeVsPublicSplitView()) {
+                statTile(
+                    label: "Supercharging",
+                    value: formatCurrency(cachedSpending.superchargingTotal, currency: defaultCurrencyCode),
+                    sub:   budgetSupercharging > 0
+                        ? "of \(formatCurrency(budgetSupercharging, currency: defaultCurrencyCode)) budget"
+                        : "\(cachedEntriesThisMonth.count) entries",
+                    trend: nil
+                )
+            }
+
+            statTileLink(destination: WeeklyChargingForecastView()) {
+                statTile(
+                    label: "Energy charged",
+                    value: cachedMonthEnergyKWh > 0
+                        ? "\(formatNumber(cachedMonthEnergyKWh, digits: 1)) kWh"
+                        : "—",
+                    sub: cachedAvgCostPerKWh
+                        .map { "avg \(formatCurrency($0, currency: defaultCurrencyCode))/kWh" }
+                        ?? "No cost data",
+                    trend: energyMoMTrend
+                )
+            }
+
+            statTileLink(
+                destination: ForecastDashboardView(months: min(max(cachedTrackedEnergyMonths, 3), 12))
+            ) {
+                statTile(
+                    label: "Tracked months",
+                    value: "\(cachedTrackedEnergyMonths)",
+                    sub: cachedTrackedEnergyMonths >= 3
+                        ? "Forecast ready"
+                        : "\(max(0, 3 - cachedTrackedEnergyMonths)) more to forecast",
+                    trend: cachedTrackedEnergyMonths >= 3
+                        ? TrendInfo(
+                            text:  "Forecast ready",
+                            color: .green,
+                            icon:  "chart.line.uptrend.xyaxis")
+                        : nil
+                )
+            }
+        }
+    }
+
+    /// Wraps a stat tile in a navigation link while keeping the tile's flat
+    /// appearance (no chevron, no button chrome).
+    private func statTileLink<Destination: View, Label: View>(
+        destination: Destination,
+        @ViewBuilder label: () -> Label
+    ) -> some View {
+        NavigationLink(destination: destination) {
+            label()
+        }
+        .buttonStyle(.plain)
+    }
+
+    private struct TrendInfo {
+        let text:  String
+        let color: Color
+        let icon:  String
+    }
+
+    private func statTile(
+        label: String,
+        value: String,
+        sub:   String,
+        trend: TrendInfo?
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Text(value)
+                .font(.title3.weight(.semibold))
+                .monospacedDigit()
+                .minimumScaleFactor(0.75)
+                .lineLimit(1)
+
+            Text(sub)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+
+            if let trend {
+                Label(trend.text, systemImage: trend.icon)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(trend.color)
+                    .lineLimit(1)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: theme.corner, style: .continuous)
+                .fill(cardSurface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: theme.corner, style: .continuous)
+                .strokeBorder(theme.separator.opacity(0.3), lineWidth: 0.5)
+        )
+    }
+
+    // MARK: - Quick-action grid
+
+    private var quickActionGrid: some View {
+        LazyVGrid(
+            columns: [
+                GridItem(.flexible(), spacing: 8),
+                GridItem(.flexible(), spacing: 8)
+            ],
+            spacing: 8
+        ) {
+            quickActionTile("Garage",   "car.2.fill",                tint: appearance.accentColor) { VehicleProfileListView() }
+            quickActionTile("Planner",  "clock.badge.checkmark",     tint: .teal)                  { ChargingSchedulePlannerView() }
+            quickActionTile("Import",   "square.and.arrow.down",     tint: .purple)                { ChargingImportHubView() }
+            quickActionTile("Forecast", "chart.line.uptrend.xyaxis", tint: .orange)                { WeeklyChargingForecastView() }
+        }
+    }
+
+    private func quickActionTile<Destination: View>(
+        _ title: String,
+        _ systemImage: String,
+        tint: Color,
+        @ViewBuilder destination: () -> Destination
+    ) -> some View {
+        NavigationLink(destination: destination()) {
+            HStack(spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(tint.opacity(scheme == .dark ? 0.18 : 0.10))
+                        .frame(width: 32, height: 32)
+                    Image(systemName: systemImage)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(tint)
+                }
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 11)
+            .background(
+                RoundedRectangle(cornerRadius: theme.corner, style: .continuous)
+                    .fill(cardSurface)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: theme.corner, style: .continuous)
+                    .strokeBorder(theme.separator.opacity(0.3), lineWidth: 0.5)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Opens \(title)")
+    }
+
+    // MARK: - Card dispatch
+
+    private struct DashboardCardSpec {
+        let view:    AnyView
+        let columns: Int
+    }
+
+    private func makeCardSpec<V: View>(_ view: V, columns: Int) -> DashboardCardSpec {
+        DashboardCardSpec(view: AnyView(view), columns: columns)
+    }
+
+    private func cardSpec(for kind: DashboardCardKind) -> DashboardCardSpec {
+        let wideIfRegular = horizontalSizeClass == .regular ? 2 : 1
+        switch kind {
+        case .greeting:          return makeCardSpec(EmptyView(),            columns: 1) // rendered separately
+        case .actionCenter:      return makeCardSpec(actionCenterCard,       columns: 1)
+        case .costOfCharging:    return makeCardSpec(costOfChargingCard,     columns: 1)
+        case .gasComparison:     return makeCardSpec(gasComparisonCard,      columns: 1)
+        case .insights:          return makeCardSpec(insightsCard,           columns: 1)
+        case .savingsScore:      return makeCardSpec(savingsScoreCard,       columns: 1)
+        case .weeklyForecast:    return makeCardSpec(weeklyForecastCard,     columns: 1)
+        case .gridEmissions:     return makeCardSpec(gridEmissionsCard,      columns: 1)
+        case .weeklyHealth:      return makeCardSpec(weeklyHealthCard,       columns: 1)
+        case .schedulePlanner:   return makeCardSpec(schedulePlannerCard,    columns: 1)
+        case .priceWatchlist:    return makeCardSpec(priceWatchlistCard,     columns: 1)
+        case .spendingBreakdown: return makeCardSpec(spendingBreakdownCard,  columns: 1)
+        case .budget:            return makeCardSpec(budgetCard,             columns: 1)
+        case .dataSources:       return makeCardSpec(dataSourcesCard,        columns: 1)
+        case .recentActivity:    return makeCardSpec(recentActivityCard,     columns: wideIfRegular)
+        }
+    }
+
+    // MARK: - DashboardDefaultCards wrappers
+
+    private var spendingBreakdownCard: some View {
+        DashboardSpendingBreakdownCard(
+            spending:    cachedSpending,
+            currencyCode: defaultCurrencyCode,
+            style:       dashboardCardStyle,
+            isCollapsed: layout.isCollapsed(.spendingBreakdown)
+        ) {
+            collapseButton(for: .spendingBreakdown)
+        }
+    }
+
+    private var budgetCard: some View {
+        DashboardBudgetCard(
+            spending:            cachedSpending,
+            currencyCode:        defaultCurrencyCode,
+            style:               dashboardCardStyle,
+            isCollapsed:         layout.isCollapsed(.budget),
+            useCategoryBudgets:  useCategoryBudgets,
+            totalBudget:         effectiveBudgetTotal,
+            superchargingBudget: budgetSupercharging,
+            leaseBudget:         budgetLease,
+            insuranceBudget:     budgetInsurance,
+            miscBudget:          budgetMisc,
+            projectedMonthlySpend: projectedMonthlySpend,
+            daysRemaining:       daysRemaining,
+            onEdit:              { showingBudgetEditor = true }
+        ) {
+            collapseButton(for: .budget)
+        }
+    }
+
+    private var dataSourcesCard: some View {
+        DashboardDataSourcesCard(
+            entryCount:               cachedEntriesThisMonth.count,
+            importedSessionCount:     cachedTeslaFiThisMonth.count,
+            missingImportedCostCount: cachedMissingCostTeslaFiCount,
+            missingEntryCostCount:    cachedMissingCostEntryCount,
+            style:                    dashboardCardStyle,
+            isCollapsed:              layout.isCollapsed(.dataSources)
+        ) {
+            collapseButton(for: .dataSources)
+        }
+    }
+
+    private var recentActivityCard: some View {
+        DashboardRecentActivityCard(
+            entries:          cachedEntriesThisMonth,
+            importedSessions: cachedTeslaFiThisMonth,
+            currencyCode:     defaultCurrencyCode,
+            style:            dashboardCardStyle,
+            isCollapsed:      layout.isCollapsed(.recentActivity)
+        ) {
+            collapseButton(for: .recentActivity)
+        }
+    }
+
+    // MARK: - Onboarding (first run)
+
+    private var onboardingCard: some View {
+        themedCard {
+            VStack(alignment: .leading, spacing: 14) {
+                Label("Welcome to My EV Companion", systemImage: "sparkles")
+                    .font(.headline)
+                Text("Set up your dashboard in a few quick steps — you'll start seeing costs, energy, and forecasts right away.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                actionLink(destination: VehicleProfileListView()) {
+                    actionRow(
+                        title:      "Add your vehicle",
+                        subtitle:   "Personalize range, SOC, and stats",
+                        systemImage: "car.2.fill"
+                    )
+                }
+                themedDivider(opacity: 0.16)
+                actionLink(destination: ChargingImportHubView()) {
+                    actionRow(
+                        title:      "Import charging history",
+                        subtitle:   "Bring in Tesla or CSV sessions",
+                        systemImage: "square.and.arrow.down"
+                    )
+                }
+                themedDivider(opacity: 0.16)
+                actionLink(destination: expenseLogView) {
+                    actionRow(
+                        title:      "Log your first session",
+                        subtitle:   "Track energy and cost by hand",
+                        systemImage: "plus.circle"
+                    )
                 }
             }
         }
+    }
+
+    // MARK: - Action Center
+
+    private enum ActionItem: Identifiable {
+        case fillMissingCosts(Int)
+        case reviewEntries(Int)
+        case dataQuality(Int)
+        case importHistory
+        case logFirst
+        case savingsScore
+        case forecast(Int)
+        case planCharging
+        case watchlist
+        case homeVsPublic
+        case tripCost
+        case annualCost
+        case adjustBudget(String)
+
+        var id: String {
+            switch self {
+            case .fillMissingCosts(let n): return "fillMissing-\(n)"
+            case .reviewEntries(let n):    return "reviewEntries-\(n)"
+            case .dataQuality(let n):      return "dataQuality-\(n)"
+            case .importHistory:           return "importHistory"
+            case .logFirst:                return "logFirst"
+            case .savingsScore:            return "savingsScore"
+            case .forecast(let m):         return "forecast-\(m)"
+            case .planCharging:            return "planCharging"
+            case .watchlist:               return "watchlist"
+            case .homeVsPublic:            return "homeVsPublic"
+            case .tripCost:                return "tripCost"
+            case .annualCost:              return "annualCost"
+            case .adjustBudget(let s):     return "adjustBudget-\(s)"
+            }
+        }
+    }
+
+    private func buildActionItems() -> [ActionItem] {
+        var items: [ActionItem] = []
+
+        if cachedMissingCostTeslaFiCount > 0 {
+            items.append(.fillMissingCosts(cachedMissingCostTeslaFiCount))
+        }
+        if cachedMissingCostEntryCount > 0 {
+            items.append(.reviewEntries(cachedMissingCostEntryCount))
+        }
+        if cachedDataQualityIssueCount > 0 {
+            items.append(.dataQuality(cachedDataQualityIssueCount))
+        }
+        if entriesStore.energyEntries().isEmpty && cachedTeslaFiThisMonth.isEmpty {
+            items.append(.importHistory)
+        }
+        if cachedEntriesThisMonth.isEmpty {
+            items.append(.logFirst)
+        }
+        if cachedTrackedEnergyMonths >= 3 {
+            items.append(.forecast(min(max(cachedTrackedEnergyMonths, 3), 12)))
+        }
+        if cachedTrackedEnergyMonths > 0 {
+            items.append(.savingsScore)
+        }
+        items.append(contentsOf: [.planCharging, .watchlist, .homeVsPublic, .tripCost, .annualCost])
+        if effectiveBudgetTotal > 0 && effectiveSpentTotal > effectiveBudgetTotal {
+            let overBy = formatCurrency(effectiveSpentTotal - effectiveBudgetTotal, currency: defaultCurrencyCode)
+            items.append(.adjustBudget(overBy))
+        }
+        return items
     }
 
     private var actionCenterCard: some View {
         themedCard {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Label("Action Center", systemImage: "sparkles")
-                        .font(.headline)
+                    Label("Action Center", systemImage: "sparkles").font(.headline)
                     Spacer()
                     pill("This month")
                     collapseButton(for: .actionCenter)
                 }
 
                 if !layout.isCollapsed(.actionCenter) {
-                    if actionItems.isEmpty {
-                        Text("You’re all caught up. Great job keeping data clean.")
-                            .font(.footnote)
+                    if cachedActionItems.isEmpty {
+                        Label("All caught up — great data hygiene.", systemImage: "checkmark.seal.fill")
+                            .font(.subheadline)
                             .foregroundStyle(.secondary)
                     } else {
-                        let items = showAllActions ? actionItems : Array(actionItems.prefix(4))
-                        ForEach(items.indices, id: \.self) { idx in
-                            items[idx]
-                            if idx < items.count - 1 {
-                                themedDivider(opacity: 0.18)
-                            }
-                        }
-
-                        if actionItems.count > items.count {
-                            themedDivider(opacity: 0.18)
-                            Button(showAllActions ? "Show fewer actions" : "Show more actions") {
-                                withAnimation(.easeInOut(duration: 0.2)) {
-                                    showAllActions.toggle()
-                                }
-                            }
-                            .font(.footnote.weight(.semibold))
-                            .buttonStyle(.plain)
-                        }
+                        actionCenterItemList
                     }
                 }
             }
         }
     }
 
-    private var actionItems: [AnyView] {
-        var items: [AnyView] = []
+    private var actionCenterItemList: some View {
+        let displayed = showAllActions
+            ? cachedActionItems
+            : Array(cachedActionItems.prefix(4))
 
-        let dq = DataQualityAnalyzer.summarize(
-            entries: entriesStore.energyEntries(),
-            sessions: teslaFiUnlock.hasTeslaFiUnlock ? teslaFiStore.sessions : []
-        )
-        let dqCount = dq.costSpikes.count + dq.idleFeeRisk.count + dq.outliers.count + dq.duplicates.count
-
-        if !teslaFiUnlock.hasTeslaFiUnlock {
-            items.append(AnyView(
-                TeslaFiUnlockCard(
-                    title: "Unlock TeslaFi Import",
-                    subtitle: "Enable TeslaFi CSV import and analytics for $0.99."
-                )
-            ))
-        } else if teslaFiStore.sessionCount == 0 {
-            items.append(AnyView(
-                NavigationLink {
-                    TeslaFiCSVImportView()
-                        .navigationTitle("Import TeslaFi")
-                        .navigationBarTitleDisplayMode(.inline)
-                } label: {
-                    actionRow(
-                        title: "Import TeslaFi CSV",
-                        subtitle: "Unlock session analytics and pricing trends",
-                        systemImage: "square.and.arrow.down"
-                    )
+        return VStack(alignment: .leading, spacing: 0) {
+            ForEach(displayed) { item in
+                actionItemView(item)
+                if item.id != displayed.last?.id {
+                    themedDivider(opacity: 0.16)
                 }
-                .buttonStyle(.plain)
-            ))
-        }
+            }
 
-        if missingCostTeslaFiCount > 0 {
-            items.append(AnyView(
-                NavigationLink {
-                    MissingCostAssistantView()
-                } label: {
-                    actionRow(
-                        title: "Fill missing TeslaFi costs",
-                        subtitle: "\(missingCostTeslaFiCount) session(s) missing cost",
-                        systemImage: "dollarsign.circle"
-                    )
+            if cachedActionItems.count > 4 {
+                themedDivider(opacity: 0.16)
+                Button(showAllActions
+                       ? "Show fewer"
+                       : "Show \(cachedActionItems.count - 4) more") {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showAllActions.toggle()
+                    }
                 }
+                .font(.subheadline.weight(.semibold))
                 .buttonStyle(.plain)
-            ))
+                .padding(.top, 6)
+            }
         }
+    }
 
-        if missingCostEntryCount > 0 {
-            items.append(AnyView(
-                NavigationLink {
-                    ExpenseLogView()
-                        .navigationTitle("Expense Log")
-                        .navigationBarTitleDisplayMode(.inline)
-                } label: {
-                    actionRow(
-                        title: "Review entries with no cost",
-                        subtitle: "\(missingCostEntryCount) entry(ies) have kWh but no cost",
-                        systemImage: "exclamationmark.triangle"
-                    )
-                }
-                .buttonStyle(.plain)
-            ))
-        }
-
-        if dqCount > 0 {
-            items.append(AnyView(
-                NavigationLink {
-                    DataQualityCenterView()
-                } label: {
-                    actionRow(
-                        title: "Review data quality",
-                        subtitle: "\(dqCount) potential issues found",
-                        systemImage: "shield.lefthalf.filled"
-                    )
-                }
-                .buttonStyle(.plain)
-            ))
-        }
-
-        if entriesThisMonth.isEmpty {
-            items.append(AnyView(
-                NavigationLink {
-                    ExpenseLogView()
-                        .navigationTitle("Expense Log")
-                        .navigationBarTitleDisplayMode(.inline)
-                } label: {
-                    actionRow(
-                        title: "Log your first expense",
-                        subtitle: "Start tracking charging and costs",
-                        systemImage: "plus.circle"
-                    )
-                }
-                .buttonStyle(.plain)
-            ))
-        }
-
-        if !entriesStore.energyEntries().isEmpty {
-            items.append(AnyView(
-                NavigationLink {
-                    SavingsScoreView()
-                } label: {
-                    actionRow(
-                        title: "Review your Savings Score",
-                        subtitle: "See habits that drive cost down",
-                        systemImage: "gauge.high"
-                    )
-                }
-                .buttonStyle(.plain)
-            ))
-        }
-
-        items.append(AnyView(
-            NavigationLink {
-                ChargingSchedulePlannerView()
-            } label: {
+    @ViewBuilder
+    private func actionItemView(_ item: ActionItem) -> some View {
+        switch item {
+        case .fillMissingCosts(let n):
+            actionLink(destination: MissingCostAssistantView()) {
                 actionRow(
-                    title: "Plan your charging window",
-                    subtitle: "Set off‑peak hours and rates",
+                    title:      "Fill missing session costs",
+                    subtitle:   "\(n) session\(n == 1 ? "" : "s") need a cost",
+                    systemImage: "dollarsign.circle"
+                )
+            }
+
+        case .reviewEntries(let n):
+            actionLink(destination: expenseLogView) {
+                actionRow(
+                    title:      "Review entries with no cost",
+                    subtitle:   "\(n) entr\(n == 1 ? "y" : "ies") have kWh but no cost",
+                    systemImage: "exclamationmark.triangle"
+                )
+            }
+
+        case .dataQuality(let n):
+            actionLink(destination: DataQualityCenterView()) {
+                actionRow(
+                    title:      "Review data quality",
+                    subtitle:   "\(n) potential issue\(n == 1 ? "" : "s") found",
+                    systemImage: "shield.lefthalf.filled"
+                )
+            }
+
+        case .importHistory:
+            actionLink(destination: CSVChargingWizardView()) {
+                actionRow(
+                    title:      "Import charging history",
+                    subtitle:   "Bring in Tesla CSV sessions to start",
+                    systemImage: "square.and.arrow.down"
+                )
+            }
+
+        case .logFirst:
+            actionLink(destination: expenseLogView) {
+                actionRow(
+                    title:      "Log your first expense",
+                    subtitle:   "Start tracking charging and costs",
+                    systemImage: "plus.circle"
+                )
+            }
+
+        case .savingsScore:
+            actionLink(destination: SavingsScoreView()) {
+                actionRow(
+                    title:      "Review your Savings Score",
+                    subtitle:   "See habits that drive cost down",
+                    systemImage: "gauge.high"
+                )
+            }
+
+        case .forecast(let months):
+            actionLink(destination: ForecastDashboardView(months: months)) {
+                actionRow(
+                    title:      "Open forecast dashboard",
+                    subtitle:   "\(months)-month trend window ready",
+                    systemImage: "chart.line.uptrend.xyaxis"
+                )
+            }
+
+        case .planCharging:
+            actionLink(destination: ChargingSchedulePlannerView()) {
+                actionRow(
+                    title:      "Plan your charging window",
+                    subtitle:   "Set off-peak hours and rates",
                     systemImage: "clock.badge.checkmark"
                 )
             }
-            .buttonStyle(.plain)
-        ))
 
-        items.append(AnyView(
-            NavigationLink {
-                PriceWatchlistView()
-            } label: {
+        case .watchlist:
+            actionLink(destination: PriceWatchlistView()) {
                 actionRow(
-                    title: "Manage price watchlist",
-                    subtitle: "Track favorite chargers manually",
+                    title:      "Manage price watchlist",
+                    subtitle:   "Track favourite chargers manually",
                     systemImage: "tag"
                 )
             }
-            .buttonStyle(.plain)
-        ))
 
-        items.append(AnyView(
-            NavigationLink {
-                HomeVsPublicSplitView()
-            } label: {
+        case .homeVsPublic:
+            actionLink(destination: HomeVsPublicSplitView()) {
                 actionRow(
-                    title: "Home vs public split",
-                    subtitle: "See where charging costs come from",
+                    title:      "Home vs public split",
+                    subtitle:   "See where charging costs come from",
                     systemImage: "chart.bar"
                 )
             }
-            .buttonStyle(.plain)
-        ))
 
-        items.append(AnyView(
-            NavigationLink {
-                TripCostEstimatorView()
-            } label: {
+        case .tripCost:
+            actionLink(destination: TripCostEstimatorView()) {
                 actionRow(
-                    title: "Estimate trip cost",
-                    subtitle: "Distance × efficiency × rate",
+                    title:      "Estimate trip cost",
+                    subtitle:   "Distance × efficiency × rate",
                     systemImage: "map"
                 )
             }
-            .buttonStyle(.plain)
-        ))
 
-        items.append(AnyView(
-            NavigationLink {
-                AnnualCostSimulatorView()
-            } label: {
+        case .annualCost:
+            actionLink(destination: AnnualCostSimulatorView()) {
                 actionRow(
-                    title: "Project annual cost",
-                    subtitle: "Use weekly averages to forecast",
+                    title:      "Project annual cost",
+                    subtitle:   "Use weekly averages to forecast",
                     systemImage: "calendar"
                 )
             }
+
+        case .adjustBudget(let overBy):
+            Button { showingBudgetEditor = true } label: {
+                actionRow(
+                    title:      "Adjust your budget",
+                    subtitle:   "You're over by \(overBy)",
+                    systemImage: "target"
+                )
+            }
             .buttonStyle(.plain)
-        ))
-
-        if effectiveBudgetTotal > 0, effectiveSpentTotal > effectiveBudgetTotal {
-            items.append(AnyView(
-                Button {
-                    showingBudgetEditor = true
-                } label: {
-                    actionRow(
-                        title: "Adjust your budget",
-                        subtitle: "You’re over by \(formatCurrency(effectiveSpentTotal - effectiveBudgetTotal, currency: defaultCurrencyCode))",
-                        systemImage: "target"
-                    )
-                }
-                .buttonStyle(.plain)
-            ))
         }
+    }
 
-        return items
+    /// Convenience wrapper so each action case stays one statement.
+    private func actionLink<D: View, L: View>(
+        destination: D,
+        @ViewBuilder label: () -> L
+    ) -> some View {
+        NavigationLink(destination: destination, label: label)
+            .buttonStyle(.plain)
+    }
+
+    /// Reusable destination so ExpenseLogView isn't duplicated twice.
+    private var expenseLogView: some View {
+        ExpenseLogView()
+            .navigationTitle("Expense Log")
+            .navigationBarTitleDisplayMode(.inline)
+    }
+
+    // MARK: - Content cards
+
+    /// Weekly + monthly charging cost at a glance, with a week-over-week delta
+    /// and a link to the full weekly rollup.
+    private var costOfChargingCard: some View {
+        let weekly = WeeklyCostRollup.compute(
+            entries:  entriesStore.energyEntries(),
+            sessions: teslaFiStore.sessions
+        )
+        let wowDelta = weekly.thisWeekCost - weekly.lastWeekCost
+        return themedCard {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Label("Cost of Charging", systemImage: "creditcard.circle").font(.headline)
+                    Spacer()
+                    collapseButton(for: .costOfCharging)
+                }
+
+                if !layout.isCollapsed(.costOfCharging) {
+                    twoStatRow(
+                        title1: "This week",
+                        value1: formatCurrency(weekly.thisWeekCost, currency: defaultCurrencyCode),
+                        title2: "This month",
+                        value2: formatCurrency(cachedMonthEnergyCost, currency: defaultCurrencyCode)
+                    )
+                    twoStatRow(
+                        title1: "Week energy",
+                        value1: "\(formatNumber(weekly.thisWeekKWh, digits: 1)) kWh",
+                        title2: "Month energy",
+                        value2: cachedMonthEnergyKWh > 0
+                            ? "\(formatNumber(cachedMonthEnergyKWh, digits: 1)) kWh"
+                            : "—"
+                    )
+
+                    if weekly.lastWeekCost > 0 {
+                        let up = wowDelta >= 0
+                        Label(
+                            "\(up ? "+" : "")\(formatCurrency(wowDelta, currency: defaultCurrencyCode)) vs last week",
+                            systemImage: up ? "arrow.up.right" : "arrow.down.right"
+                        )
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(up ? .red : .green)
+                    }
+
+                    actionLink(destination: WeeklyCostRollupView()) {
+                        actionRow(
+                            title:      "Weekly cost rollup",
+                            subtitle:   "Week-over-week trend and alerts",
+                            systemImage: "arrow.right.circle"
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /// Compares a gallon of gasoline (as energy) against the user's average
+    /// charging $/kWh. Uses the gas price shared with the Gas → kWh converter.
+    private var gasComparisonCard: some View {
+        let kWhPerGallon = 33.7
+        let gasPerKWh: Double? = persistedGasPrice > 0 ? persistedGasPrice / kWhPerGallon : nil
+        let evPerKWh = cachedAvgCostPerKWh
+        return themedCard {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Label("Gas vs Electric", systemImage: "fuelpump").font(.headline)
+                    Spacer()
+                    collapseButton(for: .gasComparison)
+                }
+
+                if !layout.isCollapsed(.gasComparison) {
+                    if let gasPerKWh {
+                        twoStatRow(
+                            title1: "Gas energy",
+                            value1: "\(formatCurrency(gasPerKWh, currency: defaultCurrencyCode))/kWh",
+                            title2: "Your EV avg",
+                            value2: evPerKWh.map { "\(formatCurrency($0, currency: defaultCurrencyCode))/kWh" } ?? "—"
+                        )
+                        Text("Based on \(formatCurrency(persistedGasPrice, currency: defaultCurrencyCode))/gal ÷ \(formatNumber(kWhPerGallon, digits: 1)) kWh.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+
+                        if let evPerKWh, evPerKWh > 0, gasPerKWh > 0 {
+                            let diff  = gasPerKWh - evPerKWh
+                            let pct   = abs(diff / evPerKWh * 100)
+                            let evCheaper = diff > 0
+                            Label(
+                                evCheaper
+                                    ? "Charging is \(formatNumber(pct, digits: 0))% cheaper than gas energy"
+                                    : "Charging is \(formatNumber(pct, digits: 0))% pricier than gas energy",
+                                systemImage: evCheaper ? "checkmark.circle.fill" : "exclamationmark.circle.fill"
+                            )
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(evCheaper ? .green : .orange)
+                        }
+                    } else {
+                        Text("Add a gas price to compare a gallon of gas against your charging cost per kWh.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    actionLink(destination: DashboardGasToKWhConverterHost()) {
+                        actionRow(
+                            title:      persistedGasPrice > 0 ? "Open Gas → kWh converter" : "Set your gas price",
+                            subtitle:   "Compare a gallon of gas to your $/kWh",
+                            systemImage: "arrow.right.circle"
+                        )
+                    }
+                }
+            }
+        }
     }
 
     private var insightsCard: some View {
         themedCard {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Label("Quick Insights", systemImage: "bolt.circle")
-                        .font(.headline)
+                    Label("Quick Insights", systemImage: "bolt.circle").font(.headline)
                     Spacer()
                     pill("This month")
                     collapseButton(for: .insights)
                 }
 
                 if !layout.isCollapsed(.insights) {
-                    statsGrid([
-                        ("Energy", monthEnergyKWh > 0 ? "\(formatNumber(monthEnergyKWh, digits: 1)) kWh" : "—"),
-                        ("Avg $/kWh", avgCostPerKWh.map { formatCurrency($0, currency: defaultCurrencyCode) } ?? "—")
-                    ])
-
-                    statsGrid([
-                        ("Entries", "\(entriesThisMonth.count)"),
-                        ("TeslaFi", "\(teslaFiThisMonth.count)")
-                    ])
-
-                    if missingCostTeslaFiCount > 0 || missingCostEntryCount > 0 {
+                    HStack(spacing: 10) {
+                        spotlightStat(
+                            title:  "Energy",
+                            value:  cachedMonthEnergyKWh > 0
+                                ? "\(formatNumber(cachedMonthEnergyKWh, digits: 1)) kWh"
+                                : "—",
+                            symbol: "bolt.fill"
+                        )
+                        spotlightStat(
+                            title:  "Avg $/kWh",
+                            value:  cachedAvgCostPerKWh
+                                .map { formatCurrency($0, currency: defaultCurrencyCode) } ?? "—",
+                            symbol: "dollarsign.circle.fill"
+                        )
+                    }
+                    HStack(spacing: 10) {
+                        spotlightStat(title: "Entries",  value: "\(cachedEntriesThisMonth.count)",  symbol: "doc.text.fill")
+                        spotlightStat(title: "Imported", value: "\(cachedTeslaFiThisMonth.count)",  symbol: "waveform.path.ecg")
+                    }
+                    if let tripWindow = cachedTripInsights.selectedWindow {
                         themedDivider(opacity: 0.20)
-                        Text("Missing cost: TeslaFi \(missingCostTeslaFiCount) • Entries \(missingCostEntryCount)")
+                        HStack(spacing: 10) {
+                            spotlightStat(title: "Trips",         value: "\(tripWindow.tripCount) recent", symbol: "road.lanes")
+                            spotlightStat(
+                                title:  "Avg trip cost",
+                                value:  tripWindow.averageKnownCost
+                                    .map { formatCurrency($0, currency: defaultCurrencyCode) } ?? "—",
+                                symbol: "car.rear.and.tire.marks"
+                            )
+                        }
+                        Text(cachedTripInsights.trendDescription)
                             .font(.footnote)
                             .foregroundStyle(.secondary)
+                        actionLink(destination: TripInsightsView(
+                            sessions:     cachedTeslaFiThisMonth,
+                            currencyCode: defaultCurrencyCode
+                        )) {
+                            actionRow(
+                                title:      "Open Trip Insights",
+                                subtitle:   "Rollups, trends, and price extremes",
+                                systemImage: "arrow.right.circle"
+                            )
+                        }
                     }
                 }
             }
@@ -853,8 +1473,7 @@ struct DashboardView: View {
         return themedCard {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Label("Savings Score", systemImage: "gauge.high")
-                        .font(.headline)
+                    Label("Savings Score", systemImage: "gauge.high").font(.headline)
                     Spacer()
                     Text("\(score.totalScore)")
                         .font(.title2.weight(.bold))
@@ -864,26 +1483,19 @@ struct DashboardView: View {
 
                 if !layout.isCollapsed(.savingsScore) {
                     Text(score.summary)
-                        .font(.footnote)
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
-
                     if let hint = score.habitNotes.first {
                         themedDivider(opacity: 0.20)
-                        Text(hint)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        Text(hint).font(.footnote).foregroundStyle(.secondary)
                     }
-
-                    NavigationLink {
-                        SavingsScoreView()
-                    } label: {
+                    actionLink(destination: SavingsScoreView()) {
                         actionRow(
-                            title: "View full breakdown",
-                            subtitle: "See habits and score components",
+                            title:      "View full breakdown",
+                            subtitle:   "See habits and score components",
                             systemImage: "arrow.right.circle"
                         )
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }
@@ -894,38 +1506,44 @@ struct DashboardView: View {
         return themedCard {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Label("Weekly Forecast", systemImage: "chart.line.uptrend.xyaxis")
-                        .font(.headline)
+                    Label("Weekly Forecast", systemImage: "chart.line.uptrend.xyaxis").font(.headline)
                     Spacer()
                     pill("Next week")
                     collapseButton(for: .weeklyForecast)
                 }
 
                 if !layout.isCollapsed(.weeklyForecast) {
-                    statsGrid([
-                        ("Projected cost", formatCurrency(summary.forecastCost, currency: summary.currencyCode)),
-                        ("Projected kWh", "\(formatNumber(summary.forecastKWh, digits: 1)) kWh")
-                    ])
-
+                    twoStatRow(
+                        title1: "Projected cost",
+                        value1: formatCurrency(summary.forecastCost, currency: summary.currencyCode),
+                        title2: "Projected kWh",
+                        value2: "\(formatNumber(summary.forecastKWh, digits: 1)) kWh"
+                    )
                     if let confidence = summary.confidenceText {
-                        Text(confidence)
+                        Text(confidence).font(.subheadline).foregroundStyle(.secondary)
+                    }
+                    if let model = summary.modelSummary {
+                        Text(model).font(.footnote).foregroundStyle(.secondary)
+                    }
+                    if let reinforcement = summary.reinforcementSummary {
+                        Label(reinforcement, systemImage: "scope")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
-
-                    NavigationLink {
-                        WeeklyChargingForecastView()
-                    } label: {
+                    actionLink(destination: WeeklyChargingForecastView()) {
                         actionRow(
-                            title: "Open forecast",
-                            subtitle: "4‑week rolling projection",
+                            title:      "Open forecast",
+                            subtitle:   "4-week neural projection",
                             systemImage: "arrow.right.circle"
                         )
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }
+    }
+
+    private var gridEmissionsCard: some View {
+        themedCard { GridEmissionDashboardTile() }
     }
 
     private var weeklyHealthCard: some View {
@@ -933,8 +1551,7 @@ struct DashboardView: View {
         return themedCard {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Label("Weekly Health Report", systemImage: "doc.text.magnifyingglass")
-                        .font(.headline)
+                    Label("Weekly Health", systemImage: "doc.text.magnifyingglass").font(.headline)
                     Spacer()
                     pill("Last 7 days")
                     collapseButton(for: .weeklyHealth)
@@ -942,51 +1559,47 @@ struct DashboardView: View {
 
                 if !layout.isCollapsed(.weeklyHealth) {
                     if report.totalSessions == 0 {
-                        Text("No charging sessions logged in the last week.")
-                            .font(.footnote)
+                        Text("No sessions logged in the last week.")
+                            .font(.subheadline)
                             .foregroundStyle(.secondary)
                     } else {
-                        statsGrid([
-                            ("Sessions", "\(report.totalSessions)"),
-                            ("Cost", formatCurrency(report.totalCost, currency: report.currencyCode))
-                        ])
-
-                        statsGrid([
-                            ("Energy", "\(formatNumber(report.totalKWh, digits: 1)) kWh"),
-                            ("Avg $/kWh", report.avgCostPerKWh.map { formatCurrency($0, currency: report.currencyCode) } ?? "—")
-                        ])
-
+                        twoStatRow(
+                            title1: "Sessions",
+                            value1: "\(report.totalSessions)",
+                            title2: "Cost",
+                            value2: formatCurrency(report.totalCost, currency: report.currencyCode)
+                        )
+                        twoStatRow(
+                            title1: "Energy",
+                            value1: "\(formatNumber(report.totalKWh, digits: 1)) kWh",
+                            title2: "Avg $/kWh",
+                            value2: report.avgCostPerKWh
+                                .map { formatCurrency($0, currency: report.currencyCode) } ?? "—"
+                        )
                         if let note = report.highlight {
                             themedDivider(opacity: 0.20)
-                            Text(note)
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
+                            Text(note).font(.footnote).foregroundStyle(.secondary)
                         }
                     }
-
-                    NavigationLink {
-                        WeeklyHealthReportView()
-                    } label: {
+                    actionLink(destination: WeeklyHealthReportView()) {
                         actionRow(
-                            title: "Open report",
-                            subtitle: "Best and worst sessions",
+                            title:      "Open report",
+                            subtitle:   "Best and worst sessions",
                             systemImage: "arrow.right.circle"
                         )
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }
     }
 
     private var schedulePlannerCard: some View {
-        let window = SchedulePlannerSummary.windowText()
+        let window   = SchedulePlannerSummary.windowText()
         let estimate = SchedulePlannerSummary.estimate(from: entriesStore.energyEntries())
         return themedCard {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Label("Smart Charging Planner", systemImage: "clock.badge.checkmark")
-                        .font(.headline)
+                    Label("Smart Charging Planner", systemImage: "clock.badge.checkmark").font(.headline)
                     Spacer()
                     collapseButton(for: .schedulePlanner)
                 }
@@ -995,23 +1608,16 @@ struct DashboardView: View {
                     Text("Recommended window: \(window)")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-
                     if let note = estimate {
-                        Text(note)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                        Text(note).font(.footnote).foregroundStyle(.secondary)
                     }
-
-                    NavigationLink {
-                        ChargingSchedulePlannerView()
-                    } label: {
+                    actionLink(destination: ChargingSchedulePlannerView()) {
                         actionRow(
-                            title: "Open planner",
-                            subtitle: "Tune rates and schedule",
+                            title:      "Open planner",
+                            subtitle:   "Tune rates and schedule",
                             systemImage: "arrow.right.circle"
                         )
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }
@@ -1021,8 +1627,7 @@ struct DashboardView: View {
         themedCard {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Label("Price Watchlist", systemImage: "tag")
-                        .font(.headline)
+                    Label("Price Watchlist", systemImage: "tag").font(.headline)
                     Spacer()
                     Text("\(watchlistStore.items.count)")
                         .font(.subheadline.weight(.semibold))
@@ -1032,7 +1637,7 @@ struct DashboardView: View {
 
                 if !layout.isCollapsed(.priceWatchlist) {
                     if watchlistStore.items.isEmpty {
-                        Text("Add your favorite chargers and track price changes manually.")
+                        Text("Add your favourite chargers and track price changes.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     } else {
@@ -1047,433 +1652,101 @@ struct DashboardView: View {
                                         .font(.footnote.weight(.semibold))
                                         .monospacedDigit()
                                 } else {
-                                    Text("—")
-                                        .foregroundStyle(.secondary)
+                                    Text("—").foregroundStyle(.secondary)
                                 }
                             }
                         }
                     }
-
-                    NavigationLink {
-                        PriceWatchlistView()
-                    } label: {
+                    actionLink(destination: PriceWatchlistView()) {
                         actionRow(
-                            title: "Manage watchlist",
-                            subtitle: "Add and update price entries",
+                            title:      "Manage watchlist",
+                            subtitle:   "Add and update price entries",
                             systemImage: "arrow.right.circle"
                         )
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }
     }
 
-    private var spendingBreakdownCard: some View {
-        themedCard {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Label("Spending Breakdown", systemImage: "chart.bar.xaxis")
-                        .font(.headline)
-                    Spacer()
-                    pill("This month")
-                    collapseButton(for: .spendingBreakdown)
-                }
+    // MARK: - Vehicle image helpers
 
-                if !layout.isCollapsed(.spendingBreakdown) {
-                    spendRow("Supercharging", spending.superchargingTotal)
-
-                    if spending.superchargingTeslaFi > 0 || spending.superchargingEntries > 0 {
-                        Text([
-                            spending.superchargingTeslaFi > 0 ? "TeslaFi: \(formatCurrency(spending.superchargingTeslaFi, currency: defaultCurrencyCode))" : nil,
-                            spending.superchargingEntries > 0 ? "Entries: \(formatCurrency(spending.superchargingEntries, currency: defaultCurrencyCode))" : nil
-                        ].compactMap { $0 }.joined(separator: " • "))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                        if spending.hasPossibleOverlap {
-                            Text("Note: If you logged the same sessions in Entries and imported TeslaFi, totals may overlap.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    themedDivider(opacity: 0.25)
-
-                    spendRow("Lease / Car Payment", spending.lease)
-                    spendRow("Insurance", spending.insurance)
-                    spendRow("Misc", spending.misc)
-
-                    themedDivider(opacity: 0.25)
-
-                    HStack {
-                        Text("Total:")
-                            .font(.subheadline.weight(.semibold))
-                        Spacer()
-                        Text(formatCurrency(spending.totalBuckets, currency: defaultCurrencyCode))
-                            .font(.subheadline.weight(.semibold))
-                            .monospacedDigit()
-                    }
-                }
-            }
-        }
-    }
-
-    private var weeklyEVVsGasCard: some View {
-        themedCard {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Label("Weekly EV vs Gas", systemImage: "fuelpump.and.filter")
-                        .font(.headline)
-                    Spacer()
-                    pill("Weekly")
-                }
-
-                Text("Compare weekly operating cost using gas price, miles, MPG, and your EV kWh usage + rate.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-
-                NavigationLink {
-                    WeeklyEVVsGasCostView()
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "arrow.right.circle.fill")
-                            .font(.title3)
-                        Text("Open comparison")
-                            .font(.subheadline.weight(.semibold))
-                        Spacer()
-                    }
-                    .padding(.top, 2)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Open Weekly EV vs Gas comparison")
-            }
-        }
-    }
-
-    private var adBannerCard: some View {
-        AdBannerCard(adsStore: adsStore)
-    }
-
-
-    private var budgetCard: some View {
-        let spent = effectiveSpentTotal
-        let budget = effectiveBudgetTotal
-
-        return themedCard {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Label("Budget", systemImage: useCategoryBudgets ? "target" : "banknote")
-                        .font(.headline)
-                    Spacer()
-                    Button("Edit") { showingBudgetEditor = true }
-                        .font(.footnote.weight(.semibold))
-                    collapseButton(for: .budget)
-                }
-
-                if !layout.isCollapsed(.budget) {
-                    if budget <= 0 {
-                        Text(useCategoryBudgets
-                             ? "Set per-category budgets to track Supercharging, Lease/Payment, Insurance, and Misc."
-                             : "Set an overall monthly budget to track progress."
-                        )
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-
-                        Button {
-                            showingBudgetEditor = true
-                        } label: {
-                            Label("Set budgets", systemImage: "slider.horizontal.3")
-                                .font(.footnote.weight(.semibold))
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 8)
-                                .background(Capsule().fill(theme.pillTint))
-                        }
-                        .buttonStyle(.plain)
-
-                    } else {
-                        budgetBarRow(
-                            title: useCategoryBudgets ? "Total (categories)" : "Monthly total",
-                            spent: spent,
-                            budget: budget
-                        )
-
-                        if let projected = projectedMonthlySpend, projected > 0 {
-                            Text("Projected: \(formatCurrency(projected, currency: defaultCurrencyCode)) at current pace")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
-
-                        if budget > 0, daysRemaining > 0 {
-                            let remaining = budget - spent
-                            let neededPerDay = remaining / Double(daysRemaining)
-                            Text(
-                                remaining >= 0
-                                ? "To stay on budget: \(formatCurrency(neededPerDay, currency: defaultCurrencyCode)) /day"
-                                : "Over by \(formatCurrency(abs(remaining), currency: defaultCurrencyCode)) so far"
-                            )
-                            .font(.footnote)
-                            .foregroundColor(remaining >= 0 ? .secondary : .red)
-                        }
-
-                        if useCategoryBudgets {
-                            themedDivider(opacity: 0.22)
-
-                            categoryBudgetRow(title: "Supercharging", spent: spending.superchargingTotal, budget: budgetSupercharging)
-                            categoryBudgetRow(title: "Lease / Payment", spent: spending.lease, budget: budgetLease)
-                            categoryBudgetRow(title: "Insurance", spent: spending.insurance, budget: budgetInsurance)
-                            categoryBudgetRow(title: "Misc", spent: spending.misc, budget: budgetMisc)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private var dataSourcesCard: some View {
-        themedCard {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Label("Data Sources", systemImage: "tray.full")
-                        .font(.headline)
-                    Spacer()
-                    collapseButton(for: .dataSources)
-                }
-
-                if !layout.isCollapsed(.dataSources) {
-                    HStack {
-                        Text("Entries (this month)")
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Text("\(entriesThisMonth.count)")
-                            .font(.subheadline.weight(.semibold))
-                            .monospacedDigit()
-                    }
-
-                    HStack {
-                        Text("TeslaFi sessions (this month)")
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Text("\(teslaFiThisMonth.count)")
-                            .font(.subheadline.weight(.semibold))
-                            .monospacedDigit()
-                    }
-                }
-            }
-        }
-    }
-
-    private var recentActivityCard: some View {
-        themedCard {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Label("Recent Activity", systemImage: "clock.arrow.circlepath")
-                        .font(.headline)
-                    Spacer()
-                    collapseButton(for: .recentActivity)
-                }
-
-                if !layout.isCollapsed(.recentActivity) {
-                    if entriesThisMonth.isEmpty && teslaFiThisMonth.isEmpty {
-                        Text("No activity this month yet.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        if !entriesThisMonth.isEmpty {
-                            Text("Latest entries")
-                                .font(.subheadline.weight(.semibold))
-
-                            ForEach(entriesThisMonth.prefix(3)) { e in
-                                activityRow(
-                                    title: e.location ?? e.charging?.siteName ?? e.category,
-                                    subtitle: dateTime(e.date),
-                                    trailing: formatCurrency(e.amount, currency: e.currencyCode ?? defaultCurrencyCode),
-                                    badge: badgeForEntry(e)
-                                )
-                                themedDivider(opacity: 0.16)
-                            }
-                        }
-
-                        if !teslaFiThisMonth.isEmpty {
-                            if !entriesThisMonth.isEmpty {
-                                themedDivider(opacity: 0.28)
-                                    .padding(.vertical, 4)
-                            }
-
-                            Text("Latest TeslaFi sessions")
-                                .font(.subheadline.weight(.semibold))
-
-                            ForEach(teslaFiThisMonth.prefix(3), id: \.sessionHash) { s in
-                                let costText = s.cost.map { formatCurrency($0, currency: defaultCurrencyCode) } ?? "—"
-                                activityRow(
-                                    title: s.displayLocation,
-                                    subtitle: "\(dateTime(s.startDate)) • \(String(format: "%.1f", s.energyAddedKWh)) kWh",
-                                    trailing: costText,
-                                    badge: isSuperchargerTeslaFi(s) ? "Fast charge" : "TeslaFi"
-                                )
-                                themedDivider(opacity: 0.16)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // MARK: - Budget row helpers
-
-    private func budgetBarRow(title: String, spent: Double, budget: Double) -> some View {
-        let progress = min(max(spent / max(budget, 0.01), 0), 1)
-        let remaining = budget - spent
-
-        return VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(title).foregroundStyle(.secondary)
-                Spacer()
-                Text("\(formatCurrency(spent, currency: defaultCurrencyCode)) / \(formatCurrency(budget, currency: defaultCurrencyCode))")
-                    .font(.subheadline.weight(.semibold))
-                    .monospacedDigit()
-            }
-            .font(.subheadline)
-
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(theme.pillTint.opacity(0.55)).frame(height: 10)
-                    Capsule().fill(appearance.accentColor.opacity(0.92))
-                        .frame(width: geo.size.width * progress, height: 10)
-                }
-            }
-            .frame(height: 10)
-
-            Text(remaining >= 0
-                 ? "Remaining: \(formatCurrency(remaining, currency: defaultCurrencyCode))"
-                 : "Over budget: \(formatCurrency(abs(remaining), currency: defaultCurrencyCode))"
-            )
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-        }
-    }
-
-    private func categoryBudgetRow(title: String, spent: Double, budget: Double) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(title).font(.subheadline.weight(.semibold))
-                Spacer()
-                Text(formatCurrency(spent, currency: defaultCurrencyCode))
-                    .font(.subheadline.weight(.semibold))
-                    .monospacedDigit()
-            }
-
-            if budget > 0 {
-                let progress = min(max(spent / max(budget, 0.01), 0), 1)
-                let remaining = budget - spent
-
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(theme.pillTint.opacity(0.55)).frame(height: 8)
-                        Capsule().fill(appearance.accentColor.opacity(0.92))
-                            .frame(width: geo.size.width * progress, height: 8)
-                    }
-                }
-                .frame(height: 8)
-
-                Text(remaining >= 0
-                     ? "Budget \(formatCurrency(budget, currency: defaultCurrencyCode)) • Remaining \(formatCurrency(remaining, currency: defaultCurrencyCode))"
-                     : "Budget \(formatCurrency(budget, currency: defaultCurrencyCode)) • Over \(formatCurrency(abs(remaining), currency: defaultCurrencyCode))"
+    @ViewBuilder
+    private func teslaVehicleImage(selectedVehicle: VehicleProfile?) -> some View {
+        if let assetName = selectedVehicle.flatMap(teslaAssetName) {
+            Image(assetName)
+                .resizable()
+                .scaledToFit()
+                .shadow(
+                    color:  Color.black.opacity(scheme == .dark ? 0.55 : 0.18),
+                    radius: 20,
+                    y:      12
                 )
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            } else {
-                Text("No budget set for this category.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+                .accessibilityLabel(selectedVehicle?.displayName ?? "Vehicle")
+        } else {
+            Image(systemName: "car.side.fill")
+                .font(.system(size: 84, weight: .light))
+                .foregroundStyle(Color.primary.opacity(0.55))
+                .accessibilityLabel("Vehicle")
         }
     }
 
-    // MARK: - Activity helpers
-
-    private func badgeForEntry(_ e: ExpenseEntry) -> String? {
-        if isSuperchargingEntry(e) { return "Supercharging" }
-        if isLeaseOrCarPayment(e) { return "Payment" }
-        if isInsurance(e) { return "Insurance" }
-        return nil
+    private func teslaAssetName(for vehicle: VehicleProfile) -> String? {
+        guard vehicle.detectedBrand == .tesla else { return nil }
+        let raw = [vehicle.model, vehicle.name, vehicle.trim ?? ""]
+            .joined(separator: " ")
+            .lowercased()
+        if raw.contains("roadster")                              { return "roadster" }
+        if raw.contains("cyber")                                 { return "cybertruck" }
+        if raw.contains("model 3") || raw.contains("model3")    { return "model 3" }
+        if raw.contains("model y") || raw.contains("modely")    { return "model y" }
+        if raw.contains("model x") || raw.contains("modelx")    { return "model x" }
+        if raw.contains("model s") || raw.contains("models")    { return "model s" }
+        return "model 3"
     }
 
-    private func activityRow(title: String, subtitle: String, trailing: String, badge: String?) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Circle()
-                .fill(appearance.accentColor.opacity(0.85))
-                .frame(width: 10, height: 10)
-                .padding(.top, 6)
-
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 8) {
-                    Text(title)
-                        .font(.subheadline.weight(.semibold))
-                        .lineLimit(1)
-
-                    if let badge {
-                        Text(badge)
-                            .font(.caption2.weight(.semibold))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Capsule().fill(theme.pillTint.opacity(0.85)))
-                    }
-                }
-
-                Text(subtitle)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-            }
-
-            Spacer()
-
-            Text(trailing)
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.primary)
-                .monospacedDigit()
-        }
-        .padding(.vertical, 6)
-        .contentShape(Rectangle())
+    private func estimatedAvailableRangeMiles(vehicle: VehicleProfile?, soc: Double) -> Int? {
+        guard let vehicle else { return nil }
+        let fullRange = vehicle.estimatedRangeMiles ?? vehicle.maxRangeMiles
+        guard let fullRange, fullRange > 0 else { return nil }
+        return Int((fullRange * max(0, min(100, soc)) / 100).rounded())
     }
 
-    // MARK: - Dashboard summaries (lightweight)
+    // MARK: - Schedule Planner Summary
 
     private struct SchedulePlannerSummary {
         static func windowText() -> String {
             let start = UserDefaults.standard.integer(forKey: "planner.offPeakStart")
-            let end = UserDefaults.standard.integer(forKey: "planner.offPeakEnd")
+            let end   = UserDefaults.standard.integer(forKey: "planner.offPeakEnd")
             return "\(hourLabel(start)) → \(hourLabel(end))"
         }
 
         static func estimate(from entries: [ExpenseEntry]) -> String? {
             let offPeakRate = UserDefaults.standard.double(forKey: "planner.offPeakRate")
-            let peakRate = UserDefaults.standard.double(forKey: "planner.peakRate")
+            let peakRate    = UserDefaults.standard.double(forKey: "planner.peakRate")
             guard offPeakRate > 0, peakRate > 0 else { return nil }
 
-            let recent = entries.sorted { $0.date > $1.date }.prefix(12)
-            let kwh = recent.compactMap { $0.energyAddedKWh }.filter { $0 > 0 }
-            let avg = kwh.isEmpty ? nil : kwh.reduce(0, +) / Double(kwh.count)
-            guard let avg else { return nil }
+            let recentKWh = entries
+                .sorted { $0.date > $1.date }
+                .prefix(12)
+                .compactMap { $0.energyAddedKWh }
+                .filter { $0 > 0 }
+            guard !recentKWh.isEmpty else { return nil }
 
-            let off = avg * offPeakRate
-            let peak = avg * peakRate
-            let savings = max(0, peak - off)
+            let avgKWh   = recentKWh.reduce(0, +) / Double(recentKWh.count)
+            let savings  = max(0, avgKWh * peakRate - avgKWh * offPeakRate)
             let currency = Locale.current.currency?.identifier ?? "USD"
-            return "Estimated savings per session: \(savings.formatted(.currency(code: currency)))"
+            return "Est. savings per session: \(savings.formatted(.currency(code: currency)))"
         }
 
         private static func hourLabel(_ hour: Int) -> String {
-            let h = (hour % 24 + 24) % 24
-            let suffix = h < 12 ? "AM" : "PM"
-            let hour12 = h % 12 == 0 ? 12 : h % 12
-            return "\(hour12)\(suffix)"
+            let h   = (hour % 24 + 24) % 24
+            let h12 = h % 12 == 0 ? 12 : h % 12
+            return "\(h12)\(h < 12 ? "AM" : "PM")"
         }
     }
 
-    // MARK: - Theme primitives
+    // MARK: - Primitive view helpers
 
     private func themedCard<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
         content()
@@ -1490,58 +1763,43 @@ struct DashboardView: View {
 
     private func pill(_ text: String) -> some View {
         Text(text)
-            .font(.caption.weight(.semibold))
+            .font(.footnote.weight(.semibold))
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
             .background(Capsule().fill(theme.pillTint.opacity(0.85)))
     }
 
-    private func spendRow(_ title: String, _ amount: Double) -> some View {
-        HStack {
-            Text(title).foregroundStyle(.secondary)
-            Spacer()
-            Text(formatCurrency(amount, currency: defaultCurrencyCode))
-                .font(.subheadline.weight(.semibold))
-                .monospacedDigit()
-        }
-        .font(.subheadline)
-    }
-
     private func statBlock(title: String, value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Text(value)
-                .font(.subheadline.weight(.semibold))
-                .monospacedDigit()
+            Text(title).font(.footnote).foregroundStyle(.secondary)
+            Text(value).font(.subheadline.weight(.semibold)).monospacedDigit()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func statsGrid(_ items: [(String, String)]) -> some View {
-        let columns = Array(
-            repeating: GridItem(.flexible(), spacing: 10, alignment: .leading),
-            count: isAccessibilitySize ? 1 : 2
-        )
-
-        return LazyVGrid(columns: columns, spacing: 10) {
-            ForEach(Array(items.enumerated()), id: \.offset) { _, item in
-                statBlock(title: item.0, value: item.1)
-            }
+    private func twoStatRow(
+        title1: String, value1: String,
+        title2: String, value2: String
+    ) -> some View {
+        HStack(spacing: 10) {
+            statBlock(title: title1, value: value1)
+            statBlock(title: title2, value: value2)
         }
     }
 
-    private func actionRow(title: String, subtitle: String, systemImage: String) -> some View {
+    private func actionRow(
+        title: String,
+        subtitle: String,
+        systemImage: String
+    ) -> some View {
         HStack(spacing: 12) {
             ZStack {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(theme.pillTint.opacity(scheme == .dark ? 0.22 : 0.16))
+                    .fill(appearance.accentColor.opacity(scheme == .dark ? 0.18 : 0.12))
                     .overlay(
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .strokeBorder(theme.separator.opacity(scheme == .dark ? 0.78 : 0.55), lineWidth: 1)
+                            .strokeBorder(theme.separator.opacity(0.5), lineWidth: 0.5)
                     )
-
                 Image(systemName: systemImage)
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(appearance.accentColor)
@@ -1549,86 +1807,166 @@ struct DashboardView: View {
             .frame(width: 36, height: 36)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                Text(subtitle)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+                Text(title).font(.subheadline.weight(.semibold))
+                Text(subtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
             }
 
             Spacer()
 
             Image(systemName: "chevron.right")
-                .font(.caption.weight(.semibold))
+                .font(.footnote.weight(.semibold))
                 .foregroundStyle(.secondary)
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
     }
 
-    // MARK: - Formatting
+    private func spotlightStat(title: String, value: String, symbol: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Image(systemName: symbol)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(appearance.accentColor)
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.title3.weight(.bold))
+                .minimumScaleFactor(0.8)
+                .monospacedDigit()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(theme.pillTint.opacity(scheme == .dark ? 0.18 : 0.52))
+        )
+    }
+
+    // MARK: - Formatting helpers
 
     private func formatCurrency(_ amount: Double, currency: String) -> String {
-        let nf = NumberFormatter()
-        nf.numberStyle = .currency
-        nf.currencyCode = currency
-        nf.maximumFractionDigits = 2
+        let nf = currencyFormatter()
+        // If a one-off currency is requested, create a temporary formatter.
+        if nf.currencyCode != currency {
+            let temp = Self.makeCurrencyFormatter(currency)
+            return temp.string(from: NSNumber(value: amount)) ?? String(format: "%.2f", amount)
+        }
         return nf.string(from: NSNumber(value: amount)) ?? String(format: "%.2f", amount)
     }
 
     private func formatNumber(_ value: Double, digits: Int) -> String {
-        let nf = NumberFormatter()
-        nf.numberStyle = .decimal
+        let nf = Self.decimalFormatter
         nf.maximumFractionDigits = digits
-        nf.minimumFractionDigits = 0
         return nf.string(from: NSNumber(value: value)) ?? "\(value)"
     }
 
-    private func dateTime(_ d: Date) -> String {
-        Self.df.string(from: d)
-    }
+    // MARK: - Budget sheet
 
-    private static let df: DateFormatter = {
-        let f = DateFormatter()
-        f.dateStyle = .short
-        f.timeStyle = .short
-        return f
-    }()
+    private var budgetSheet: some View {
+        BudgetSettingsSheet(
+            currencyCode:       defaultCurrencyCode,
+            useCategoryBudgets: $useCategoryBudgets,
+            overallBudget:      $monthlyBudgetLimit,
+            budgetSupercharging: $budgetSupercharging,
+            budgetLease:         $budgetLease,
+            budgetInsurance:     $budgetInsurance,
+            budgetMisc:          $budgetMisc,
+            spentSupercharging:  cachedSpending.superchargingTotal,
+            spentLease:          cachedSpending.lease,
+            spentInsurance:      cachedSpending.insurance,
+            spentMisc:           cachedSpending.misc
+        )
+    }
 }
 
-// MARK: - Budget Settings Sheet (clear labels + explanations)
+// MARK: - DashboardBackground
+
+private struct DashboardBackground: View {
+    let screenBackground: AnyShapeStyle
+    let accent:           Color
+    let themeAccent:      Color
+    let showGradients:    Bool
+    let scheme:           ColorScheme
+
+    var body: some View {
+        ZStack {
+            Rectangle()
+                .fill(screenBackground)
+                .ignoresSafeArea()
+
+            if showGradients {
+                RadialGradient(
+                    colors:      [accent.opacity(scheme == .dark ? 0.14 : 0.08), .clear],
+                    center:      .topLeading,
+                    startRadius: 0,
+                    endRadius:   520
+                )
+                .blur(radius: 28)
+                .ignoresSafeArea()
+
+                RadialGradient(
+                    colors:      [themeAccent.opacity(scheme == .dark ? 0.08 : 0.05), .clear],
+                    center:      .bottomTrailing,
+                    startRadius: 0,
+                    endRadius:   600
+                )
+                .blur(radius: 34)
+                .ignoresSafeArea()
+            }
+        }
+    }
+}
+
+// MARK: - BudgetSettingsSheet
 
 @MainActor
 private struct BudgetSettingsSheet: View {
     let currencyCode: String
 
     @Binding var useCategoryBudgets: Bool
-    @Binding var overallBudget: Double
-
+    @Binding var overallBudget:      Double
     @Binding var budgetSupercharging: Double
-    @Binding var budgetLease: Double
-    @Binding var budgetInsurance: Double
-    @Binding var budgetMisc: Double
+    @Binding var budgetLease:        Double
+    @Binding var budgetInsurance:    Double
+    @Binding var budgetMisc:         Double
 
     let spentSupercharging: Double
-    let spentLease: Double
-    let spentInsurance: Double
-    let spentMisc: Double
+    let spentLease:         Double
+    let spentInsurance:     Double
+    let spentMisc:          Double
 
     @Environment(\.dismiss) private var dismiss
 
-    @State private var draftUseCategories: Bool = false
-    @State private var draftOverall: Double = 0
+    // Draft values – committed only when the user taps Save.
+    @State private var draftUseCategories = false
+    @State private var draftOverall:       Double = 0
+    @State private var draftSC:            Double = 0
+    @State private var draftLease:         Double = 0
+    @State private var draftIns:           Double = 0
+    @State private var draftMisc:          Double = 0
 
-    @State private var draftSC: Double = 0
-    @State private var draftLease: Double = 0
-    @State private var draftIns: Double = 0
-    @State private var draftMisc: Double = 0
-
-    private var totalCats: Double {
+    private var totalCategoryDraft: Double {
         max(0, draftSC) + max(0, draftLease) + max(0, draftIns) + max(0, draftMisc)
     }
+
+    // Static cached formatter – rebuilt only when currency changes.
+    private static var _lastCurrency = ""
+    private static var _formatter    = NumberFormatter()
+
+    private func fmt(_ amount: Double) -> String {
+        if Self._lastCurrency != currencyCode {
+            Self._lastCurrency = currencyCode
+            let nf = NumberFormatter()
+            nf.numberStyle = .currency
+            nf.currencyCode = currencyCode
+            nf.maximumFractionDigits = 2
+            Self._formatter = nf
+        }
+        return Self._formatter.string(from: NSNumber(value: amount))
+            ?? String(format: "%.2f", amount)
+    }
+
+    // MARK: Budget category model
 
     private enum BudgetCat {
         case supercharging, lease, insurance, misc
@@ -1636,117 +1974,48 @@ private struct BudgetSettingsSheet: View {
         var title: String {
             switch self {
             case .supercharging: return "Supercharging"
-            case .lease: return "Lease / Car Payment"
-            case .insurance: return "Insurance"
-            case .misc: return "Misc"
+            case .lease:         return "Lease / Car Payment"
+            case .insurance:     return "Insurance"
+            case .misc:          return "Misc"
             }
         }
 
         var systemImage: String {
             switch self {
             case .supercharging: return "bolt.car"
-            case .lease: return "creditcard"
-            case .insurance: return "shield"
-            case .misc: return "square.grid.2x2"
+            case .lease:         return "creditcard"
+            case .insurance:     return "shield"
+            case .misc:          return "square.grid.2x2"
             }
         }
 
         var help: String {
             switch self {
             case .supercharging:
-                return "Fast charging sessions. Uses TeslaFi session cost when available, plus any Entries tagged as supercharging/DCFC."
+                return "Fast charging sessions. Uses imported-session cost when available, plus Entries tagged as supercharging/DCFC."
             case .lease:
-                return "Entries whose category/notes mention lease, car payment, auto loan, financing, or lender keywords."
+                return "Entries whose category or notes mention lease, car payment, auto loan, financing, or lender."
             case .insurance:
-                return "Entries whose category/notes mention insurance (and common insurer names)."
+                return "Entries whose category or notes mention insurance (and common insurer names)."
             case .misc:
-                return "Everything else this month that isn’t classified above."
+                return "Everything else this month not classified above."
             }
         }
     }
 
+    // MARK: body
+
     var body: some View {
         NavigationStack {
             Form {
-
-                Section(
-                    header: Text("Mode"),
-                    footer: Text("Per-category budgets match the Dashboard buckets so you always know what you’re editing.")
-                ) {
-                    Toggle("Use per-category budgets", isOn: $draftUseCategories)
-                }
-
+                modeSection
                 if draftUseCategories {
-
-                    Section(
-                        header: Text("Total Budget (optional)"),
-                        footer: Text("Used only for quick allocation (Split evenly). Your actual limits come from the category budgets below.")
-                    ) {
-                        LabeledContent("Total budget") {
-                            TextField("0", value: $draftOverall, format: .currency(code: currencyCode))
-                                .multilineTextAlignment(.trailing)
-                                .keyboardType(.decimalPad)
-                        }
-
-                        Button("Split total budget evenly across categories") {
-                            let total = max(0, draftOverall)
-                            let each = total / 4.0
-                            draftSC = each
-                            draftLease = each
-                            draftIns = each
-                            draftMisc = each
-                        }
-                        .disabled(draftOverall <= 0)
-                    }
-
-                    Section(
-                        header: Text("Category Budgets"),
-                        footer: Text("Each row shows what the category includes and what you’ve spent this month.")
-                    ) {
-                        categoryRow(.supercharging, budget: $draftSC, spent: spentSupercharging)
-                        categoryRow(.lease, budget: $draftLease, spent: spentLease)
-                        categoryRow(.insurance, budget: $draftIns, spent: spentInsurance)
-                        categoryRow(.misc, budget: $draftMisc, spent: spentMisc)
-
-                        LabeledContent("Total (categories)") {
-                            Text(formattedCurrency(totalCats))
-                                .font(.subheadline.weight(.semibold))
-                        }
-                    }
-
-                    Section {
-                        Button(role: .destructive) {
-                            draftSC = 0; draftLease = 0; draftIns = 0; draftMisc = 0
-                        } label: {
-                            Text("Clear category budgets")
-                        }
-                    }
-
+                    totalBudgetSection
+                    categoryBudgetsSection
+                    clearCategoriesSection
                 } else {
-
-                    Section(
-                        header: Text("Overall Monthly Budget"),
-                        footer: Text("Used when per-category budgets are disabled.")
-                    ) {
-                        LabeledContent("Monthly budget") {
-                            TextField("0", value: $draftOverall, format: .currency(code: currencyCode))
-                                .multilineTextAlignment(.trailing)
-                                .keyboardType(.decimalPad)
-                        }
-
-                        LabeledContent("Spent this month (Dashboard buckets)") {
-                            Text(formattedCurrency(spentSupercharging + spentLease + spentInsurance + spentMisc))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    Section {
-                        Button(role: .destructive) {
-                            draftOverall = 0
-                        } label: {
-                            Text("Clear overall budget")
-                        }
-                    }
+                    overallBudgetSection
+                    clearOverallSection
                 }
             }
             .navigationTitle("Budgets")
@@ -1756,72 +2025,151 @@ private struct BudgetSettingsSheet: View {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        useCategoryBudgets = draftUseCategories
-                        overallBudget = max(0, draftOverall)
-
-                        budgetSupercharging = max(0, draftSC)
-                        budgetLease = max(0, draftLease)
-                        budgetInsurance = max(0, draftIns)
-                        budgetMisc = max(0, draftMisc)
-
-                        dismiss()
-                    }
+                    Button("Save", action: save)
                 }
             }
-            .onAppear {
-                draftUseCategories = useCategoryBudgets
-                draftOverall = overallBudget
+            .onAppear(perform: loadDrafts)
+        }
+    }
 
-                draftSC = budgetSupercharging
-                draftLease = budgetLease
-                draftIns = budgetInsurance
-                draftMisc = budgetMisc
+    // MARK: Form sections
+
+    private var modeSection: some View {
+        Section(
+            header: Text("Mode"),
+            footer: Text("Per-category budgets match the Dashboard spending buckets.")
+        ) {
+            Toggle("Use per-category budgets", isOn: $draftUseCategories)
+        }
+    }
+
+    private var totalBudgetSection: some View {
+        Section(
+            header: Text("Total budget (optional)"),
+            footer: Text("Used only for Split evenly. Your actual limits come from the category budgets below.")
+        ) {
+            LabeledContent("Total budget") {
+                TextField("0", value: $draftOverall, format: .currency(code: currencyCode))
+                    .multilineTextAlignment(.trailing)
+                    .keyboardType(.decimalPad)
+            }
+            Button("Split evenly across categories") {
+                let each = max(0, draftOverall) / 4.0
+                draftSC = each
+                draftLease = each
+                draftIns = each
+                draftMisc = each
+            }
+            .disabled(draftOverall <= 0)
+        }
+    }
+
+    private var categoryBudgetsSection: some View {
+        Section(
+            header: Text("Category budgets"),
+            footer: Text("Each row shows this month's spend against your target.")
+        ) {
+            categoryRow(.supercharging, budget: $draftSC,    spent: spentSupercharging)
+            categoryRow(.lease,         budget: $draftLease, spent: spentLease)
+            categoryRow(.insurance,     budget: $draftIns,   spent: spentInsurance)
+            categoryRow(.misc,          budget: $draftMisc,  spent: spentMisc)
+            LabeledContent("Total (categories)") {
+                Text(fmt(totalCategoryDraft))
+                    .font(.subheadline.weight(.semibold))
             }
         }
     }
 
+    private var clearCategoriesSection: some View {
+        Section {
+            Button(role: .destructive) {
+                draftSC = 0
+                draftLease = 0
+                draftIns = 0
+                draftMisc = 0
+            } label: {
+                Text("Clear category budgets")
+            }
+        }
+    }
+
+    private var overallBudgetSection: some View {
+        Section(
+            header: Text("Overall monthly budget"),
+            footer: Text("Used when per-category budgets are disabled.")
+        ) {
+            LabeledContent("Monthly budget") {
+                TextField("0", value: $draftOverall, format: .currency(code: currencyCode))
+                    .multilineTextAlignment(.trailing)
+                    .keyboardType(.decimalPad)
+            }
+            LabeledContent("Spent this month") {
+                Text(fmt(spentSupercharging + spentLease + spentInsurance + spentMisc))
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var clearOverallSection: some View {
+        Section {
+            Button(role: .destructive) {
+                draftOverall = 0
+            } label: {
+                Text("Clear overall budget")
+            }
+        }
+    }
+
+    // MARK: Actions
+
+    private func save() {
+        useCategoryBudgets  = draftUseCategories
+        overallBudget       = max(0, draftOverall)
+        budgetSupercharging = max(0, draftSC)
+        budgetLease         = max(0, draftLease)
+        budgetInsurance     = max(0, draftIns)
+        budgetMisc          = max(0, draftMisc)
+        dismiss()
+    }
+
+    private func loadDrafts() {
+        draftUseCategories = useCategoryBudgets
+        draftOverall       = overallBudget
+        draftSC            = budgetSupercharging
+        draftLease         = budgetLease
+        draftIns           = budgetInsurance
+        draftMisc          = budgetMisc
+    }
+
+    // MARK: Category row
+
     @ViewBuilder
-    private func categoryRow(_ cat: BudgetCat, budget: Binding<Double>, spent: Double) -> some View {
+    private func categoryRow(
+        _ cat: BudgetCat,
+        budget: Binding<Double>,
+        spent: Double
+    ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
-                Label(cat.title, systemImage: cat.systemImage)
-                    .font(.headline)
-
+                Label(cat.title, systemImage: cat.systemImage).font(.headline)
                 Spacer()
-
                 TextField("0", value: budget, format: .currency(code: currencyCode))
                     .multilineTextAlignment(.trailing)
                     .keyboardType(.decimalPad)
                     .frame(minWidth: 120)
             }
-
             Text(cat.help)
-                .font(.caption)
+                .font(.footnote)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-
             HStack {
-                Text("Spent this month")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Text("Spent this month").font(.footnote).foregroundStyle(.secondary)
                 Spacer()
-                Text(formattedCurrency(spent))
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                Text(fmt(spent)).font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
             }
-
             Stepper("Adjust \(cat.title)", value: budget, in: 0...100_000, step: 25)
-                .font(.footnote)
+                .font(.subheadline)
         }
         .padding(.vertical, 6)
-    }
-
-    private func formattedCurrency(_ amount: Double) -> String {
-        let nf = NumberFormatter()
-        nf.numberStyle = .currency
-        nf.currencyCode = currencyCode
-        nf.maximumFractionDigits = 2
-        return nf.string(from: NSNumber(value: amount)) ?? String(format: "%.2f", amount)
     }
 }

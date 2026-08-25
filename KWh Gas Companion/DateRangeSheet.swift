@@ -2,9 +2,7 @@
 //  DateRangeSheet.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 7/23/25.
 //
-
 
 // DateRangeSheet.swift
 // MyKwH Companion – 2025-07-23

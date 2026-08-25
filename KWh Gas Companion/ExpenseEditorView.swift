@@ -2,9 +2,7 @@
 //  ExpenseEditorView.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 8/14/25.
 //
-
 
 import SwiftUI
 

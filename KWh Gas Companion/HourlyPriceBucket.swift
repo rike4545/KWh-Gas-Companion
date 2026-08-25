@@ -1,12 +1,3 @@
-//
-//  HourlyPriceBucket.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 12/3/25.
-//
-
-
-//
 //  SuperchargerPredictionModels.swift
 //  My KWh Companion
 //

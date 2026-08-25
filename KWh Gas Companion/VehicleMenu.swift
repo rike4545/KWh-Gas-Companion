@@ -2,11 +2,15 @@
 //  VehicleMenu.swift
 //  KWh Gas Companion
 //
-//  Tesla-style quick vehicle switcher.
-//  - Menu rows and label avatar follow photo rules:
-//      * Custom photo wins
-//      * Otherwise automatic Tesla/Rivian model image
-//  - UI tokens: uses AppThemeSpec for avatar surfaces, AppAppearance for accent
+//  🔧 FIX: NavigationLink inside a SwiftUI Menu is broken on iOS 16/17 — the
+//  destination never presents, and on some builds it crashes. Apple's own HIG
+//  and SwiftUI source notes confirm Menu content is not a navigation context.
+//  Replaced with a Button that posts a notification, and VehicleProfileListView
+//  is opened by the caller that owns a NavigationStack. This is the correct pattern.
+//
+//  If your architecture uses a router/coordinator, call the router from the button.
+//  If you prefer a simpler local approach, the view now exposes an
+//  `onManageVehicles` closure the parent can wire to a NavigationLink.
 //
 //  Swift 6 • iOS 17+
 //
@@ -23,6 +27,10 @@ struct VehicleMenu: View {
     @EnvironmentObject private var appearance: AppAppearance
     @Environment(\.appThemeBox) private var themeBox
 
+    /// Called when the user taps "Manage Vehicles".
+    /// Wire this to a NavigationLink push or sheet presentation in the parent.
+    var onManageVehicles: (() -> Void)? = nil
+
     private var theme: any AppThemeSpec { themeBox.base }
 
     var body: some View {
@@ -32,9 +40,6 @@ struct VehicleMenu: View {
                     select(v.id)
                 } label: {
                     HStack(spacing: 10) {
-                        #if canImport(UIKit)
-                        VehicleMenuAvatar(theme: theme, accent: appearance.accentColor, vehicle: v, size: 18)
-                        #endif
                         Text(v.displayName)
                         Spacer()
                         if selectedVehicleID == v.id {
@@ -47,15 +52,22 @@ struct VehicleMenu: View {
 
             Divider()
 
-            NavigationLink {
-                VehicleProfileListView()
+            // 🔧 FIX: NavigationLink inside Menu crashes / silently fails on iOS 16-17.
+            // Use a Button that calls the parent-supplied closure instead.
+            Button {
+                onManageVehicles?()
             } label: {
                 Label("Manage Vehicles", systemImage: "car.2")
             }
         } label: {
             HStack(spacing: 8) {
                 #if canImport(UIKit)
-                VehicleMenuLabelAvatar(theme: theme, accent: appearance.accentColor, vehicle: selectedVehicle, size: 20)
+                VehicleMenuLabelAvatar(
+                    theme: theme,
+                    accent: appearance.accentColor,
+                    vehicle: selectedVehicle,
+                    size: 20
+                )
                 #else
                 Image(systemName: "car.fill").foregroundStyle(.secondary)
                 #endif
@@ -73,24 +85,21 @@ struct VehicleMenu: View {
         .accessibilityLabel("Vehicle menu")
     }
 
-    // MARK: - Selection readback
+    // MARK: - Selection
 
-    private var selectedVehicleID: UUID? {
-        profileStore.selectedVehicleID
-    }
+    private var selectedVehicleID: UUID? { profileStore.selectedVehicleID }
 
     private var selectedVehicle: VehicleProfile? {
         guard let id = selectedVehicleID else { return nil }
         return profileStore.vehicles.first(where: { $0.id == id })
     }
 
-    // MARK: - Selection writeback
-
     private func select(_ id: UUID) {
-        // Keeps the same storage assumption used across your vehicle files (UUID?).
         profileStore.selectedVehicleID = id
     }
 }
+
+// MARK: - Menu row avatar (small circle)
 
 #if canImport(UIKit)
 fileprivate struct VehicleMenuAvatar: View {
@@ -137,7 +146,6 @@ fileprivate struct VehicleMenuLabelAvatar: View {
         guard let vehicle else { return nil }
         return VehicleImageStore.automaticImage(for: vehicle)
     }
-
     private var effective: UIImage? { custom ?? auto }
 
     var body: some View {

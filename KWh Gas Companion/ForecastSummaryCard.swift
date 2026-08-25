@@ -1,15 +1,24 @@
 // ForecastSummaryCard.swift
 // KWh Gas Companion
 //
-// Standalone forecast card. Internal helper views are namespaced (FS*) to avoid
-// collisions with similarly named types elsewhere in the project.
+// 🔧 FIX 1: `.accent` ShapeStyle is unavailable before iOS 17 and may not
+//    resolve in all project configurations. Replaced with `.accentColor`
+//    (available from iOS 13) throughout.
+//
+// 🔧 FIX 2: `refresh()` used `defer { isRefreshing = false }` inside an
+//    async function. While `defer` is safe for synchronous cleanup, in an
+//    async context a Task cancellation does NOT prevent defer from running —
+//    but it does mean `isRefreshing` could be set to false before the
+//    awaited work actually finishes if the task is cancelled mid-await.
+//    Restructured to explicit try/finally pattern using withTaskCancellationHandler
+//    so the spinner always clears on both completion and cancellation.
 
 import SwiftUI
 
 // MARK: - Model
 
 struct ForecastSummary: Hashable {
-    var periodLabel: String              // e.g., "August 2025", "This Month"
+    var periodLabel: String
     var kWh: Double
     var costUSD: Double? = nil
     var sessions: Int? = nil
@@ -22,17 +31,14 @@ struct ForecastSummary: Hashable {
 // MARK: - View
 
 struct ForecastSummaryCard: View {
-    // Content
     let title: String
     let systemImage: String
     let summary: ForecastSummary
     var subtitle: String? = nil
 
-    // Actions
     var onTap: (() -> Void)? = nil
     var onRefresh: (() async -> Void)? = nil
 
-    // UI
     @State private var isRefreshing: Bool = false
 
     var body: some View {
@@ -71,7 +77,8 @@ struct ForecastSummaryCard: View {
             Image(systemName: systemImage)
                 .font(.title3)
                 .imageScale(.medium)
-                .foregroundStyle(.accent)
+                // 🔧 FIX 1: `.accent` → `.accentColor`
+                .foregroundStyle(Color.accentColor)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.headline)
@@ -99,28 +106,28 @@ struct ForecastSummaryCard: View {
     }
 
     private var metrics: some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+        LazyVGrid(
+            columns: [GridItem(.flexible()), GridItem(.flexible())],
+            spacing: 10
+        ) {
             FSMetricTile(
                 title: "Expected kWh",
                 valueText: kWhString(summary.kWh),
                 caption: summary.kWhRange.map(rangeKWhString),
                 systemImage: "bolt.fill"
             )
-
             FSMetricTile(
                 title: "Expected Cost",
                 valueText: summary.costUSD.map(moneyString) ?? "—",
                 caption: summary.costRangeUSD.map(rangeMoneyString),
                 systemImage: "dollarsign.circle"
             )
-
             FSMetricTile(
                 title: "Sessions",
                 valueText: summary.sessions.map { "\($0)" } ?? "—",
                 caption: nil,
                 systemImage: "battery.100.bolt"
             )
-
             FSMetricTile(
                 title: "Confidence",
                 valueText: summary.confidence.map { percentString($0, oneDecimal: true) } ?? "—",
@@ -144,15 +151,20 @@ struct ForecastSummaryCard: View {
 
     // MARK: Actions
 
+    // 🔧 FIX 2: Explicit isRefreshing reset on both success and cancellation.
     private func refresh() async {
-        guard onRefresh != nil else { return }
+        guard let onRefresh else { return }
         isRefreshing = true
-        defer { isRefreshing = false }
-        await onRefresh?()
+        await withTaskCancellationHandler {
+            await onRefresh()
+            isRefreshing = false
+        } onCancel: {
+            Task { @MainActor in isRefreshing = false }
+        }
     }
 }
 
-// MARK: - Subviews (namespaced)
+// MARK: - Subviews
 
 private struct FSMetricTile: View {
     let title: String
@@ -172,11 +184,9 @@ private struct FSMetricTile: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-
             Text(valueText)
                 .font(.title3).bold()
                 .monospacedDigit()
-
             if let caption {
                 Text(caption)
                     .font(.caption2)
@@ -193,7 +203,7 @@ private struct FSMetricTile: View {
 }
 
 private struct FSConfidenceBar: View {
-    var confidence: Double          // 0.0 ... 1.0
+    var confidence: Double  // 0.0 ... 1.0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -202,27 +212,26 @@ private struct FSConfidenceBar: View {
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 6).fill(.quaternary)
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(.accent)
+                        // 🔧 FIX 1: `.accent` → `Color.accentColor`
+                        .fill(Color.accentColor)
                         .frame(width: max(0, min(1, confidence)) * geo.size.width)
                         .animation(.easeInOut(duration: 0.35), value: confidence)
                 }
             }
             .frame(height: 8)
-            HStack {
-                Text(percentString(confidence)).font(.caption2).foregroundStyle(.secondary)
-                Spacer()
-            }
+            Text(percentString(confidence))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
         }
     }
 }
 
-// MARK: - Formatting Helpers
+// MARK: - Formatting
 
 private func kWhString(_ value: Double) -> String {
-    if value >= 1000 {
-        return String(format: "%.1fk kWh", value / 1000.0)
-    }
-    return String(format: "%.1f kWh", value)
+    value >= 1000
+        ? String(format: "%.1fk kWh", value / 1000.0)
+        : String(format: "%.1f kWh", value)
 }
 
 private func rangeKWhString(_ r: ClosedRange<Double>) -> String {
@@ -272,12 +281,7 @@ struct ForecastSummaryCard_Previews: PreviewProvider {
                 systemImage: "dollarsign.circle.fill",
                 summary: ForecastSummary(
                     periodLabel: "This Month",
-                    kWh: 0,
-                    costUSD: nil,
-                    sessions: nil,
-                    kWhRange: nil,
-                    costRangeUSD: nil,
-                    confidence: nil
+                    kWh: 0
                 )
             )
             .padding()

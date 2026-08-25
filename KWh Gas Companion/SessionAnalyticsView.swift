@@ -1,12 +1,3 @@
-//
-//  SessionAnalyticsView.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 12/14/25.
-//
-
-
-//
 //  SessionAnalyticsView.swift
 //  KWh Gas Companion
 //
@@ -459,7 +450,7 @@ public struct SessionAnalyticsView: View {
         var out: [String] = []
 
         if summary.count == 0 {
-            out.append("Import TeslaFi sessions or add charging entries to unlock insights.")
+            out.append("Import charging sessions or add charging entries to populate insights.")
             return out
         }
 

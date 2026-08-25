@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <include domain="file" path="vehicles.json" />
+    <include domain="file" path="entries.json" />
+    <include domain="file" path="sessions.json" />
+    <include domain="sharedpref" path="appearance.xml" />
+    <include domain="sharedpref" path="discount_favorites.xml" />
+    <include domain="sharedpref" path="ui_settings.xml" />
+</full-backup-content>

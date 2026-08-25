@@ -2,9 +2,7 @@
 //  ForecastHeaderView 2.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 8/7/25.
 //
-
 
 // ForecastHeaderView.swift
 // My KWh Companion

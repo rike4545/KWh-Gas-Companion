@@ -110,6 +110,7 @@ struct CostBreakdownDetailView: View {
             }
             .chartYAxis { AxisMarks(position: .leading) }
             .frame(height: 220)
+            .kwhInteractiveDataViz()
         }
     }
 
@@ -132,6 +133,7 @@ struct CostBreakdownDetailView: View {
                 }
                 .frame(height: 260)
                 .chartLegend(.automatic)
+                .kwhInteractiveChartSurface()
             }
         }
     }
@@ -169,6 +171,7 @@ struct CostBreakdownDetailView: View {
                 }
                 .chartYAxis { AxisMarks(position: .leading) }
                 .frame(height: 300)
+                .kwhInteractiveDataViz()
             }
         }
     }

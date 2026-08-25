@@ -1,12 +1,3 @@
-//
-//  WinterDrivingTechniquesView.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 1/26/26.
-//
-
-
-//
 //  WinterDrivingTechniquesView.swift
 //  My KWh Companion
 //

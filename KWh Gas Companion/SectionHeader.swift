@@ -2,9 +2,7 @@
 //  SectionHeader.swift
 //  KWh Gas Companion
 //
-//  Created by Bryan on 8/11/25.
 //
-
 
 // SectionHeader.swift
 import SwiftUI

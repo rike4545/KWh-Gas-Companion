@@ -1,6 +1,6 @@
 //
 //  ChartsBudgetView.swift — My KWh Companion
-//  Budget editor with Tesla-styled cards + compile-safe entry bridging
+//  Budget editor with glass cards + compile-safe entry bridging
 //
 //  Fixes vs prior draft:
 //  - FocusState actually attaches to the TextFields (so autosave-on-blur works)

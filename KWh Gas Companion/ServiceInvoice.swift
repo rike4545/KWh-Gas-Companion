@@ -1,12 +1,3 @@
-//
-//  ServiceInvoice.swift
-//  KWh Gas Companion
-//
-//  Created by Bryan on 10/30/25.
-//
-
-
-//
 //  ServiceInvoice.swift
 //  My KWh Companion
 //

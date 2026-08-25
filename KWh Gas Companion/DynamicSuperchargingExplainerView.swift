@@ -1,18 +1,13 @@
 //
 //  DynamicSuperchargingExplainerView.swift
-//  My KWh Companion / My EV Companion
+//  My KWh Companion
 //
-//  State-aware wrapper for Dynamic Supercharging explainers.
-//  - NY is the default
-//  - Selector lets you switch between NY, CA, NJ, FL, and IL
-//
-//  This file hosts the state selector + NY content.
-//  Other states (CA, NJ, FL, IL) live in their own files:
-//
+//  State switcher for the state-specific dynamic supercharging explainers.
+//  Routes between:
 //  - DynamicSuperchargingExplainerCAView.swift
-//  - DynamicSuperchargingExplainerNJView.swift
 //  - DynamicSuperchargingExplainerFLView.swift
 //  - DynamicSuperchargingExplainerILView.swift
+//  - DynamicSuperchargingExplainerNJView.swift
 //
 
 import SwiftUI
