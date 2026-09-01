@@ -380,7 +380,7 @@
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "This allows you to add Service Reminders for your Vehicle";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Needed to calculate your charging station proximity and range estimates.";
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.08.03;
+				MARKETING_VERSION = 2026.08.30;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -443,7 +443,7 @@
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "This allows you to add Service Reminders for your Vehicle";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Needed to calculate your charging station proximity and range estimates.";
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2026.08.03;
+				MARKETING_VERSION = 2026.08.30;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -460,7 +460,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = "KWh Gas Companion/KWh_Gas_Companion.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 67;
+				CURRENT_PROJECT_VERSION = 68;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = RT25WXR9M5;
 				ENABLE_APP_SANDBOX = YES;
@@ -490,7 +490,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 15.5;
-				MARKETING_VERSION = 2026.8.06;
+				MARKETING_VERSION = 2026.8.30;
 				PRODUCT_BUNDLE_IDENTIFIER = "Me.KWh-Gas-Companion";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -514,7 +514,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = "KWh Gas Companion/KWh_Gas_Companion.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 67;
+				CURRENT_PROJECT_VERSION = 68;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = RT25WXR9M5;
 				ENABLE_APP_SANDBOX = YES;
@@ -544,7 +544,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 15.5;
-				MARKETING_VERSION = 2026.8.06;
+				MARKETING_VERSION = 2026.8.30;
 				PRODUCT_BUNDLE_IDENTIFIER = "Me.KWh-Gas-Companion";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
